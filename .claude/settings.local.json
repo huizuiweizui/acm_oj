@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git -C /e/MyCode/acm_oj log --oneline)"
+      "Bash(git -C /e/MyCode/acm_oj log --oneline)",
+      "Bash(python manage.py makemigrations judge --name add_ai_feedback_to_submission)",
+      "Bash(python manage.py migrate)"
     ]
   }
 }

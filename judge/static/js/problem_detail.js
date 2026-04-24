@@ -261,13 +261,17 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.success) {
                 var st = data.result.status;
                 var isAC = st === 'AC';
+                var aiFeedback = data.result.ai_feedback || '';
                 resultPanel.className = 'result-panel ' + (isAC ? 'result-ac' : 'result-fail');
                 resultPanel.innerHTML =
                     '<div class="result-status">' + st + '</div>' +
                     '<div class="result-detail">' +
                     (data.result.time_used ? '耗时: ' + data.result.time_used + 'ms' : '') +
                     (data.result.error_info ? '<pre class="error-info">' + escapeHtmlLocal(data.result.error_info) + '</pre>' : '') +
-                    '</div>';
+                    '</div>' +
+                    (aiFeedback
+                        ? '<div class="ai-feedback-panel"><div class="ai-feedback-title">🤖 AI 分析</div><div class="ai-feedback-body">' + escapeHtmlLocal(aiFeedback) + '</div></div>'
+                        : '');
             } else {
                 resultPanel.className = 'result-panel result-fail';
                 resultPanel.innerHTML = '<div class="result-status">提交失败</div><div class="result-detail">' + JSON.stringify(data.errors) + '</div>';

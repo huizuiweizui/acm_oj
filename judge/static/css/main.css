@@ -433,10 +433,11 @@ a:hover { color: var(--accent-deep); }
 
 /* 评测结果面板 */
 .result-panel {
-    display: none; align-items: center; gap: 16px;
+    display: none; flex-direction: column; gap: 8px;
     padding: 16px 20px; margin: 12px 16px;
     border-radius: var(--radius-md); font-weight: 600;
 }
+.result-panel > .result-status { font-size: 1.2rem; font-family: var(--font-mono); }
 .result-ac   { background: rgba(52,211,153,0.12); color: var(--green); display: flex; }
 .result-fail { background: rgba(248,113,113,0.12); color: var(--red); display: flex; }
 .result-judging { background: rgba(129,140,248,0.12); color: var(--accent); display: flex; }
@@ -445,6 +446,19 @@ a:hover { color: var(--accent-deep); }
     margin-top: 8px; padding: 10px; background: var(--bg-primary);
     border-radius: var(--radius-sm); font-size: 0.82rem;
     max-height: 200px; overflow: auto;
+}
+.ai-feedback-panel {
+    margin-top: 10px; padding: 12px 14px;
+    background: var(--bg-primary); border-radius: var(--radius-sm);
+    border-left: 3px solid var(--accent); font-weight: 400;
+}
+.ai-feedback-title {
+    font-size: 0.8rem; font-weight: 600; color: var(--accent);
+    margin-bottom: 6px; letter-spacing: 0.02em;
+}
+.ai-feedback-body {
+    font-size: 0.83rem; line-height: 1.65; white-space: pre-wrap;
+    color: var(--text-primary);
 }
 
 

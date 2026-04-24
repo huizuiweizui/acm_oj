@@ -143,6 +143,7 @@ class Submission(models.Model):
     memory_used = models.IntegerField('内存(KB)', null=True, blank=True)
     error_info = models.TextField('错误信息', blank=True, default='')
     contest = models.ForeignKey('Contest', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='所属比赛', related_name='submissions')
+    ai_feedback = models.TextField('AI评测反馈', blank=True, default='')
     submitted_at = models.DateTimeField('提交时间', auto_now_add=True)
 
     class Meta:

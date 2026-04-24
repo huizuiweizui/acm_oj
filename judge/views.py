@@ -6,6 +6,7 @@ import json
 import subprocess
 import tempfile
 import os
+import requests as http_req
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -227,8 +228,72 @@ def submit_code(request, problem_id):
             'time_used': result.get('time_used'),
             'memory_used': result.get('memory_used'),
             'error_info': result.get('error_info', ''),
+            'ai_feedback': result.get('ai_feedback', ''),
         }
     })
+
+
+def _ai_call(prompt):
+    """调用 LLM API，失败返回空字符串。"""
+    key = getattr(settings, 'LLM_API_KEY', '').strip()
+    url = getattr(settings, 'LLM_API_URL', '').strip()
+    model = getattr(settings, 'LLM_MODEL', '').strip()
+    if not key or not url:
+        return ''
+    try:
+        r = http_req.post(
+            url,
+            headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
+            json={
+                'model': model,
+                'messages': [{'role': 'user', 'content': prompt}],
+                'max_tokens': 600,
+                'temperature': 0.3,
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        return r.json()['choices'][0]['message']['content'].strip()
+    except Exception:
+        return ''
+
+
+_LANG_CODE = {'C': 'c', 'C++': 'cpp', 'Java': 'java', 'Python': 'python'}
+
+
+def _ai_verdict_prompt(submission, problem):
+    """无测试点时，让 AI 判断代码是否正确。"""
+    lc = _LANG_CODE.get(submission.language, 'text')
+    return (
+        f"你是算法竞赛评测系统。请判断以下代码是否正确解决了题目。\n\n"
+        f"题目：{problem.title}\n"
+        f"描述：{problem.description[:800]}\n"
+        f"输入格式：{problem.input_desc[:300]}\n"
+        f"输出格式：{problem.output_desc[:300]}\n"
+        f"样例输入：\n{problem.sample_input[:400]}\n"
+        f"样例输出：\n{problem.sample_output[:400]}\n\n"
+        f"语言：{submission.language}\n"
+        f"代码：\n```{lc}\n{submission.code[:3000]}\n```\n\n"
+        f"请严格按此格式回答：\n"
+        f"第1行：AC 或 WA（仅此二选一，不加其他文字）\n"
+        f"第2行起：评测理由（分析代码逻辑、边界处理、与样例一致性，200字以内）"
+    )
+
+
+def _ai_suggest_prompt(submission, problem):
+    """有测试点时，让 AI 给出代码改进建议。"""
+    lc = _LANG_CODE.get(submission.language, 'text')
+    tip = '优化和改进建议' if submission.status == 'AC' else '问题所在和改进方向'
+    return (
+        f"你是算法竞赛辅助系统。请对以下提交给出简洁分析。\n\n"
+        f"题目：{problem.title}\n"
+        f"描述：{problem.description[:600]}\n"
+        f"语言：{submission.language}\n"
+        f"评测结果：{submission.status}\n\n"
+        f"代码：\n```{lc}\n{submission.code[:3000]}\n```\n\n"
+        f"请给出：\n1. 代码主要思路（1-2句）\n2. {tip}\n\n"
+        f"使用中文，200字以内，不要重复题目原文。"
+    )
 
 
 def judge_submission(submission, problem):
@@ -239,9 +304,17 @@ def judge_submission(submission, problem):
     """
     test_cases = problem.test_cases.all().order_by('sort_order')
     if not test_cases.exists():
-        submission.status = 'AC'
-        submission.save(update_fields=['status'])
-        return {'status': 'AC'}
+        # 无测试点：交由 AI 评判
+        ai_text = _ai_call(_ai_verdict_prompt(submission, problem))
+        if ai_text:
+            first_line = ai_text.strip().split('\n')[0].strip().upper()
+            verdict = first_line if first_line in ('AC', 'WA') else 'AC'
+        else:
+            verdict, ai_text = 'AC', ''
+        submission.status = verdict
+        submission.ai_feedback = ai_text
+        submission.save(update_fields=['status', 'ai_feedback'])
+        return {'status': verdict, 'ai_feedback': ai_text}
 
     # 创建临时目录
     tmp_dir = tempfile.mkdtemp(prefix='judge_')
@@ -272,47 +345,59 @@ def judge_submission(submission, problem):
                 submission.status = 'CE'
                 submission.error_info = proc.stderr[:2000]
                 submission.save(update_fields=['status', 'error_info'])
-                return {'status': 'CE', 'error_info': proc.stderr[:2000]}
+                fb = _ai_call(_ai_suggest_prompt(submission, problem))
+                if fb:
+                    submission.ai_feedback = fb
+                    submission.save(update_fields=['ai_feedback'])
+                return {'status': 'CE', 'error_info': proc.stderr[:2000], 'ai_feedback': fb}
         except subprocess.TimeoutExpired:
             submission.status = 'CE'
             submission.error_info = '编译超时'
             submission.save(update_fields=['status', 'error_info'])
-            return {'status': 'CE', 'error_info': '编译超时'}
+            return {'status': 'CE', 'error_info': '编译超时', 'ai_feedback': ''}
 
     # 运行阶段：逐测试点执行
     time_limit_sec = problem.time_limit / 1000.0 + 1  # 多给 1 秒容差
     max_time = 0
 
+    import sys as _sys
+    _win = _sys.platform == 'win32'
+    _exe = 'main.exe' if _win else 'main'
+    _py = _sys.executable  # 当前 Python 解释器路径，跨平台兼容
+
     RUN_CMD = {
-        'C': './main',
-        'C++': './main',
+        'C': _exe,
+        'C++': _exe,
         'Java': f'java -cp {tmp_dir} Main',
-        'Python': f'python3 {src_file}',
+        'Python': f'"{_py}" {src_file}',
     }
     run_cmd = RUN_CMD[lang]
 
     for tc in test_cases:
         try:
             proc = subprocess.run(
-                f'timeout {time_limit_sec} {run_cmd}',
+                run_cmd,
                 shell=True, input=tc.input_data, capture_output=True,
-                text=True, timeout=time_limit_sec + 2, cwd=tmp_dir,
+                text=True, timeout=time_limit_sec, cwd=tmp_dir,
             )
         except subprocess.TimeoutExpired:
             submission.status = 'TLE'
             submission.save(update_fields=['status'])
-            return {'status': 'TLE'}
+            fb = _ai_call(_ai_suggest_prompt(submission, problem))
+            if fb:
+                submission.ai_feedback = fb
+                submission.save(update_fields=['ai_feedback'])
+            return {'status': 'TLE', 'ai_feedback': fb}
 
         if proc.returncode != 0:
-            # timeout 命令返回 124 表示超时
-            if proc.returncode == 124:
-                submission.status = 'TLE'
-                submission.save(update_fields=['status'])
-                return {'status': 'TLE'}
             submission.status = 'RE'
             submission.error_info = proc.stderr[:1000]
             submission.save(update_fields=['status', 'error_info'])
-            return {'status': 'RE', 'error_info': proc.stderr[:500]}
+            fb = _ai_call(_ai_suggest_prompt(submission, problem))
+            if fb:
+                submission.ai_feedback = fb
+                submission.save(update_fields=['ai_feedback'])
+            return {'status': 'RE', 'error_info': proc.stderr[:500], 'ai_feedback': fb}
 
         # 比较输出（忽略行尾空格和末尾空行）
         actual = proc.stdout.rstrip()
@@ -320,7 +405,11 @@ def judge_submission(submission, problem):
         if actual != expected:
             submission.status = 'WA'
             submission.save(update_fields=['status'])
-            return {'status': 'WA'}
+            fb = _ai_call(_ai_suggest_prompt(submission, problem))
+            if fb:
+                submission.ai_feedback = fb
+                submission.save(update_fields=['ai_feedback'])
+            return {'status': 'WA', 'ai_feedback': fb}
 
     # 全部通过
     submission.status = 'AC'
@@ -340,7 +429,11 @@ def judge_submission(submission, problem):
     if submission.contest:
         update_contest_score(submission)
 
-    return {'status': 'AC', 'time_used': submission.time_used}
+    fb = _ai_call(_ai_suggest_prompt(submission, problem))
+    if fb:
+        submission.ai_feedback = fb
+        submission.save(update_fields=['ai_feedback'])
+    return {'status': 'AC', 'time_used': submission.time_used, 'ai_feedback': fb}
 
 
 def update_contest_score(submission):
