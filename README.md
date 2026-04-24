@@ -59,7 +59,8 @@ acm_oj/
 │   │       ├── theme-init.js
 │   │       └── theme-toggle.js
 │   └── management/commands/
-│       └── seed_data.py     # 示例数据导入
+│       ├── seed_data.py     # 示例数据导入
+│       └── fetch_luogu.py  # 洛谷题目爬虫
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -79,6 +80,68 @@ acm_oj/
 | ContestParticipant | 比赛参与者（得分/罚时） |
 | Discussion | 讨论帖 |
 | DiscussionReply | 讨论回复 |
+
+## 洛谷题目导入
+
+`fetch_luogu` 是一个 Django 管理命令，通过洛谷公开 API 批量抓取题目（题面、样例、标签、时间/内存限制）并写入本站数据库，**无需登录、无需 Cookie**。
+
+> **注意**：洛谷公开 API 仅返回样例测试数据，不含完整测试点。导入后如需完整评测，请在 Django Admin 后台手动为题目补充测试用例。
+
+### 基本用法
+
+```bash
+# 导入单题
+python manage.py fetch_luogu P1001
+
+# 同时导入多道题
+python manage.py fetch_luogu P1001 P1002 P1003
+
+# 批量导入连续区间（P1001 ~ P1020，共 20 道）
+python manage.py fetch_luogu --start P1001 --end P1020
+
+# 从文件读取题目 ID（每行一个）
+python manage.py fetch_luogu --file pids.txt
+```
+
+### 常用选项
+
+| 选项 | 默认值 | 说明 |
+|------|--------|------|
+| `--publish` | 否 | 导入后立即发布，否则需在 Admin 后台手动发布 |
+| `--overwrite` | 否 | 题目已存在（按 `source` 字段匹配）时覆盖更新 |
+| `--admin USERNAME` | `admin` | 题目创建者用户名，需已存在于数据库 |
+| `--delay SECONDS` | `1.5` | 两次请求之间的间隔秒数，请勿设置过小 |
+| `--file FILE` | — | 从文本文件读取 PID 列表（每行一个，可与位置参数混用） |
+
+### 典型场景
+
+```bash
+# 导入并直接发布（适合快速体验）
+python manage.py fetch_luogu P1001 P1002 --publish
+
+# 批量导入 P1001~P1100，每 2 秒请求一次，覆盖已有数据
+python manage.py fetch_luogu --start P1001 --end P1100 --delay 2 --overwrite
+
+# 从 pids.txt 导入，指定其他管理员为创建者
+python manage.py fetch_luogu --file pids.txt --admin admin --publish
+```
+
+`pids.txt` 格式示例：
+```
+P1001
+P1002
+B2002
+```
+
+### 难度映射
+
+| 洛谷难度 | 本站难度 |
+|---------|---------|
+| 暂无评定 / 入门 / 普及- | Easy |
+| 普及/提高- / 普及+/提高 | Medium |
+| 提高+/省选- / 省选/NOI- / NOI+ | Hard |
+
+---
 
 ## 快速开始
 
