@@ -1,0 +1,42 @@
+{% extends 'judge/base.html' %}
+{% block title %}{{ contest.title }} - 排行榜{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:32px;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🏆 {{ contest.title }} — 排行榜 ({{ contest.get_rule_type_display }})</h3>
+            <a href="{% url 'contest_detail' contest.id %}" class="btn btn-ghost btn-sm">← 返回比赛</a>
+        </div>
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th style="width:60px;">排名</th>
+                    <th>用户</th>
+                    <th>{{ contest.rule_type == 'ICPC' and 'AC题数' or '总分' }}</th>
+                    {% if contest.rule_type == 'ICPC' %}<th>罚时</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in ranking %}
+            <tr class="{% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% endif %}">
+                <td>
+                    <span class="rank-position {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">
+                        {{ forloop.counter }}
+                    </span>
+                </td>
+                <td>
+                    <a href="{% url 'profile' p.user.id %}" style="color:var(--text-primary);font-weight:600;">{{ p.user.username }}</a>
+                </td>
+                <td class="text-mono" style="font-weight:700;color:var(--accent);">{{ p.score }}</td>
+                {% if contest.rule_type == 'ICPC' %}
+                <td class="text-mono text-muted">{{ p.penalty }} min</td>
+                {% endif %}
+            </tr>
+            {% empty %}
+            <tr><td colspan="4"><div class="empty-state"><p>暂无参赛记录</p></div></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

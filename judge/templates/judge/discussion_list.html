@@ -1,0 +1,33 @@
+{% extends 'judge/base.html' %}
+{% block title %}讨论区{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:32px;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">💬 讨论区</h3>
+        </div>
+        {% for d in page_obj %}
+        <div class="discussion-item">
+            <span class="user-avatar" style="background:{{ d.user.profile.avatar_color|default:'#4F46E5' }};width:36px;height:36px;font-size:0.8rem;flex-shrink:0;">{{ d.user.username|first|upper }}</span>
+            <div class="discussion-content" style="flex:1;">
+                <h3><a href="{% url 'discussion_detail' d.id %}">{{ d.title }}</a></h3>
+                <div class="discussion-meta">
+                    {{ d.user.username }}
+                    {% if d.problem %} · <a href="{% url 'problem_detail' d.problem.id %}" class="text-accent">#{{ d.problem.id }}</a>{% endif %}
+                    · {{ d.created_at|timesince }}前 · {{ d.view_count }} 次浏览 · {{ d.reply_count }} 条回复
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state"><div class="icon">💬</div><p>暂无讨论</p></div>
+        {% endfor %}
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">&laquo;</a>{% endif %}
+        {% for num in page_obj.paginator.page_range %}{% if num == page_obj.number %}<span class="current">{{ num }}</span>{% elif num > page_obj.number|add:"-4" and num < page_obj.number|add:"4" %}<a href="?page={{ num }}">{{ num }}</a>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">&raquo;</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

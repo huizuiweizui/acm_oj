@@ -1,0 +1,30 @@
+{% extends 'judge/base.html' %}
+{% block title %}排行榜{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:32px;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🏅 排行榜</h3>
+            <div class="tabs" style="margin-bottom:0;padding:2px;background:transparent;">
+                <a href="?tab=ac" class="tab {% if tab == 'ac' %}active{% endif %}">AC 排名</a>
+                <a href="?tab=rating" class="tab {% if tab == 'rating' %}active{% endif %}">Rating 排名</a>
+            </div>
+        </div>
+        {% for p in users %}
+        <div class="rank-row">
+            <span class="rank-position {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</span>
+            <div class="rank-info" style="display:flex;align-items:center;gap:10px;">
+                <span class="user-avatar" style="background:{{ p.avatar_color }};width:32px;height:32px;font-size:0.8rem;">{{ p.user.username|first|upper }}</span>
+                <a href="{% url 'profile' p.user.id %}">{{ p.user.username }}</a>
+            </div>
+            <span class="rank-value">{% if tab == 'rating' %}{{ p.rating }}{% else %}{{ p.ac_count }}{% endif %}</span>
+            <span class="text-muted" style="font-size:0.82rem;min-width:80px;text-align:right;">
+                {% if tab == 'rating' %}AC: {{ p.ac_count }}{% else %}提交: {{ p.submit_count }}{% endif %}
+            </span>
+        </div>
+        {% empty %}
+        <div class="empty-state"><div class="icon">📊</div><p>暂无排名数据</p></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

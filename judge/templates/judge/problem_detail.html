@@ -1,0 +1,223 @@
+{% extends 'judge/base.html' %}
+{% load static judge_extras %}
+
+{% block title %}#{{ problem.id }} - {{ problem.title }}{% endblock %}
+
+{% block main_class %}main-fullscreen{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/problem_detail.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="problem-fullscreen">
+    <!-- 左侧：题目信息 -->
+    <div class="problem-fs-info">
+        <div class="breadcrumb-fs">
+            <a href="{% url 'problem_list' %}">题库</a>
+            <span class="breadcrumb-sep">/</span>
+            <span class="text-accent">#{{ problem.id }}</span>
+        </div>
+
+        <h2 class="problem-title-main">
+            <span class="text-accent">#{{ problem.id }}</span> {{ problem.title }}
+        </h2>
+
+        <div class="problem-meta">
+            <div class="meta-item">
+                <span class="label">难度</span>
+                <span class="diff-badge {{ problem.difficulty|difficulty_class }}">{{ problem.difficulty }}</span>
+            </div>
+            <div class="meta-item">
+                <span class="label">时限</span>
+                <span>{{ problem.time_limit }}ms</span>
+            </div>
+            <div class="meta-item">
+                <span class="label">内存</span>
+                <span>{{ problem.memory_limit }}MB</span>
+            </div>
+            <div class="meta-item">
+                <span class="label">通过率</span>
+                <span class="text-mono">{{ problem.ac_rate }}%</span>
+                <span class="text-muted">({{ problem.ac_count }}/{{ problem.submit_count }})</span>
+            </div>
+        </div>
+
+        {% if problem.tags.all %}
+        <div class="problem-tags">
+            {% for tag in problem.tags.all %}
+            <span class="tag-badge">{{ tag.name }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <h3 class="section-title">题目描述</h3>
+        <div class="markdown-body" id="md-description"></div>
+
+        {% if problem.input_desc %}
+        <h3 class="section-title">输入格式</h3>
+        <div class="markdown-body" id="md-input-desc"></div>
+        {% endif %}
+
+        {% if problem.output_desc %}
+        <h3 class="section-title">输出格式</h3>
+        <div class="markdown-body" id="md-output-desc"></div>
+        {% endif %}
+
+        {% if problem.sample_input %}
+        <h3 class="section-title">样例输入</h3>
+        <div class="sample-block">{{ problem.sample_input }}<button class="copy-btn">复制</button></div>
+        {% endif %}
+
+        {% if problem.sample_output %}
+        <h3 class="section-title">样例输出</h3>
+        <div class="sample-block">{{ problem.sample_output }}<button class="copy-btn">复制</button></div>
+        {% endif %}
+
+        {% if problem.hint %}
+        <h3 class="section-title">提示 / 说明</h3>
+        <div class="markdown-body" id="md-hint"></div>
+        {% endif %}
+
+        <!-- 题目讨论入口 -->
+        {% if discussions %}
+        <div class="history-section">
+            <h3 class="section-title">💬 讨论
+                <a href="{% url 'create_discussion' problem.id %}" class="btn btn-ghost btn-xs" style="float:right;">发帖</a>
+            </h3>
+            {% for d in discussions %}
+            <div class="discussion-link">
+                <a href="{% url 'discussion_detail' d.id %}">{{ d.title }}</a>
+                <span class="text-muted">{{ d.user.username }} · {{ d.created_at|timesince }}前</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- 历史提交 -->
+        {% if user_submissions %}
+        <div class="history-section">
+            <h3 class="section-title">📝 我的提交记录</h3>
+            <table class="problem-table history-table">
+                <thead>
+                    <tr><th>时间</th><th>语言</th><th>结果</th><th>耗时</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in user_submissions %}
+                    <tr>
+                        <td class="text-muted history-time">{{ s.submitted_at|timesince }}前</td>
+                        <td class="text-mono">{{ s.language }}</td>
+                        <td>
+                            <span class="status-badge {{ s.status|status_class }}">
+                                <span class="status-dot"></span>{{ s.status }}
+                            </span>
+                        </td>
+                        <td class="text-mono text-muted">{% if s.time_used %}{{ s.time_used }}ms{% else %}-{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 右侧：Monaco 编辑器 + 测试面板 + 结果 -->
+    <div class="problem-fs-editor">
+        {% if user.is_authenticated %}
+        <form id="submit-form" method="post" class="editor-form">
+            {% csrf_token %}
+            <div class="editor-toolbar-fs">
+                <div class="left">
+                    <select id="language-select" name="language" class="form-select lang-select">
+                        <option value="C++">C++</option>
+                        <option value="C">C</option>
+                        <option value="Python">Python</option>
+                        <option value="Java">Java</option>
+                    </select>
+                    <span id="line-count" class="text-muted toolbar-info">0 行</span>
+                    <span class="text-muted toolbar-tip">Ctrl+空格 提示 · Ctrl+/ 注释</span>
+                </div>
+                <div class="toolbar-actions">
+                    <button type="button" id="submit-btn" class="btn btn-primary btn-sm"
+                            data-url="{% url 'submit_code' problem.id %}">
+                        ▶ 提交评测
+                    </button>
+                </div>
+            </div>
+
+            <!-- Monaco Editor 容器 -->
+            <div id="monaco-editor"></div>
+
+            <!-- 隐藏 textarea 同步代码 -->
+            <textarea id="code-editor" name="code" class="code-textarea-hidden"></textarea>
+        </form>
+
+        <!-- 自定义测试面板（可折叠 + 可拖拽调高） -->
+        <div class="test-panel" id="test-panel">
+            <div class="test-panel-resizer" id="test-panel-resizer" title="拖动调整高度"></div>
+
+            <div class="test-panel-header" id="test-panel-toggle">
+                <span class="test-panel-title">
+                    <span class="arrow">▸</span>
+                    <span>自定义测试</span>
+                </span>
+                <div class="test-panel-actions">
+                    <button type="button" class="btn btn-ghost btn-xs" id="test-btn"
+                            data-url="{% url 'submit_code' problem.id %}">
+                        ▶ 测试运行
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-xs" id="use-sample-btn"
+                            data-sample="{{ problem.sample_input|escape }}">
+                        使用样例输入
+                    </button>
+                </div>
+            </div>
+            <div class="test-panel-body">
+                <div class="test-io-grid">
+                    <div class="test-io-col">
+                        <div class="test-io-label">标准输入</div>
+                        <textarea id="test-input" class="test-textarea"
+                                  placeholder="在此输入测试数据..."
+                                  spellcheck="false"></textarea>
+                    </div>
+                    <div class="test-io-col">
+                        <div class="test-io-label">程序输出</div>
+                        <div id="test-output" class="test-output">
+                            <span class="test-output-placeholder">点击 "测试运行" 后查看输出结果</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 评测结果区 -->
+        <div class="result-section">
+            <div id="result-panel" class="result-panel" style="display:none;"></div>
+        </div>
+
+        {% else %}
+        <!-- 未登录提示 -->
+        <div class="login-prompt">
+            <div class="card login-prompt-card">
+                <div class="lock-icon">🔒</div>
+                <p class="lock-text">请先登录后提交代码</p>
+                <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary">去登录</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Markdown 原始数据（json_script 安全输出，供 JS 渲染） -->
+{{ problem.description|json_script:"raw-description" }}
+{{ problem.input_desc|json_script:"raw-input-desc" }}
+{{ problem.output_desc|json_script:"raw-output-desc" }}
+{{ problem.hint|json_script:"raw-hint" }}
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.min.js"></script>
+<script src="{% static 'js/problem_detail.js' %}"></script>
+{% endblock %}

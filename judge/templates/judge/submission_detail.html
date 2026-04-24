@@ -1,0 +1,31 @@
+{% extends 'judge/base.html' %}
+{% load judge_extras %}
+{% block title %}提交 #{{ submission.id }}{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:32px;">
+    <div class="card mb-4">
+        <div class="card-header">
+            <h3 class="card-title">提交 #{{ submission.id }}</h3>
+            <span class="status-badge {{ submission.status|status_class }}"><span class="status-dot"></span>{{ submission.get_status_display }}</span>
+        </div>
+        <div class="card-body">
+            <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:24px;">
+                <div><span class="text-muted">用户：</span><a href="{% url 'profile' submission.user.id %}">{{ submission.user.username }}</a></div>
+                <div><span class="text-muted">题目：</span><a href="{% url 'problem_detail' submission.problem.id %}">#{{ submission.problem.id }} {{ submission.problem.title }}</a></div>
+                <div><span class="text-muted">语言：</span>{{ submission.language }}</div>
+                <div><span class="text-muted">耗时：</span>{{ submission.time_used|default:'-' }}ms</div>
+                <div><span class="text-muted">内存：</span>{{ submission.memory_used|default:'-' }}KB</div>
+                <div><span class="text-muted">时间：</span>{{ submission.submitted_at|date:"Y-m-d H:i:s" }}</div>
+            </div>
+            {% if submission.error_info %}
+            <div style="margin-bottom:16px;">
+                <h4 style="font-size:0.9rem;margin-bottom:8px;color:var(--red);">错误信息</h4>
+                <pre class="sample-block" style="color:var(--red);">{{ submission.error_info }}</pre>
+            </div>
+            {% endif %}
+            <h4 style="font-size:0.9rem;margin-bottom:8px;">源代码</h4>
+            <pre class="sample-block" style="max-height:600px;overflow:auto;">{{ submission.code }}</pre>
+        </div>
+    </div>
+</div>
+{% endblock %}

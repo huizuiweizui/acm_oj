@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ACM OJ{% endblock %} - 算法竞赛平台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <script src="{% static 'js/theme-init.js' %}"></script>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{% url 'index' %}" class="nav-logo">
+                <span class="logo-icon">&lt;/&gt;</span>
+                <span>ACM OJ</span>
+            </a>
+            <div class="nav-links">
+                <a href="{% url 'problem_list' %}" class="nav-link {% if request.resolver_match.url_name == 'problem_list' %}active{% endif %}">题库</a>
+                <a href="{% url 'contest_list' %}" class="nav-link {% if request.resolver_match.url_name == 'contest_list' %}active{% endif %}">比赛</a>
+                <a href="{% url 'submission_list' %}" class="nav-link {% if request.resolver_match.url_name == 'submission_list' %}active{% endif %}">评测记录</a>
+                <a href="{% url 'leaderboard' %}" class="nav-link {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">排行榜</a>
+                <a href="{% url 'discussion_list' %}" class="nav-link {% if request.resolver_match.url_name == 'discussion_list' %}active{% endif %}">讨论</a>
+            </div>
+            <div class="nav-auth">
+                <button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换日/夜模式">
+                    <svg class="theme-icon icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <svg class="theme-icon icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                </button>
+                {% if user.is_authenticated %}
+                <a href="{% url 'my_profile' %}" class="nav-user">
+                    <span class="user-avatar" style="background:{{ user.profile.avatar_color|default:'#4F46E5' }}">{{ user.username|first|upper }}</span>
+                    <span class="user-name">{{ user.username }}</span>
+                </a>
+                <a href="{% url 'logout' %}" class="btn btn-ghost btn-sm">退出</a>
+                {% else %}
+                <a href="{% url 'login' %}" class="btn btn-ghost btn-sm">登录</a>
+                <a href="{% url 'register' %}" class="btn btn-primary btn-sm">注册</a>
+                {% endif %}
+            </div>
+            <button class="mobile-toggle" id="mobileToggle" aria-label="菜单"><span></span><span></span><span></span></button>
+        </div>
+    </nav>
+
+    <!-- 消息提示 -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="message message-{{ message.tags }}" data-dismiss>
+            {{ message }}
+            <button class="message-close">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- 页面主体 -->
+    <main class="main-content {% block main_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 页脚 -->
+    {% block footer %}
+    <footer class="footer">
+        <div class="container">
+            <p>ACM OJ 算法竞赛在线评测平台 · 数据库课程设计</p>
+        </div>
+    </footer>
+    {% endblock %}
+
+    <!-- 第三方库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+    <script src="{% static 'js/theme-toggle.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% extends 'judge/base.html' %}
+{% load judge_extras %}
+{% block title %}比赛{% endblock %}
+{% block content %}
+<div class="container" style="padding-top:32px;">
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🏆 比赛列表</h3>
+            <div class="tabs" style="margin-bottom:0;padding:2px;background:transparent;">
+                <a href="?tab=all" class="tab {% if tab == 'all' %}active{% endif %}">全部</a>
+                <a href="?tab=running" class="tab {% if tab == 'running' %}active{% endif %}">进行中</a>
+                <a href="?tab=upcoming" class="tab {% if tab == 'upcoming' %}active{% endif %}">即将开始</a>
+                <a href="?tab=ended" class="tab {% if tab == 'ended' %}active{% endif %}">已结束</a>
+            </div>
+        </div>
+        {% for c in page_obj %}
+        <div class="contest-card">
+            <div class="contest-info">
+                <h3><a href="{% url 'contest_detail' c.id %}">{{ c.title }}</a></h3>
+                <div class="contest-meta">
+                    {{ c.get_rule_type_display }} 赛制 ·
+                    {{ c.start_time|date:"Y-m-d H:i" }} ~ {{ c.end_time|date:"Y-m-d H:i" }}
+                    {% if not c.is_public %} · 🔒 私有赛{% endif %}
+                </div>
+            </div>
+            <span class="contest-status-tag {{ c.status|contest_status_class }}">
+                {% if c.status == 'running' %}进行中{% elif c.status == 'upcoming' %}即将开始{% else %}已结束{% endif %}
+            </span>
+        </div>
+        {% empty %}
+        <div class="empty-state"><div class="icon">🏟️</div><p>暂无比赛</p></div>
+        {% endfor %}
+    </div>
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}<a href="?tab={{ tab }}&page={{ page_obj.previous_page_number }}">&laquo;</a>{% endif %}
+        {% for num in page_obj.paginator.page_range %}{% if num == page_obj.number %}<span class="current">{{ num }}</span>{% elif num > page_obj.number|add:"-4" and num < page_obj.number|add:"4" %}<a href="?tab={{ tab }}&page={{ num }}">{{ num }}</a>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<a href="?tab={{ tab }}&page={{ page_obj.next_page_number }}">&raquo;</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
