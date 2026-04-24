@@ -473,15 +473,15 @@ def update_contest_score(submission):
 # ==================== 提交记录 ====================
 
 def submission_list(request):
-    """提交记录列表（全站 / 个人）"""
+    """提交记录列表：登录时默认显示自己的，?all=1 显示全站"""
     submissions = Submission.objects.select_related('user', 'problem', 'user__profile')
-    mine = request.GET.get('mine', '')
-    if mine and request.user.is_authenticated:
+    show_all = request.GET.get('all', '')
+    if request.user.is_authenticated and not show_all:
         submissions = submissions.filter(user=request.user)
 
     paginator = Paginator(submissions, 20)
     page_obj = paginator.get_page(request.GET.get('page', 1))
-    return render(request, 'judge/submission_list.html', {'page_obj': page_obj, 'mine': mine})
+    return render(request, 'judge/submission_list.html', {'page_obj': page_obj, 'show_all': show_all})
 
 
 def submission_detail(request, submission_id):
