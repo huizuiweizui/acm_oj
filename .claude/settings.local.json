@@ -8,7 +8,8 @@
       "Bash(.venv/Scripts/python -c \"from bs4 import BeautifulSoup; print\\('bs4 OK'\\)\")",
       "Bash(.venv/Scripts/python manage.py fetch_codeforces --help)",
       "Bash(python manage.py makemigrations judge --name=\"luogu_difficulty_choices\")",
-      "Bash(python manage.py shell -c \"from judge.models import Problem; n = Problem.objects.count\\(\\); Problem.objects.all\\(\\).delete\\(\\); print\\(f'Deleted {n} problems'\\)\")"
+      "Bash(python manage.py shell -c \"from judge.models import Problem; n = Problem.objects.count\\(\\); Problem.objects.all\\(\\).delete\\(\\); print\\(f'Deleted {n} problems'\\)\")",
+      "Bash(python manage.py shell -c \"from django.conf import settings; print\\('DEBUG:', settings.DEBUG\\); print\\('STATIC_URL:', settings.STATIC_URL\\); print\\('STATICFILES_DIRS:', getattr\\(settings, 'STATICFILES_DIRS', 'NOT SET'\\)\\); print\\('STATIC_ROOT:', getattr\\(settings, 'STATIC_ROOT', 'NOT SET'\\)\\)\")"
     ]
   }
 }
