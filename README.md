@@ -59,8 +59,8 @@ acm_oj/
 │   │       ├── theme-init.js
 │   │       └── theme-toggle.js
 │   └── management/commands/
-│       ├── seed_data.py     # 示例数据导入
-│       └── fetch_luogu.py  # 洛谷题目爬虫
+│       ├── seed_data.py          # 示例数据导入（含 admin 用户）
+│       └── fetch_codeforces.py   # Codeforces 题目爬虫
 ├── manage.py
 ├── requirements.txt
 └── README.md
@@ -81,65 +81,89 @@ acm_oj/
 | Discussion | 讨论帖 |
 | DiscussionReply | 讨论回复 |
 
-## 洛谷题目导入
+## Codeforces 题目导入
 
-`fetch_luogu` 是一个 Django 管理命令，通过洛谷公开 API 批量抓取题目（题面、样例、标签、时间/内存限制）并写入本站数据库，**无需登录、无需 Cookie**。
+`fetch_codeforces` 通过 Codeforces **官方公开 REST API** 和题目页面 HTML 批量抓取题目，**无需账号、无需登录、无需 Cookie**。
 
-> **注意**：洛谷公开 API 仅返回样例测试数据，不含完整测试点。导入后如需完整评测，请在 Django Admin 后台手动为题目补充测试用例。
+| 数据来源 | 接口 | 内容 |
+|---------|------|------|
+| 官方 REST API | `codeforces.com/api/problemset.problems` | 标题、难度评分、标签 |
+| 题目页面 HTML | `codeforces.com/problemset/problem/{id}/{index}` | 描述、输入输出格式、样例 |
+
+> **注意**：CF 题目内容为英文；公开页面仅含样例数据，如需完整评测请在 Django Admin 后台手动补充测试用例。
+
+### 安装依赖
+
+```bash
+pip install -r requirements.txt   # 包含新增的 beautifulsoup4
+```
+
+### 前置条件
+
+数据库中需存在创建者用户（执行过 `python manage.py seed_data` 即有 `admin`），否则通过 `--admin` 指定已有用户名。
 
 ### 基本用法
 
 ```bash
-# 导入单题
-python manage.py fetch_luogu P1001
+# 按题目 ID 导入（格式：<contestId><index>）
+python manage.py fetch_codeforces 1A 2B 4A
 
-# 同时导入多道题
-python manage.py fetch_luogu P1001 P1002 P1003
+# 从 API 取前 20 道题（按 contestId 升序，即越早越基础）
+python manage.py fetch_codeforces --count 20
 
-# 批量导入连续区间（P1001 ~ P1020，共 20 道）
-python manage.py fetch_luogu --start P1001 --end P1020
+# 取难度 1000~1500 的前 50 道，导入并直接发布
+python manage.py fetch_codeforces --count 50 --min-rating 1000 --max-rating 1500 --publish
 
-# 从文件读取题目 ID（每行一个）
-python manage.py fetch_luogu --file pids.txt
+# 取含 dp 或 greedy 标签的前 30 道
+python manage.py fetch_codeforces --count 30 --cf-tags dp,greedy
 ```
 
 ### 常用选项
 
 | 选项 | 默认值 | 说明 |
 |------|--------|------|
-| `--publish` | 否 | 导入后立即发布，否则需在 Admin 后台手动发布 |
-| `--overwrite` | 否 | 题目已存在（按 `source` 字段匹配）时覆盖更新 |
-| `--admin USERNAME` | `admin` | 题目创建者用户名，需已存在于数据库 |
-| `--delay SECONDS` | `1.5` | 两次请求之间的间隔秒数，请勿设置过小 |
-| `--file FILE` | — | 从文本文件读取 PID 列表（每行一个，可与位置参数混用） |
+| `--count N` | 0 | 从 API 取前 N 道（按 contestId 升序） |
+| `--min-rating R` | 0 | 最低难度分（如 800），配合 `--count` 筛选 |
+| `--max-rating R` | 9999 | 最高难度分（如 1600），配合 `--count` 筛选 |
+| `--cf-tags TAGS` | — | CF 标签逗号分隔（任意匹配），如 `dp,greedy` |
+| `--publish` | 否 | 导入后立即发布 |
+| `--overwrite` | 否 | 已存在时覆盖更新（按 `source` 字段匹配） |
+| `--admin USERNAME` | `admin` | 题目创建者（需已存在于数据库） |
+| `--delay SECONDS` | `2.0` | 两次页面请求间隔秒数，请勿设置过小 |
 
 ### 典型场景
 
 ```bash
-# 导入并直接发布（适合快速体验）
-python manage.py fetch_luogu P1001 P1002 --publish
+# 快速体验：导入 10 道入门题并直接发布
+python manage.py fetch_codeforces --count 10 --max-rating 1200 --publish
 
-# 批量导入 P1001~P1100，每 2 秒请求一次，覆盖已有数据
-python manage.py fetch_luogu --start P1001 --end P1100 --delay 2 --overwrite
+# 批量导入 DP 题目（中等难度）
+python manage.py fetch_codeforces --count 50 --cf-tags dp --min-rating 1200 --max-rating 1800
 
-# 从 pids.txt 导入，指定其他管理员为创建者
-python manage.py fetch_luogu --file pids.txt --admin admin --publish
-```
-
-`pids.txt` 格式示例：
-```
-P1001
-P1002
-B2002
+# 覆盖更新已有题目
+python manage.py fetch_codeforces 1A 2B --overwrite
 ```
 
 ### 难度映射
 
-| 洛谷难度 | 本站难度 |
-|---------|---------|
-| 暂无评定 / 入门 / 普及- | Easy |
-| 普及/提高- / 普及+/提高 | Medium |
-| 提高+/省选- / 省选/NOI- / NOI+ | Hard |
+| CF Rating | 本站难度 |
+|-----------|---------|
+| 未评分 / ≤ 1400 | Easy |
+| 1401 ~ 2000 | Medium |
+| > 2000 | Hard |
+
+### 可识别的 CF 标签（共 34 种，自动映射为中文）
+
+`dp` 动态规划、`greedy` 贪心、`math` 数学、`graphs` 图论、`trees` 树、`binary search` 二分、`strings` 字符串、`number theory` 数论、`sortings` 排序、`two pointers` 双指针、`data structures` 数据结构、`constructive algorithms` 构造、`brute force` 暴力、`dfs and similar` 搜索、`implementation` 模拟、`bitmasks` 位运算、`shortest paths` 最短路、`combinatorics` 组合数学、`divide and conquer` 分治、`geometry` 计算几何 等
+
+### 故障排查
+
+| 错误信息 | 原因 | 解决方法 |
+|---------|------|---------|
+| `CF API 请求失败` | 网络不通或被防火墙拦截 | 检查网络，必要时使用代理 |
+| `未找到 problem-statement 区域` | CF 返回 Cloudflare 验证页 | 等待几分钟重试；增大 `--delay` |
+| `服务器返回空响应` | 页面请求被拦截 | 稍后重试，建议 `--delay 3` 以上 |
+| `用户 "admin" 不存在` | 未初始化数据库 | 先运行 `python manage.py seed_data` |
 
 ---
 

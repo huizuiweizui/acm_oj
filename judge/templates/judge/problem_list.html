@@ -43,7 +43,7 @@
                 </td>
                 <td><span class="diff-badge {{ p.difficulty|difficulty_class }}">{{ p.difficulty }}</span></td>
                 <td class="text-muted">{{ p.ac_rate }}%</td>
-                <td class="text-muted text-mono">{{ p.submit_count }}</td>
+                <td class="text-muted text-mono">{{ p.real_submit_count }}</td>
             </tr>
             {% empty %}
             <tr><td colspan="6"><div class="empty-state"><p>暂无题目</p></div></td></tr>

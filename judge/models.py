@@ -52,9 +52,14 @@ class Tag(models.Model):
 class Problem(models.Model):
     """题目"""
     DIFFICULTY_CHOICES = [
-        ('Easy', 'Easy'),
-        ('Medium', 'Medium'),
-        ('Hard', 'Hard'),
+        ('暂无评定', '暂无评定'),
+        ('入门', '入门'),
+        ('普及-', '普及-'),
+        ('普及/提高-', '普及/提高-'),
+        ('普及+/提高', '普及+/提高'),
+        ('提高+/省选-', '提高+/省选-'),
+        ('省选/NOI-', '省选/NOI-'),
+        ('NOI/NOI+/CTSC', 'NOI/NOI+/CTSC'),
     ]
 
     title = models.CharField('题目标题', max_length=200)
@@ -64,7 +69,7 @@ class Problem(models.Model):
     sample_input = models.TextField('样例输入')
     sample_output = models.TextField('样例输出')
     hint = models.TextField('提示', blank=True, default='')
-    difficulty = models.CharField('难度', max_length=10, choices=DIFFICULTY_CHOICES, default='Medium', db_index=True)
+    difficulty = models.CharField('难度', max_length=20, choices=DIFFICULTY_CHOICES, default='暂无评定', db_index=True)
     time_limit = models.IntegerField('时间限制(ms)', default=1000)
     memory_limit = models.IntegerField('内存限制(MB)', default=256)
     ac_count = models.IntegerField('通过人数', default=0)
@@ -90,9 +95,14 @@ class Problem(models.Model):
 
     @property
     def ac_rate(self):
-        if self.submit_count == 0:
+        submit = getattr(self, 'real_submit_count', None)
+        ac = getattr(self, 'real_ac_count', None)
+        if submit is None:
+            submit = self.submissions.count()
+            ac = self.submissions.filter(status='AC').count()
+        if not submit:
             return 0
-        return round(self.ac_count / self.submit_count * 100, 1)
+        return round(ac / submit * 100, 1)
 
 
 class TestCase(models.Model):

@@ -347,14 +347,41 @@ a:hover { color: var(--accent-deep); }
 .problem-title-link { color: var(--text-primary); font-weight: 500; }
 .problem-title-link:hover { color: var(--accent); }
 
-/* 难度标签 */
+/* 难度标签 —— 洛谷风格：左侧实色条 + 浅色背景 pill */
 .diff-badge {
-    display: inline-block; padding: 3px 10px; border-radius: 20px;
-    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    overflow: hidden;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    vertical-align: middle;
+    border: 1px solid transparent;
+    padding: 0 9px 0 0;
+    min-height: 22px;
 }
-.diff-easy   { background: rgba(52,211,153,0.15); color: var(--green); }
-.diff-medium { background: rgba(251,191,36,0.15); color: var(--orange); }
-.diff-hard   { background: rgba(248,113,113,0.15); color: var(--red); }
+.diff-badge::before {
+    content: '';
+    display: block;
+    width: 5px;
+    min-height: 22px;
+    align-self: stretch;
+    flex-shrink: 0;
+    background: currentColor;
+    margin-right: 8px;
+}
+
+/* 洛谷难度配色 0-7 */
+.diff-0 { color: #909090; background: rgba(144,144,144,0.13); border-color: rgba(144,144,144,0.25); }
+.diff-1 { color: #00c288; background: rgba(0,194,136,0.13);   border-color: rgba(0,194,136,0.30); }
+.diff-2 { color: #0ec9e5; background: rgba(14,201,229,0.13);  border-color: rgba(14,201,229,0.30); }
+.diff-3 { color: #3b8fff; background: rgba(59,143,255,0.13);  border-color: rgba(59,143,255,0.30); }
+.diff-4 { color: #8b5cf6; background: rgba(139,92,246,0.13);  border-color: rgba(139,92,246,0.30); }
+.diff-5 { color: #f59e0b; background: rgba(245,158,11,0.13);  border-color: rgba(245,158,11,0.30); }
+.diff-6 { color: #ef4444; background: rgba(239,68,68,0.13);   border-color: rgba(239,68,68,0.30); }
+.diff-7 { color: #b91c1c; background: rgba(185,28,28,0.13);   border-color: rgba(185,28,28,0.30); }
 
 /* 状态标签 */
 .status-badge {

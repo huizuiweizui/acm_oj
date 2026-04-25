@@ -50,7 +50,17 @@ class SubmissionForm(forms.ModelForm):
 
 
 class ProblemFilterForm(forms.Form):
-    DIFFICULTY_CHOICES = [('', '全部难度'), ('Easy', 'Easy'), ('Medium', 'Medium'), ('Hard', 'Hard')]
+    DIFFICULTY_CHOICES = [
+        ('', '全部难度'),
+        ('暂无评定', '暂无评定'),
+        ('入门', '入门'),
+        ('普及-', '普及-'),
+        ('普及/提高-', '普及/提高-'),
+        ('普及+/提高', '普及+/提高'),
+        ('提高+/省选-', '提高+/省选-'),
+        ('省选/NOI-', '省选/NOI-'),
+        ('NOI/NOI+/CTSC', 'NOI/NOI+/CTSC'),
+    ]
     keyword = forms.CharField(required=False, label='搜索', widget=forms.TextInput(attrs={
         'class': 'form-input', 'placeholder': '搜索题目标题或编号...'
     }))

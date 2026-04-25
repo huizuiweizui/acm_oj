@@ -3,7 +3,12 @@
     "allow": [
       "Bash(git -C /e/MyCode/acm_oj log --oneline)",
       "Bash(python manage.py makemigrations judge --name add_ai_feedback_to_submission)",
-      "Bash(python manage.py migrate)"
+      "Bash(python manage.py migrate)",
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/python -c \"from bs4 import BeautifulSoup; print\\('bs4 OK'\\)\")",
+      "Bash(.venv/Scripts/python manage.py fetch_codeforces --help)",
+      "Bash(python manage.py makemigrations judge --name=\"luogu_difficulty_choices\")",
+      "Bash(python manage.py shell -c \"from judge.models import Problem; n = Problem.objects.count\\(\\); Problem.objects.all\\(\\).delete\\(\\); print\\(f'Deleted {n} problems'\\)\")"
     ]
   }
 }

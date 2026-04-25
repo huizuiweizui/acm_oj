@@ -111,7 +111,10 @@ def logout_view(request):
 def problem_list(request):
     """题目列表：分页 + 筛选 + 搜索"""
     form = ProblemFilterForm(request.GET)
-    problems = Problem.objects.filter(is_published=True).prefetch_related('tags')
+    problems = Problem.objects.filter(is_published=True).prefetch_related('tags').annotate(
+        real_submit_count=Count('submissions', distinct=True),
+        real_ac_count=Count('submissions', filter=Q(submissions__status='AC'), distinct=True),
+    )
 
     keyword = request.GET.get('keyword', '').strip()
     difficulty = request.GET.get('difficulty', '')
@@ -166,7 +169,13 @@ def problem_list(request):
 
 def problem_detail(request, problem_id):
     """题目详情：左侧题面 + 右侧代码编辑器"""
-    problem = get_object_or_404(Problem, id=problem_id, is_published=True)
+    problem = Problem.objects.filter(id=problem_id, is_published=True).annotate(
+        real_submit_count=Count('submissions', distinct=True),
+        real_ac_count=Count('submissions', filter=Q(submissions__status='AC'), distinct=True),
+    ).first()
+    if problem is None:
+        from django.http import Http404
+        raise Http404
     form = SubmissionForm()
 
     user_submissions = []

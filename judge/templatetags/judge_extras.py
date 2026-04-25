@@ -19,8 +19,17 @@ def status_class(status):
 
 @register.filter
 def difficulty_class(difficulty):
-    mapping = {'Easy': 'diff-easy', 'Medium': 'diff-medium', 'Hard': 'diff-hard'}
-    return mapping.get(difficulty, '')
+    mapping = {
+        '暂无评定':     'diff-0',
+        '入门':         'diff-1',
+        '普及-':        'diff-2',
+        '普及/提高-':   'diff-3',
+        '普及+/提高':   'diff-4',
+        '提高+/省选-':  'diff-5',
+        '省选/NOI-':    'diff-6',
+        'NOI/NOI+/CTSC':'diff-7',
+    }
+    return mapping.get(difficulty, 'diff-0')
 
 @register.filter
 def contest_status_class(status):
