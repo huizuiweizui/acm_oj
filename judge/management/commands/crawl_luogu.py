@@ -147,6 +147,8 @@ class Command(BaseCommand):
 
         # 累积的失败 PID(无论哪种模式都跨次保留)
         failed_pids = list(progress.get('failed_pids', []))
+        # 已成功爬取的 PID 集合(--resume 时跳过重复爬取)
+        processed_pids = set(progress.get('processed_pids', []))
 
         # === 模式选择: 重试失败 vs 正常分页 ===
         if retry_failed:
@@ -159,6 +161,7 @@ class Command(BaseCommand):
             self._info('\n📋 第一步: 获取题目列表...')
             problem_ids = self._fetch_problem_list(
                 session, target, start_page, min_diff, max_diff, progress,
+                processed_pids,
             )
             if not problem_ids:
                 self._error('未获取到任何题目, 请检查 Cookie / 难度区间是否合理')
@@ -184,6 +187,7 @@ class Command(BaseCommand):
                 if detail:
                     self._save_problem(detail)
                     success += 1
+                    processed_pids.add(pid)
                     self._success(
                         f'  [{i}/{len(problem_ids)}] ✓ {pid} - {detail.get("title", "")}'
                     )
@@ -214,6 +218,7 @@ class Command(BaseCommand):
                 self._save_progress({
                     'last_page': progress.get('last_page', start_page),
                     'failed_pids': failed_pids,
+                    'processed_pids': list(processed_pids),
                     'updated_at': datetime.now().isoformat(timespec='seconds'),
                 })
 
@@ -221,6 +226,7 @@ class Command(BaseCommand):
         self._save_progress({
             'last_page': progress.get('last_page', start_page),
             'failed_pids': failed_pids,
+            'processed_pids': list(processed_pids),
             'updated_at': datetime.now().isoformat(timespec='seconds'),
         })
 
@@ -231,8 +237,10 @@ class Command(BaseCommand):
     # ===================== 列表抓取 =====================
 
     def _fetch_problem_list(self, session, target, start_page,
-                            min_diff, max_diff, progress):
-        """分页抓取题目列表, 边抓边按难度过滤"""
+                            min_diff, max_diff, progress, processed_pids=None):
+        """分页抓取题目列表, 边抓边按难度过滤, 跳过已成功的 PID"""
+        if processed_pids is None:
+            processed_pids = set()
         problem_ids = []
         page = start_page
 
@@ -254,17 +262,21 @@ class Command(BaseCommand):
                     self._warn(f'  第 {page} 页无更多题目, 停止')
                     break
 
-                kept = 0
+                kept = already_done = 0
                 for p in problems:
                     pid = p.get('pid', '')
                     diff = p.get('difficulty', 0) or 0
                     if pid and pid.startswith('P') and min_diff <= diff <= max_diff:
+                        if pid in processed_pids:
+                            already_done += 1
+                            continue
                         problem_ids.append(pid)
                         kept += 1
 
+                done_hint = f', 已成功跳过 {already_done}' if already_done else ''
                 self._info(
                     f'  第 {page} 页: 共 {len(problems)} 题, '
-                    f'难度过滤后保留 {kept}, 累计 {len(problem_ids)}'
+                    f'难度过滤后保留 {kept}{done_hint}, 累计 {len(problem_ids)}'
                 )
 
                 # 边抓边写进度,中断后 --resume 能从这一页恢复
@@ -272,6 +284,7 @@ class Command(BaseCommand):
                 self._save_progress({
                     'last_page': page,
                     'failed_pids': progress.get('failed_pids', []),
+                    'processed_pids': list(processed_pids),
                     'updated_at': datetime.now().isoformat(timespec='seconds'),
                 })
 
