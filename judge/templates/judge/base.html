@@ -26,6 +26,7 @@
                 <a href="{% url 'submission_list' %}" class="nav-link {% if request.resolver_match.url_name == 'submission_list' %}active{% endif %}">评测记录</a>
                 <a href="{% url 'leaderboard' %}" class="nav-link {% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">排行榜</a>
                 <a href="{% url 'discussion_list' %}" class="nav-link {% if request.resolver_match.url_name == 'discussion_list' %}active{% endif %}">讨论</a>
+                <a href="{% url 'learn' %}" class="nav-link {% if request.resolver_match.url_name == 'learn' %}active{% endif %}">算法学习</a>
             </div>
             <div class="nav-auth">
                 <button class="theme-toggle" id="themeToggle" aria-label="切换主题" title="切换日/夜模式">

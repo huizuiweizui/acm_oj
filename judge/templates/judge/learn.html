@@ -1,0 +1,1401 @@
+{% extends 'judge/base.html' %}
+{% load static %}
+
+{% block title %}算法研习社{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" id="hljs-theme-link">
+<style>
+/* ============================================================
+   算法研习社 · 专属样式
+   ============================================================ */
+
+/* ---- 视差 Hero ---- */
+.learn-hero {
+    position: relative;
+    height: 300px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.hero-parallax-bg {
+    position: absolute;
+    inset: -80px 0 0 0;
+    will-change: transform;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.hero-grad {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(79,70,229,0.18) 0%,
+        rgba(34,211,238,0.08) 55%,
+        rgba(79,70,229,0.04) 100%);
+}
+
+/* SVG 六边形网格 */
+.deco-hex {
+    position: absolute;
+    opacity: 0.07;
+}
+
+/* 浮动代码片段 */
+.code-float {
+    position: absolute;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    opacity: 0.22;
+    white-space: nowrap;
+    animation: float-y 7s ease-in-out infinite;
+}
+.code-float:nth-child(2) { animation-delay: -2.5s; animation-duration: 9s; }
+.code-float:nth-child(3) { animation-delay: -5s;   animation-duration: 6.5s; }
+.code-float:nth-child(4) { animation-delay: -1s;   animation-duration: 8.5s; }
+.code-float:nth-child(5) { animation-delay: -3.5s; animation-duration: 7.5s; }
+@keyframes float-y {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-14px); }
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 0 24px;
+}
+.learn-hero-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--cyan) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+}
+.learn-hero-sub {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+/* ---- 控制区（吸附在导航栏下方）---- */
+.learn-controls {
+    position: sticky;
+    top: 60px;
+    z-index: 50;
+    background: var(--navbar-bg);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 0;
+    transition: background var(--transition);
+}
+.controls-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+.search-row { margin-bottom: 8px; }
+.search-wrapper { position: relative; max-width: 400px; }
+.search-icon {
+    position: absolute; left: 11px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none;
+}
+.search-input {
+    width: 100%;
+    padding: 8px 14px 8px 36px;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    transition: all var(--transition);
+    outline: none;
+}
+.search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
+}
+.search-input::placeholder { color: var(--text-muted); }
+
+/* 横向分类栏 */
+.category-bar {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    cursor: grab;
+    user-select: none;
+    padding: 2px 0 4px;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+.category-bar.dragging { cursor: grabbing; }
+
+.cat-tag {
+    flex-shrink: 0;
+    padding: 5px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.83rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+}
+.cat-tag:hover  { border-color: var(--accent); color: var(--accent); background: rgba(79,70,229,0.06); }
+.cat-tag.active { border-color: var(--accent); color: var(--accent); background: rgba(129,140,248,0.13); font-weight: 600; }
+
+/* ---- 算法卡片网格 ---- */
+.algo-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 28px 24px 64px;
+}
+
+.algo-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+@media (max-width: 1100px) { .algo-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 768px)  { .algo-grid { grid-template-columns: repeat(2, 1fr); } .learn-hero-title { font-size: 2rem; } }
+@media (max-width: 480px)  { .algo-grid { grid-template-columns: 1fr; } }
+
+/* 卡片初始状态（渐显前） */
+.algo-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.algo-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+/* 悬停时覆盖 transition，加上其他效果 */
+.algo-card.visible:hover {
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-glow);
+    transform: translateY(-3px);
+    transition: opacity 0.4s ease, transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+/* 顶部彩色线条（悬停展开） */
+.algo-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--cyan));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease;
+}
+.algo-card:hover::before { transform: scaleX(1); }
+
+.algo-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.algo-name    { font-size: 0.98rem; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.algo-name-en { font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 3px; }
+.algo-desc {
+    font-size: 0.84rem; color: var(--text-secondary); line-height: 1.55; margin-top: 8px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.algo-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.algo-category-tag {
+    font-size: 0.74rem; color: var(--text-muted);
+    padding: 2px 8px; background: var(--bg-tertiary); border-radius: 4px;
+}
+.algo-arrow { color: var(--text-muted); flex-shrink: 0; }
+
+/* 难度标签 */
+.diff-learn {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 3px 9px; border-radius: 20px;
+    font-size: 0.74rem; font-weight: 600; white-space: nowrap;
+}
+.diff-beginner    { background: rgba(52,211,153,0.12); color: var(--green); }
+.diff-intermediate{ background: rgba(251,191,36,0.12);  color: var(--orange); }
+.diff-advanced    { background: rgba(248,113,113,0.12); color: var(--red); }
+
+/* 空状态 */
+.learn-empty { text-align: center; padding: 64px 24px; color: var(--text-muted); }
+.learn-empty-icon { font-size: 2.8rem; margin-bottom: 12px; opacity: 0.4; }
+
+/* ============================================================
+   详情页
+   ============================================================ */
+#view-detail {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 24px 72px;
+}
+
+/* 面包屑 */
+.breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.87rem; color: var(--text-muted); margin-bottom: 28px;
+}
+.breadcrumb a { color: var(--text-secondary); }
+.breadcrumb a:hover { color: var(--accent); }
+.breadcrumb-sep { color: var(--border-hover); }
+.breadcrumb-cur { color: var(--text-primary); font-weight: 500; }
+
+/* 详情头部 */
+.detail-header {
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+.detail-title    { font-size: 2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; }
+.detail-title-en { font-family: var(--font-mono); font-size: 0.95rem; color: var(--text-muted); margin-bottom: 16px; }
+.detail-meta     { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* 章节 */
+.detail-section  { margin-bottom: 32px; }
+.section-title   {
+    font-size: 1.1rem; font-weight: 700; color: var(--text-primary);
+    margin-bottom: 14px; padding-left: 10px;
+    border-left: 3px solid var(--accent);
+}
+.detail-text     { color: var(--text-secondary); line-height: 1.8; font-size: 0.93rem; }
+.detail-text p   { margin-bottom: 10px; }
+
+/* 步骤列表 */
+.steps-list {
+    list-style: none; counter-reset: step-counter; padding: 0;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.steps-list li {
+    counter-increment: step-counter;
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem; color: var(--text-secondary);
+}
+.steps-list li::before {
+    content: counter(step-counter);
+    min-width: 22px; height: 22px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-deep));
+    color: #fff; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+}
+
+/* 占位图 */
+.algo-placeholder-img {
+    width: 100%; height: 160px;
+    background: var(--bg-tertiary);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 0.85rem; margin: 14px 0;
+}
+
+/* 复杂度表格 */
+.complexity-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 4px 0; }
+.complexity-table th {
+    padding: 10px 16px; text-align: left;
+    background: var(--bg-tertiary); color: var(--text-secondary);
+    font-weight: 600; border-bottom: 1px solid var(--border-color);
+}
+.complexity-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+.complexity-table td:not(:first-child) { font-family: var(--font-mono); color: var(--accent); }
+.complexity-table tr:last-child td { border-bottom: none; }
+
+/* 代码选项卡 */
+.code-tabs {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+.code-tab-header {
+    display: flex;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+}
+.code-tab-btn {
+    padding: 10px 22px;
+    font-size: 0.85rem; font-weight: 500;
+    color: var(--text-secondary);
+    background: none; border: none; cursor: pointer;
+    font-family: var(--font-mono);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all var(--transition);
+}
+.code-tab-btn:hover { color: var(--text-primary); }
+.code-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.code-note {
+    padding: 9px 16px;
+    font-size: 0.8rem; color: var(--text-muted);
+    background: rgba(79,70,229,0.05);
+    border-bottom: 1px solid var(--border-color);
+}
+.code-tab-pane { display: none; }
+.code-tab-pane.active { display: block; }
+.code-tab-pane pre {
+    margin: 0; padding: 18px 20px;
+    overflow-x: auto;
+    background: var(--code-bg) !important;
+    font-size: 0.83rem; line-height: 1.65;
+}
+.code-tab-pane pre code {
+    font-family: var(--font-mono);
+    background: transparent !important;
+}
+
+/* 关联题目 */
+.problem-list-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background var(--transition);
+}
+.problem-list-item:last-child { border-bottom: none; }
+.problem-list-item:hover { background: var(--bg-hover); }
+.problem-list-item.highlight-pulse { animation: pulse-bg 0.9s ease forwards; }
+@keyframes pulse-bg {
+    0%   { background: rgba(129,140,248,0.22); }
+    100% { background: transparent; }
+}
+.problem-num         { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); min-width: 52px; }
+.problem-link-title  { flex: 1; font-weight: 500; color: var(--text-primary); font-size: 0.9rem; }
+.problem-link-title:hover { color: var(--accent); }
+.problem-pass-rate   { font-size: 0.8rem; color: var(--text-muted); min-width: 60px; text-align: right; }
+
+/* 浅色主题下 hljs 背景适配 */
+[data-theme="light"] .code-tab-pane pre { background: #f5f6fa !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="learn-app">
+
+  <!-- ==================== 首页视图 ==================== -->
+  <div id="view-home">
+
+    <!-- 视差 Hero -->
+    <div class="learn-hero" id="learnHero">
+      <div class="hero-parallax-bg" id="heroParallax">
+        <div class="hero-grad"></div>
+
+        <!-- 六边形网格 -->
+        <svg class="deco-hex" style="left:-4%;top:-30%;width:50%;" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="hexA" x="0" y="0" width="52" height="60" patternUnits="userSpaceOnUse">
+              <polygon points="26,2 50,15 50,45 26,58 2,45 2,15" fill="none" stroke="var(--accent)" stroke-width="1.2"/>
+            </pattern>
+          </defs>
+          <rect width="400" height="400" fill="url(#hexA)"/>
+        </svg>
+        <svg class="deco-hex" style="right:-6%;bottom:-40%;width:42%;opacity:0.05;" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="hexB" x="0" y="0" width="52" height="60" patternUnits="userSpaceOnUse">
+              <polygon points="26,2 50,15 50,45 26,58 2,45 2,15" fill="none" stroke="var(--cyan)" stroke-width="1.2"/>
+            </pattern>
+          </defs>
+          <rect width="300" height="300" fill="url(#hexB)"/>
+        </svg>
+
+        <!-- 浮动代码片段 -->
+        <span class="code-float" style="left:7%;top:22%;">O(n log n)</span>
+        <span class="code-float" style="right:14%;top:28%;">dp[i][j] = dp[i-1][j-1] + 1</span>
+        <span class="code-float" style="left:22%;bottom:26%;">BFS / DFS</span>
+        <span class="code-float" style="right:9%;bottom:32%;">while (l &lt;= r)</span>
+        <span class="code-float" style="left:48%;top:18%;">Dijkstra</span>
+      </div>
+
+      <div class="hero-content">
+        <h1 class="learn-hero-title">算法研习社</h1>
+        <p class="learn-hero-sub">从原理到实战，系统掌握每一个算法<br>边学习、边刷题，稳步提升竞赛实力</p>
+      </div>
+    </div>
+
+    <!-- 控制区 -->
+    <div class="learn-controls">
+      <div class="controls-inner">
+        <div class="search-row">
+          <div class="search-wrapper">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索算法名称...">
+          </div>
+        </div>
+        <div class="category-bar" id="categoryBar"></div>
+      </div>
+    </div>
+
+    <!-- 卡片网格 -->
+    <div class="algo-section">
+      <div class="algo-grid" id="algoGrid"></div>
+      <div class="learn-empty" id="emptyState" style="display:none;">
+        <div class="learn-empty-icon">🔍</div>
+        <p>没有找到匹配的算法</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 详情视图 ==================== -->
+  <div id="view-detail" style="display:none;"></div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/java.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+/* ============================================================
+   算法研习社 · 主脚本
+   架构：数据层 → 视图渲染 → 事件绑定 → 动画控制 → 路由
+   ============================================================ */
+
+// ============================================================
+// § 1  数据层
+// ============================================================
+
+const CATEGORIES = ['全部', '排序', '搜索', '动态规划', '图论', '贪心', '数据结构', '字符串', '数学'];
+
+const ALGORITHMS = [
+  /* 排序 */
+  { id: 'bubble-sort',    name: '冒泡排序',       nameEn: 'Bubble Sort',           category: '排序',   difficulty: '入门', desc: '重复交换相邻逆序元素，将最大值逐步"冒泡"至末尾，可用无交换标志提前退出。' },
+  { id: 'quick-sort',     name: '快速排序',        nameEn: 'Quick Sort',            category: '排序',   difficulty: '提高', desc: '分治思想，选取基准将数组分为两段递归排序，期望 O(n log n)，原地不稳定。' },
+  { id: 'merge-sort',     name: '归并排序',        nameEn: 'Merge Sort',            category: '排序',   difficulty: '提高', desc: '稳定的分治排序，拆分后有序合并，O(n log n)，常用于逆序对计数与外排序。' },
+  { id: 'heap-sort',      name: '堆排序',          nameEn: 'Heap Sort',             category: '排序',   difficulty: '提高', desc: '利用最大堆原地实现 O(n log n) 排序，不稳定，额外空间 O(1)。' },
+  /* 搜索 */
+  { id: 'binary-search',  name: '二分搜索',        nameEn: 'Binary Search',         category: '搜索',   difficulty: '入门', desc: '在有序区间每次折半定位目标，O(log n) 查找，二分答案是其重要扩展。' },
+  { id: 'dfs',            name: '深度优先搜索',    nameEn: 'DFS',                   category: '搜索',   difficulty: '提高', desc: '沿路径尽可能深入，回溯后探索下一分支，适用于连通性判断、路径搜索与拓扑。' },
+  { id: 'bfs',            name: '广度优先搜索',    nameEn: 'BFS',                   category: '搜索',   difficulty: '提高', desc: '逐层扩展，天然保证无权图最短步数，适用于最短路与层序遍历。' },
+  /* 动态规划 */
+  { id: 'knapsack',       name: '背包问题',        nameEn: 'Knapsack DP',           category: '动态规划', difficulty: '提高', desc: '01/完全背包经典 DP，容量限制下求最大价值，滚动数组优化至 O(W) 空间。' },
+  { id: 'lcs',            name: '最长公共子序列',  nameEn: 'LCS',                   category: '动态规划', difficulty: '进阶', desc: '二维 DP 求两序列最长公共子序列，O(nm)，是 diff 工具的核心算法。' },
+  { id: 'lis',            name: '最长递增子序列',  nameEn: 'LIS',                   category: '动态规划', difficulty: '进阶', desc: '经典 DP 可用二分+贪心优化至 O(n log n)，维护最优末尾序列。' },
+  /* 图论 */
+  { id: 'dijkstra',       name: 'Dijkstra 最短路', nameEn: "Dijkstra's Algorithm",  category: '图论',   difficulty: '进阶', desc: '贪心 + 优先队列，非负权图单源最短路，O((V+E) log V)，竞赛最常用。' },
+  { id: 'floyd',          name: 'Floyd-Warshall',  nameEn: 'Floyd-Warshall',        category: '图论',   difficulty: '提高', desc: '三重循环求所有点对最短路，O(V³)，支持负权不支持负环，代码极简。' },
+  { id: 'kruskal',        name: 'Kruskal 最小生成树', nameEn: "Kruskal's MST",      category: '图论',   difficulty: '进阶', desc: '按边权升序贪心加边，并查集判环，O(E log E) 构造最小生成树。' },
+  { id: 'topo-sort',      name: '拓扑排序',        nameEn: 'Topological Sort',      category: '图论',   difficulty: '提高', desc: '对有向无环图线性排序，Kahn（BFS）与 DFS 两种写法，处理任务依赖关系。' },
+  /* 贪心 */
+  { id: 'activity-select',name: '活动选择',        nameEn: 'Activity Selection',    category: '贪心',   difficulty: '提高', desc: '按结束时间排序，每次选不冲突的最早结束活动，贪心策略经典入门题。' },
+  /* 数据结构 */
+  { id: 'union-find',     name: '并查集',          nameEn: 'Union-Find (DSU)',       category: '数据结构', difficulty: '提高', desc: '路径压缩 + 按秩合并，均摊近似 O(1) 的集合合并与连通性查询。' },
+  { id: 'segment-tree',   name: '线段树',          nameEn: 'Segment Tree',          category: '数据结构', difficulty: '进阶', desc: '区间查询与区间修改，O(log n) 支持区间求和、最值，懒标记处理区间修改。' },
+  /* 字符串 */
+  { id: 'kmp',            name: 'KMP 算法',        nameEn: 'KMP Algorithm',         category: '字符串', difficulty: '进阶', desc: '部分匹配表避免冗余比较，O(n+m) 线性时间完成字符串模式匹配。' },
+  { id: 'trie',           name: 'Trie 树',         nameEn: 'Trie',                  category: '字符串', difficulty: '提高', desc: '前缀树结构，O(m) 插入与查询，用于词典、自动补全和字符串集合管理。' },
+  /* 数学 */
+  { id: 'fast-pow',       name: '快速幂',          nameEn: 'Fast Exponentiation',   category: '数学',   difficulty: '入门', desc: '反复平方将幂运算从 O(n) 降至 O(log n)，取模快速幂是竞赛必备技巧。' },
+  { id: 'sieve',          name: '欧拉筛（线性筛）', nameEn: "Euler's Sieve",         category: '数学',   difficulty: '提高', desc: '每个合数只被最小质因子筛一次，O(n) 线性时间筛出 n 以内全部素数。' },
+];
+
+// 算法详情数据
+const DETAIL_DATA = {
+  'bubble-sort': {
+    description: '冒泡排序通过多轮遍历数组，每次比较相邻元素并交换逆序对，最大元素不断"冒泡"至末尾。配合无交换标志优化，最佳情况可达 O(n)。虽然实际性能不如快排，但逻辑简单，是学习排序的起点。',
+    steps: ['外层循环控制遍历轮数（共 n-1 轮）', '内层循环从头遍历到未排序部分末尾', '若相邻两元素逆序则交换，并标记 swapped=true', '本轮结束若 swapped 为 false，数组已有序，提前退出', '每轮至少一个最大元素沉到正确位置'],
+    complexity: [{ case: '最好（已有序）', time: 'O(n)', space: 'O(1)' }, { case: '平均', time: 'O(n²)', space: 'O(1)' }, { case: '最坏（逆序）', time: 'O(n²)', space: 'O(1)' }],
+    stable: true,
+    codes: {
+      cpp:    { note: '使用 swapped 标志优化：某趟无交换说明已有序，提前退出。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+void bubbleSort(vector<int>& arr) {
+    int n = arr.size();
+    for (int i = 0; i < n - 1; i++) {
+        bool swapped = false;           // 优化：记录本轮是否发生交换
+        for (int j = 0; j < n - 1 - i; j++) {
+            if (arr[j] > arr[j + 1]) {
+                swap(arr[j], arr[j + 1]);
+                swapped = true;
+            }
+        }
+        if (!swapped) break;            // 无交换 → 已有序，提前结束
+    }
+}` },
+      java:   { note: 'Java 版本逻辑相同，注意 int[] 与 Integer[] 的区别（稳定性语义）。', code: `public class BubbleSort {
+    public static void sort(int[] arr) {
+        int n = arr.length;
+        for (int i = 0; i < n - 1; i++) {
+            boolean swapped = false;    // 优化标志
+            for (int j = 0; j < n - 1 - i; j++) {
+                if (arr[j] > arr[j + 1]) {
+                    int tmp = arr[j]; arr[j] = arr[j+1]; arr[j+1] = tmp;
+                    swapped = true;
+                }
+            }
+            if (!swapped) break;        // 无交换 → 提前结束
+        }
+    }
+}` },
+      python: { note: 'Python 支持 a, b = b, a 元组交换，代码更简洁，逻辑完全相同。', code: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n - 1):
+        swapped = False              # 优化：记录本轮是否发生交换
+        for j in range(n - 1 - i):
+            if arr[j] > arr[j + 1]:
+                arr[j], arr[j + 1] = arr[j + 1], arr[j]
+                swapped = True
+        if not swapped:              # 无交换 → 已有序，提前退出
+            break` },
+    },
+    problems: [{ id: 1001, title: '数组排序入门', passRate: '82.3%', difficulty: '入门' }, { id: 1002, title: '逆序对统计', passRate: '53.1%', difficulty: '提高' }],
+  },
+
+  'quick-sort': {
+    description: '快速排序是实践中最快的通用排序算法。选取基准（pivot）将数组划分为"≤pivot"和"≥pivot"两段，递归排序两段。随机选取 pivot 可将最坏情况退化概率降至极低。',
+    steps: ['随机选取 pivot（三路取中减少最坏情况）', '双指针 partition：将数组分为左（≤pivot）右（≥pivot）两段', '将 pivot 放置到其最终正确位置', '递归排序左半段（lo → p-1）', '递归排序右半段（p+1 → hi）'],
+    complexity: [{ case: '最好 / 平均', time: 'O(n log n)', space: 'O(log n)' }, { case: '最坏（已有序取端点）', time: 'O(n²)', space: 'O(n)' }],
+    stable: false,
+    codes: {
+      cpp:    { note: '随机选取 pivot 规避最坏情况，Lomuto 分区方案，简洁易读。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+int partition(vector<int>& a, int lo, int hi) {
+    int idx = lo + rand() % (hi - lo + 1);  // 随机 pivot
+    swap(a[idx], a[hi]);
+    int pivot = a[hi], i = lo - 1;
+    for (int j = lo; j < hi; j++)
+        if (a[j] <= pivot) swap(a[++i], a[j]);
+    swap(a[i + 1], a[hi]);                  // pivot 归位
+    return i + 1;
+}
+
+void quickSort(vector<int>& a, int lo, int hi) {
+    if (lo >= hi) return;
+    int p = partition(a, lo, hi);
+    quickSort(a, lo, p - 1);
+    quickSort(a, p + 1, hi);
+}` },
+      java:   { note: '使用 Random 选取 pivot，避免退化为 O(n²)。', code: `import java.util.Random;
+public class QuickSort {
+    private static final Random rng = new Random();
+
+    private static int partition(int[] a, int lo, int hi) {
+        int idx = lo + rng.nextInt(hi - lo + 1);   // 随机 pivot
+        int t = a[idx]; a[idx] = a[hi]; a[hi] = t;
+        int pivot = a[hi], i = lo - 1;
+        for (int j = lo; j < hi; j++)
+            if (a[j] <= pivot) { i++; t = a[i]; a[i] = a[j]; a[j] = t; }
+        t = a[i+1]; a[i+1] = a[hi]; a[hi] = t;    // pivot 归位
+        return i + 1;
+    }
+
+    public static void sort(int[] a, int lo, int hi) {
+        if (lo >= hi) return;
+        int p = partition(a, lo, hi);
+        sort(a, lo, p - 1);
+        sort(a, p + 1, hi);
+    }
+}` },
+      python: { note: '竞赛中可直接用内置 sorted()，手写主要用于理解原理。', code: `import random
+
+def quick_sort(arr, lo=0, hi=None):
+    if hi is None: hi = len(arr) - 1
+    if lo >= hi:   return
+    idx = random.randint(lo, hi)          # 随机选 pivot
+    arr[idx], arr[hi] = arr[hi], arr[idx]
+    pivot, i = arr[hi], lo - 1
+    for j in range(lo, hi):
+        if arr[j] <= pivot:
+            i += 1
+            arr[i], arr[j] = arr[j], arr[i]
+    arr[i+1], arr[hi] = arr[hi], arr[i+1]  # pivot 归位
+    p = i + 1
+    quick_sort(arr, lo, p - 1)
+    quick_sort(arr, p + 1, hi)` },
+    },
+    problems: [{ id: 1003, title: '第 K 大元素', passRate: '67.4%', difficulty: '提高' }, { id: 1004, title: '区间内小于 x 的个数', passRate: '48.9%', difficulty: '进阶' }],
+  },
+
+  'binary-search': {
+    description: '二分搜索在有序区间内每次折半缩小搜索范围，O(log n) 定位目标。关键在于维护循环不变量：目标若存在必在 [lo, hi] 内。二分答案是其重要扩展，可将单调性问题转化为搜索。',
+    steps: ['初始化左右边界 lo=0, hi=n-1', '计算中间 mid = lo + (hi-lo)/2（防溢出写法）', '若 arr[mid]==target，返回 mid', '若 arr[mid] < target，目标在右半，lo=mid+1', '若 arr[mid] > target，目标在左半，hi=mid-1', '循环直到 lo>hi，未找到返回 -1'],
+    complexity: [{ case: '所有情况', time: 'O(log n)', space: 'O(1)' }],
+    stable: true,
+    codes: {
+      cpp:    { note: 'lo+(hi-lo)/2 防止 (lo+hi) 整数溢出，是竞赛常见 bug 来源。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+int binarySearch(vector<int>& arr, int target) {
+    int lo = 0, hi = (int)arr.size() - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;      // 防止溢出
+        if (arr[mid] == target) return mid;
+        if (arr[mid] <  target) lo = mid + 1;  // 目标在右半
+        else                    hi = mid - 1;  // 目标在左半
+    }
+    return -1;
+}
+
+// lower_bound：第一个 >= target 的位置
+int lowerBound(vector<int>& arr, int target) {
+    int lo = 0, hi = arr.size();
+    while (lo < hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (arr[mid] < target) lo = mid + 1;
+        else hi = mid;
+    }
+    return lo;
+}` },
+      java:   { note: 'Java Arrays.binarySearch() 内置支持，竞赛中也可直接调用。', code: `public class BinarySearch {
+    public static int search(int[] arr, int target) {
+        int lo = 0, hi = arr.length - 1;
+        while (lo <= hi) {
+            int mid = lo + (hi - lo) / 2;  // 防止 (lo+hi) 溢出
+            if      (arr[mid] == target) return mid;
+            else if (arr[mid] <  target) lo = mid + 1;
+            else                         hi = mid - 1;
+        }
+        return -1;
+    }
+}` },
+      python: { note: '使用标准库 bisect 模块，bisect_left/right 对应 lower/upper bound。', code: `def binary_search(arr, target):
+    lo, hi = 0, len(arr) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if   arr[mid] == target: return mid
+        elif arr[mid] <  target: lo = mid + 1  # 右半段
+        else:                    hi = mid - 1  # 左半段
+    return -1
+
+# 标准库写法（推荐竞赛使用）
+import bisect
+# bisect.bisect_left(arr, x)   → 第一个 >= x 的位置
+# bisect.bisect_right(arr, x)  → 第一个 >  x 的位置` },
+    },
+    problems: [{ id: 1005, title: '有序数组查找', passRate: '91.2%', difficulty: '入门' }, { id: 1006, title: '猜数游戏', passRate: '78.5%', difficulty: '入门' }, { id: 1007, title: '最小化最大值（二分答案）', passRate: '44.7%', difficulty: '进阶' }],
+  },
+
+  'knapsack': {
+    description: '背包问题是动态规划的入门经典。01 背包每件物品最多取一次，完全背包可无限取。核心是状态定义与转移方程，滚动数组将空间从 O(nW) 优化为 O(W)。逆序/正序枚举是两种背包的唯一区别。',
+    steps: ['定义 dp[j]：容量 j 时的最大价值（滚动数组）', '初始化 dp[0..W] = 0', '枚举每件物品 i（1 to n）', '01背包：j 从 W 倒序枚举到 w[i]，防止物品重复选取', '完全背包：j 从 w[i] 正序枚举到 W，允许重复选取', '转移：dp[j] = max(dp[j], dp[j-w[i]] + v[i])'],
+    complexity: [{ case: '时间', time: 'O(nW)', space: '—' }, { case: '空间（滚动数组）', time: '—', space: 'O(W)' }],
+    stable: true,
+    codes: {
+      cpp:    { note: '逆序遍历是 01 背包关键：确保每件物品在本轮只被使用一次。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 01 背包：每件物品最多取一次
+int knapsack01(int W, vector<int>& w, vector<int>& v) {
+    vector<int> dp(W + 1, 0);
+    for (int i = 0; i < (int)w.size(); i++)
+        for (int j = W; j >= w[i]; j--)        // 逆序枚举（01背包关键！）
+            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+    return dp[W];
+}
+
+// 完全背包：每件物品可无限取
+int knapsackFull(int W, vector<int>& w, vector<int>& v) {
+    vector<int> dp(W + 1, 0);
+    for (int i = 0; i < (int)w.size(); i++)
+        for (int j = w[i]; j <= W; j++)        // 正序枚举（完全背包关键！）
+            dp[j] = max(dp[j], dp[j - w[i]] + v[i]);
+    return dp[W];
+}` },
+      java:   { note: '逆序与正序是 01 背包与完全背包的唯一区别，切记。', code: `public class Knapsack {
+    public static int knapsack01(int W, int[] w, int[] v) {
+        int[] dp = new int[W + 1];
+        for (int i = 0; i < w.length; i++)
+            for (int j = W; j >= w[i]; j--)    // 逆序（01背包）
+                dp[j] = Math.max(dp[j], dp[j - w[i]] + v[i]);
+        return dp[W];
+    }
+
+    public static int knapsackFull(int W, int[] w, int[] v) {
+        int[] dp = new int[W + 1];
+        for (int i = 0; i < w.length; i++)
+            for (int j = w[i]; j <= W; j++)    // 正序（完全背包）
+                dp[j] = Math.max(dp[j], dp[j - w[i]] + v[i]);
+        return dp[W];
+    }
+}` },
+      python: { note: 'Python range 的第三参数 -1 表示倒序，对应 01 背包的逆序枚举。', code: `def knapsack_01(W, weights, values):
+    """01 背包：逆序枚举确保每件物品最多选一次"""
+    dp = [0] * (W + 1)
+    for w, v in zip(weights, values):
+        for j in range(W, w - 1, -1):   # 逆序：W → w
+            dp[j] = max(dp[j], dp[j - w] + v)
+    return dp[W]
+
+def knapsack_complete(W, weights, values):
+    """完全背包：正序枚举允许重复选取"""
+    dp = [0] * (W + 1)
+    for w, v in zip(weights, values):
+        for j in range(w, W + 1):       # 正序：w → W
+            dp[j] = max(dp[j], dp[j - w] + v)
+    return dp[W]` },
+    },
+    problems: [{ id: 2001, title: '01 背包问题', passRate: '61.4%', difficulty: '提高' }, { id: 2002, title: '完全背包', passRate: '55.8%', difficulty: '提高' }, { id: 2003, title: '混合背包', passRate: '38.2%', difficulty: '进阶' }],
+  },
+
+  'dijkstra': {
+    description: 'Dijkstra 算法求单源最短路径，要求边权非负。利用最小优先队列每次贪心地扩展距离最小的顶点，确保已处理顶点的最短距离不再改变。配合邻接表与堆，时间复杂度 O((V+E) log V)。',
+    steps: ['初始化 dist[]=∞，源点 dist[s]=0', '将 (0, s) 放入最小优先队列（最小堆）', '弹出堆顶节点 (d, u)', '若 d > dist[u]（过期节点），跳过', '枚举 u 的所有邻边 (v, w)：若 dist[u]+w < dist[v]，更新 dist[v] 并入堆', '重复直到堆空，dist[] 即为所有节点的最短距离'],
+    complexity: [{ case: '二叉堆实现', time: 'O((V+E) log V)', space: 'O(V+E)' }],
+    stable: false,
+    codes: {
+      cpp:    { note: 'priority_queue 默认最大堆，使用 greater<pii> 变为最小堆。', code: `#include <bits/stdc++.h>
+using namespace std;
+typedef pair<int,int> pii;
+const int INF = 1e9;
+
+vector<int> dijkstra(int s, int n, vector<vector<pii>>& g) {
+    // g[u] = {(v, w), ...}，邻接表
+    vector<int> dist(n + 1, INF);
+    priority_queue<pii, vector<pii>, greater<pii>> pq;  // 最小堆
+    dist[s] = 0;
+    pq.push({0, s});
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (d > dist[u]) continue;          // 过期节点，跳过
+        for (auto [v, w] : g[u]) {
+            if (dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+    return dist;
+}` },
+      java:   { note: 'PriorityQueue 默认最小堆，int[0] 存距离，int[1] 存节点编号。', code: `import java.util.*;
+public class Dijkstra {
+    public static int[] dijkstra(int s, int n, List<int[]>[] g) {
+        int[] dist = new int[n + 1];
+        Arrays.fill(dist, Integer.MAX_VALUE);
+        dist[s] = 0;
+        PriorityQueue<int[]> pq = new PriorityQueue<>((a,b) -> a[0] - b[0]);
+        pq.offer(new int[]{0, s});
+
+        while (!pq.isEmpty()) {
+            int[] cur = pq.poll();
+            int d = cur[0], u = cur[1];
+            if (d > dist[u]) continue;      // 过期节点
+            for (int[] e : g[u]) {          // e = {v, w}
+                if (dist[u] + e[1] < dist[e[0]]) {
+                    dist[e[0]] = dist[u] + e[1];
+                    pq.offer(new int[]{dist[e[0]], e[0]});
+                }
+            }
+        }
+        return dist;
+    }
+}` },
+      python: { note: 'heapq 是最小堆，元组第一个元素为优先级（距离）。', code: `import heapq
+
+def dijkstra(s, n, graph):
+    # graph[u] = [(v, w), ...]
+    INF = float('inf')
+    dist = [INF] * (n + 1)
+    dist[s] = 0
+    heap = [(0, s)]
+
+    while heap:
+        d, u = heapq.heappop(heap)
+        if d > dist[u]:
+            continue                        # 过期节点，跳过
+        for v, w in graph[u]:
+            if dist[u] + w < dist[v]:
+                dist[v] = dist[u] + w
+                heapq.heappush(heap, (dist[v], v))
+
+    return dist` },
+    },
+    problems: [{ id: 3001, title: '单源最短路', passRate: '57.3%', difficulty: '进阶' }, { id: 3002, title: '带障碍的迷宫最短路', passRate: '49.1%', difficulty: '进阶' }],
+  },
+
+  'union-find': {
+    description: '并查集（DSU）维护元素的集合划分，支持合并（Union）与查询（Find）。路径压缩使 Find 后所有节点直接连到根；按秩合并避免树退化为链。两者结合使每次操作均摊时间 O(α(n))，实际近似常数。',
+    steps: ['初始化：parent[i]=i，rank[i]=0，每个元素独立成集', 'Find(x)：沿 parent 链找根，路径压缩使沿途节点直接连到根', 'Union(x,y)：分别找到 x、y 的根 rx、ry', '若 rx==ry，已在同一集合，返回 false', '按秩合并：秩小的树挂到秩大的树根下', '若两根秩相等，任一挂到另一下并将其秩加一'],
+    complexity: [{ case: '单次操作（均摊）', time: 'O(α(n)) ≈ O(1)', space: '—' }, { case: '空间', time: '—', space: 'O(n)' }],
+    stable: false,
+    codes: {
+      cpp:    { note: 'iota 初始化 parent[i]=i，路径压缩用递归实现简洁。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+struct DSU {
+    vector<int> parent, rnk;
+    DSU(int n) : parent(n), rnk(n, 0) {
+        iota(parent.begin(), parent.end(), 0);  // parent[i] = i
+    }
+    int find(int x) {
+        // 路径压缩：递归找根，将沿途节点直接连到根
+        if (parent[x] != x) parent[x] = find(parent[x]);
+        return parent[x];
+    }
+    bool unite(int x, int y) {
+        int rx = find(x), ry = find(y);
+        if (rx == ry) return false;             // 已在同一集合
+        if (rnk[rx] < rnk[ry]) swap(rx, ry);  // 按秩合并
+        parent[ry] = rx;
+        if (rnk[rx] == rnk[ry]) rnk[rx]++;
+        return true;
+    }
+    bool same(int x, int y) { return find(x) == find(y); }
+};` },
+      java:   { note: '迭代路径压缩（两遍法）避免递归深度过深导致栈溢出。', code: `public class DSU {
+    int[] parent, rank;
+    public DSU(int n) {
+        parent = new int[n]; rank = new int[n];
+        for (int i = 0; i < n; i++) parent[i] = i;
+    }
+    public int find(int x) {
+        int root = x;
+        while (parent[root] != root) root = parent[root];
+        while (parent[x] != root) {             // 路径压缩（迭代）
+            int next = parent[x]; parent[x] = root; x = next;
+        }
+        return root;
+    }
+    public boolean unite(int x, int y) {
+        int rx = find(x), ry = find(y);
+        if (rx == ry) return false;
+        if (rank[rx] < rank[ry]) { int t = rx; rx = ry; ry = t; }
+        parent[ry] = rx;
+        if (rank[rx] == rank[ry]) rank[rx]++;
+        return true;
+    }
+}` },
+      python: { note: '竞赛中常用 sys.setrecursionlimit 或改用迭代版本避免深度限制。', code: `class DSU:
+    def __init__(self, n):
+        self.parent = list(range(n))
+        self.rank   = [0] * n
+
+    def find(self, x):
+        if self.parent[x] != x:
+            self.parent[x] = self.find(self.parent[x])  # 路径压缩
+        return self.parent[x]
+
+    def unite(self, x, y):
+        rx, ry = self.find(x), self.find(y)
+        if rx == ry: return False           # 已在同一集合
+        if self.rank[rx] < self.rank[ry]:
+            rx, ry = ry, rx                 # 按秩合并
+        self.parent[ry] = rx
+        if self.rank[rx] == self.rank[ry]:
+            self.rank[rx] += 1
+        return True
+
+    def same(self, x, y): return self.find(x) == self.find(y)` },
+    },
+    problems: [{ id: 4001, title: '连通分量计数', passRate: '73.6%', difficulty: '提高' }, { id: 4002, title: '朋友圈', passRate: '68.2%', difficulty: '提高' }, { id: 4003, title: 'Kruskal 最小生成树', passRate: '51.4%', difficulty: '进阶' }],
+  },
+
+  'fast-pow': {
+    description: '快速幂将 a^n 的计算从 O(n) 次乘法降至 O(log n) 次。核心思想：n 为偶数时 a^n=(a²)^(n/2)，n 为奇数时 a^n=a×a^(n-1)。在取模场景下，每步乘法后立即取模，防止整数溢出。',
+    steps: ['初始化结果 result=1，底数 base=a%mod', '检查 n 的最低位（n & 1）是否为 1', '若为 1，result = result × base % mod', 'base = base × base % mod（底数平方）', 'n 右移一位（n >>= 1）', '重复直到 n 为 0，返回 result'],
+    complexity: [{ case: '所有情况', time: 'O(log n)', space: 'O(1)' }],
+    stable: true,
+    codes: {
+      cpp:    { note: '使用 long long 防止乘法溢出，每步取模后中间结果不超过 mod²。', code: `#include <bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+ll fastPow(ll base, ll exp, ll mod) {
+    ll result = 1;
+    base %= mod;                        // 初始取模
+    while (exp > 0) {
+        if (exp & 1)                    // 指数最低位为 1
+            result = result * base % mod;
+        base = base * base % mod;       // 底数平方
+        exp >>= 1;                      // 指数右移
+    }
+    return result;
+}` },
+      java:   { note: 'Java long 最大约 9.2×10¹⁸，两个 10⁹ 量级相乘不溢出，但注意边界。', code: `public class FastPow {
+    public static long fastPow(long base, long exp, long mod) {
+        long result = 1;
+        base %= mod;
+        while (exp > 0) {
+            if ((exp & 1) == 1)              // 指数末位为 1
+                result = result * base % mod;
+            base = base * base % mod;        // 底数平方
+            exp >>= 1;
+        }
+        return result;
+    }
+}` },
+      python: { note: 'Python 内置 pow(base, exp, mod) 即快速幂，底层 C 实现，直接用即可。', code: `def fast_pow(base, exp, mod):
+    """手动实现，理解原理"""
+    result, base = 1, base % mod
+    while exp > 0:
+        if exp & 1:
+            result = result * base % mod    # 指数末位为 1
+        base = base * base % mod            # 底数平方
+        exp >>= 1
+    return result
+
+# 推荐直接使用内置函数（底层已是快速幂）
+# pow(base, exp, mod)` },
+    },
+    problems: [{ id: 5001, title: 'a^b mod p', passRate: '88.5%', difficulty: '入门' }, { id: 5002, title: '矩阵快速幂', passRate: '39.7%', difficulty: '进阶' }],
+  },
+
+  'kmp': {
+    description: 'KMP 在文本串中查找模式串，时间复杂度 O(n+m)，优于朴素的 O(nm)。核心是预计算 next 数组（failure function），记录每个位置的最长真前缀后缀长度，匹配失败时利用已有信息跳过无效比较。',
+    steps: ['预处理：计算 pattern 的 next 数组', 'next[0]=0，双指针 i=1（当前），j=0（前缀末位）', '若 pat[i]==pat[j]：next[i]=j+1，i++ j++', '否则若 j>0：j=next[j-1]（利用已有信息回退）', '匹配阶段：文本指针 i，模式指针 j 同步推进', '若 j==m，记录一次匹配，j=next[j-1] 继续寻找'],
+    complexity: [{ case: '预处理 next', time: 'O(m)', space: 'O(m)' }, { case: '匹配阶段', time: 'O(n)', space: 'O(1)' }],
+    stable: true,
+    codes: {
+      cpp:    { note: 'next 数组避免了朴素匹配的回退，理解它是理解 KMP 的关键。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+vector<int> buildNext(const string& pat) {
+    int m = pat.size();
+    vector<int> nxt(m, 0);
+    for (int i = 1, j = 0; i < m; i++) {
+        while (j > 0 && pat[i] != pat[j]) j = nxt[j - 1]; // 利用已有信息回退
+        if (pat[i] == pat[j]) j++;
+        nxt[i] = j;
+    }
+    return nxt;
+}
+
+vector<int> kmpSearch(const string& text, const string& pat) {
+    auto nxt = buildNext(pat);
+    vector<int> res;
+    for (int i = 0, j = 0; i < (int)text.size(); i++) {
+        while (j > 0 && text[i] != pat[j]) j = nxt[j - 1];
+        if (text[i] == pat[j]) j++;
+        if (j == (int)pat.size()) {
+            res.push_back(i - j + 1);  // 记录起始位置
+            j = nxt[j - 1];            // 继续寻找下一个匹配
+        }
+    }
+    return res;
+}` },
+      java:   { note: 'Java 用 charAt() 访问字符，String.indexOf() 内部也使用类似算法。', code: `import java.util.*;
+public class KMP {
+    private static int[] buildNext(String pat) {
+        int m = pat.length();
+        int[] nxt = new int[m];
+        for (int i = 1, j = 0; i < m; i++) {
+            while (j > 0 && pat.charAt(i) != pat.charAt(j)) j = nxt[j - 1];
+            if (pat.charAt(i) == pat.charAt(j)) j++;
+            nxt[i] = j;
+        }
+        return nxt;
+    }
+
+    public static List<Integer> search(String text, String pat) {
+        int[] nxt = buildNext(pat);
+        List<Integer> res = new ArrayList<>();
+        for (int i = 0, j = 0; i < text.length(); i++) {
+            while (j > 0 && text.charAt(i) != pat.charAt(j)) j = nxt[j - 1];
+            if (text.charAt(i) == pat.charAt(j)) j++;
+            if (j == pat.length()) { res.add(i - j + 1); j = nxt[j - 1]; }
+        }
+        return res;
+    }
+}` },
+      python: { note: '内置 str.find() 效率相近，手写主要用于理解 KMP 思想和处理扩展变形。', code: `def build_next(pat):
+    nxt, j = [0] * len(pat), 0
+    for i in range(1, len(pat)):
+        while j > 0 and pat[i] != pat[j]:
+            j = nxt[j - 1]          # 利用已有信息回退
+        if pat[i] == pat[j]:
+            j += 1
+        nxt[i] = j
+    return nxt
+
+def kmp_search(text, pat):
+    """返回 pat 在 text 中所有出现的起始下标"""
+    nxt, res, j = build_next(pat), [], 0
+    for i, c in enumerate(text):
+        while j > 0 and c != pat[j]:
+            j = nxt[j - 1]
+        if c == pat[j]: j += 1
+        if j == len(pat):
+            res.append(i - j + 1)
+            j = nxt[j - 1]          # 继续寻找下一个
+    return res` },
+    },
+    problems: [{ id: 6001, title: '字符串匹配', passRate: '62.3%', difficulty: '进阶' }, { id: 6002, title: '周期串判断', passRate: '47.8%', difficulty: '进阶' }],
+  },
+};
+
+// 为未定义详情的算法生成默认占位数据
+ALGORITHMS.forEach(algo => {
+  if (!DETAIL_DATA[algo.id]) {
+    DETAIL_DATA[algo.id] = {
+      description: `${algo.name}（${algo.nameEn}）是${algo.category}领域的经典算法。${algo.desc}`,
+      steps: ['分析问题，确定算法适用性', '初始化所需数据结构', '执行核心逻辑', '处理边界条件与特殊情况', '输出结果'],
+      complexity: [{ case: '平均情况', time: '详见原理说明', space: 'O(n)' }],
+      stable: false,
+      codes: {
+        cpp:    { note: '代码示例即将上线，敬请期待。', code: `// ${algo.nameEn}\n// 完整代码即将上线...` },
+        java:   { note: '代码示例即将上线，敬请期待。', code: `// ${algo.nameEn}\n// 完整代码即将上线...` },
+        python: { note: '代码示例即将上线，敬请期待。', code: `# ${algo.nameEn}\n# 完整代码即将上线...` },
+      },
+      problems: [{ id: 9000 + ALGORITHMS.findIndex(a => a.id === algo.id), title: `${algo.name} 基础练习`, passRate: '60.0%', difficulty: algo.difficulty }],
+    };
+  }
+});
+
+
+// ============================================================
+// § 2  状态
+// ============================================================
+const state = {
+  currentCategory: '全部',
+  searchQuery: '',
+  currentLang: 'cpp',
+};
+
+
+// ============================================================
+// § 3  工具函数
+// ============================================================
+
+function diffClass(d) {
+  return d === '入门' ? 'diff-beginner' : d === '提高' ? 'diff-intermediate' : 'diff-advanced';
+}
+function diffDot(d) {
+  return d === '入门' ? '●' : d === '提高' ? '▲' : '★';
+}
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+
+// ============================================================
+// § 4  渲染 — 首页
+// ============================================================
+
+function renderCategories() {
+  document.getElementById('categoryBar').innerHTML = CATEGORIES.map(c =>
+    `<button class="cat-tag${c === state.currentCategory ? ' active' : ''}" data-cat="${c}">${c}</button>`
+  ).join('');
+}
+
+function getFiltered() {
+  const q = state.searchQuery.toLowerCase();
+  return ALGORITHMS.filter(a => {
+    const matchCat  = state.currentCategory === '全部' || a.category === state.currentCategory;
+    const matchSrch = !q || a.name.toLowerCase().includes(q) || a.nameEn.toLowerCase().includes(q);
+    return matchCat && matchSrch;
+  });
+}
+
+function renderCards() {
+  const grid  = document.getElementById('algoGrid');
+  const empty = document.getElementById('emptyState');
+  const list  = getFiltered();
+
+  if (!list.length) {
+    grid.innerHTML  = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = list.map((a, i) => `
+    <div class="algo-card" data-id="${a.id}" style="transition-delay:${Math.min(i, 10) * 45}ms">
+      <div class="algo-card-header">
+        <div>
+          <div class="algo-name">${a.name}</div>
+          <div class="algo-name-en">${a.nameEn}</div>
+        </div>
+        <span class="diff-learn ${diffClass(a.difficulty)}">${diffDot(a.difficulty)} ${a.difficulty}</span>
+      </div>
+      <p class="algo-desc">${a.desc}</p>
+      <div class="algo-footer">
+        <span class="algo-category-tag">${a.category}</span>
+        <svg class="algo-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+    </div>
+  `).join('');
+
+  observeCards();
+}
+
+
+// ============================================================
+// § 5  渲染 — 详情页
+// ============================================================
+
+function renderDetail(id) {
+  const algo   = ALGORITHMS.find(a => a.id === id);
+  const detail = DETAIL_DATA[id];
+  if (!algo || !detail) return;
+
+  const complexityRows = detail.complexity.map(c =>
+    `<tr><td>${c.case}</td><td>${c.time}</td><td>${c.space}</td></tr>`
+  ).join('');
+
+  const stepsHtml = detail.steps.map(s => `<li>${s}</li>`).join('');
+
+  const problemRows = detail.problems.map(p => `
+    <div class="problem-list-item" data-pid="${p.id}">
+      <span class="problem-num">#${p.id}</span>
+      <a class="problem-link-title" href="/problems/${p.id}/">${p.title}</a>
+      <span class="diff-learn ${diffClass(p.difficulty)}" style="font-size:0.73rem;">${p.difficulty}</span>
+      <span class="problem-pass-rate">${p.passRate}</span>
+    </div>
+  `).join('');
+
+  const codePanes = ['cpp', 'java', 'python'].map(lang => `
+    <div class="code-tab-pane${state.currentLang === lang ? ' active' : ''}" data-lang="${lang}">
+      <div class="code-note">${detail.codes[lang].note}</div>
+      <pre><code class="language-${lang === 'cpp' ? 'cpp' : lang}">${escHtml(detail.codes[lang].code)}</code></pre>
+    </div>
+  `).join('');
+
+  document.getElementById('view-detail').innerHTML = `
+    <nav class="breadcrumb">
+      <a href="#" id="breadHome">首页</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>${algo.category}</span>
+      <span class="breadcrumb-sep">›</span>
+      <span class="breadcrumb-cur">${algo.name}</span>
+    </nav>
+
+    <div class="detail-header">
+      <h1 class="detail-title">${algo.name}</h1>
+      <div class="detail-title-en">${algo.nameEn}</div>
+      <div class="detail-meta">
+        <span class="cat-tag" style="cursor:default">${algo.category}</span>
+        <span class="diff-learn ${diffClass(algo.difficulty)}">${diffDot(algo.difficulty)} ${algo.difficulty}</span>
+        ${detail.stable ? '<span style="font-size:0.8rem;color:var(--green);">✓ 稳定</span>' : ''}
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h2 class="section-title">算法原理</h2>
+      <div class="detail-text"><p>${detail.description}</p></div>
+      <div class="algo-placeholder-img">[ 算法示意图 · 占位 ]</div>
+    </div>
+
+    <div class="detail-section">
+      <h2 class="section-title">执行步骤</h2>
+      <ol class="steps-list">${stepsHtml}</ol>
+    </div>
+
+    <div class="detail-section">
+      <h2 class="section-title">复杂度分析</h2>
+      <div class="card" style="overflow:hidden;">
+        <table class="complexity-table">
+          <thead><tr><th>情况</th><th>时间复杂度</th><th>空间复杂度</th></tr></thead>
+          <tbody>${complexityRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h2 class="section-title">代码实现</h2>
+      <div class="code-tabs" id="codeTabs">
+        <div class="code-tab-header">
+          <button class="code-tab-btn${state.currentLang==='cpp'   ?' active':''}" data-lang="cpp">C++</button>
+          <button class="code-tab-btn${state.currentLang==='java'  ?' active':''}" data-lang="java">Java</button>
+          <button class="code-tab-btn${state.currentLang==='python'?' active':''}" data-lang="python">Python</button>
+        </div>
+        ${codePanes}
+      </div>
+    </div>
+
+    <div class="detail-section" id="problemSection">
+      <h2 class="section-title">关联题目</h2>
+      <div class="card" style="overflow:hidden;">${problemRows}</div>
+      <button class="btn btn-primary btn-sm goto-btn" id="gotoBtn" style="margin-top:14px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>
+        </svg>
+        一键去刷题
+      </button>
+    </div>
+  `;
+
+  // 语法高亮
+  document.querySelectorAll('#view-detail pre code').forEach(el => hljs.highlightElement(el));
+
+  bindDetailEvents();
+}
+
+
+// ============================================================
+// § 6  路由（Hash SPA）
+// ============================================================
+
+function navigate(hash) { window.location.hash = hash; }
+
+function handleRoute() {
+  const hash       = window.location.hash || '#';
+  const viewHome   = document.getElementById('view-home');
+  const viewDetail = document.getElementById('view-detail');
+
+  if (hash.startsWith('#detail/')) {
+    const id = hash.slice('#detail/'.length);
+    viewHome.style.display   = 'none';
+    viewDetail.style.display = '';
+    renderDetail(id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    viewHome.style.display   = '';
+    viewDetail.style.display = 'none';
+    setTimeout(observeCards, 50);
+  }
+}
+window.addEventListener('hashchange', handleRoute);
+
+
+// ============================================================
+// § 7  事件绑定
+// ============================================================
+
+function bindHomeEvents() {
+  // 搜索
+  document.getElementById('searchInput').addEventListener('input', e => {
+    state.searchQuery = e.target.value;
+    renderCards();
+  });
+
+  // 分类点击
+  document.getElementById('categoryBar').addEventListener('click', e => {
+    const btn = e.target.closest('.cat-tag');
+    if (!btn) return;
+    state.currentCategory = btn.dataset.cat;
+    renderCategories();
+    renderCards();
+  });
+
+  // 分类栏横向滚轮
+  const bar = document.getElementById('categoryBar');
+  bar.addEventListener('wheel', e => {
+    e.preventDefault();
+    bar.scrollLeft += e.deltaY || e.deltaX;
+  }, { passive: false });
+
+  // 分类栏鼠标拖拽
+  let dragging = false, startX = 0, scrollStart = 0;
+  bar.addEventListener('mousedown', e => {
+    dragging = true; startX = e.pageX - bar.offsetLeft; scrollStart = bar.scrollLeft;
+    bar.classList.add('dragging');
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    e.preventDefault();
+    bar.scrollLeft = scrollStart - (e.pageX - bar.offsetLeft - startX);
+  });
+  document.addEventListener('mouseup', () => { dragging = false; bar.classList.remove('dragging'); });
+
+  // 卡片点击进入详情
+  document.getElementById('algoGrid').addEventListener('click', e => {
+    const card = e.target.closest('.algo-card');
+    if (card) navigate('#detail/' + card.dataset.id);
+  });
+}
+
+function bindDetailEvents() {
+  // 面包屑返回首页
+  document.getElementById('breadHome').addEventListener('click', e => {
+    e.preventDefault(); navigate('#');
+  });
+
+  // 代码选项卡
+  document.getElementById('codeTabs').addEventListener('click', e => {
+    const btn = e.target.closest('.code-tab-btn');
+    if (!btn) return;
+    state.currentLang = btn.dataset.lang;
+    document.querySelectorAll('.code-tab-btn' ).forEach(b => b.classList.toggle('active', b.dataset.lang === state.currentLang));
+    document.querySelectorAll('.code-tab-pane').forEach(p => p.classList.toggle('active', p.dataset.lang === state.currentLang));
+  });
+
+  // 一键去刷题
+  document.getElementById('gotoBtn').addEventListener('click', () => {
+    const first = document.querySelector('.problem-list-item');
+    if (!first) return;
+    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    first.classList.remove('highlight-pulse');
+    void first.offsetWidth; // 重置动画
+    first.classList.add('highlight-pulse');
+    setTimeout(() => first.classList.remove('highlight-pulse'), 1000);
+  });
+}
+
+
+// ============================================================
+// § 8  视差 Hero
+// ============================================================
+function initParallax() {
+  const el = document.getElementById('heroParallax');
+  if (!el) return;
+  window.addEventListener('scroll', () => {
+    el.style.transform = `translateY(${window.scrollY * 0.38}px)`;
+  }, { passive: true });
+}
+
+
+// ============================================================
+// § 9  Intersection Observer — 卡片滚动渐显
+// ============================================================
+let cardObserver = null;
+
+function observeCards() {
+  if (cardObserver) cardObserver.disconnect();
+  cardObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        cardObserver.unobserve(entry.target); // 已显示，不再重置
+      }
+    });
+  }, { threshold: 0.06 });
+  document.querySelectorAll('.algo-card').forEach(c => cardObserver.observe(c));
+}
+
+
+// ============================================================
+// § 10  主题感知 — highlight.js 主题随深色/浅色切换
+// ============================================================
+function syncHljsTheme() {
+  const light  = document.documentElement.getAttribute('data-theme') === 'light';
+  const link   = document.getElementById('hljs-theme-link');
+  if (link) link.href = light
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css'
+    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css';
+}
+new MutationObserver(syncHljsTheme)
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+
+// ============================================================
+// § 11  初始化
+// ============================================================
+(function init() {
+  renderCategories();
+  renderCards();
+  bindHomeEvents();
+  initParallax();
+  syncHljsTheme();
+  handleRoute();
+})();
+</script>
+{% endblock %}

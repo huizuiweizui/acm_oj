@@ -39,4 +39,7 @@ urlpatterns = [
     # 个人主页
     path('profile/<int:user_id>/', views.profile_view, name='profile'),
     path('profile/', views.my_profile, name='my_profile'),
+
+    # 算法学习
+    path('learn/', views.learn_view, name='learn'),
 ]

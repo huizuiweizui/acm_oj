@@ -714,3 +714,10 @@ def profile_view(request, user_id):
 @login_required
 def my_profile(request):
     return redirect('profile', user_id=request.user.id)
+
+
+# ==================== 算法学习 ====================
+
+def learn_view(request):
+    """算法研习社：算法标签首页 + SPA 详情页（纯前端渲染）"""
+    return render(request, 'judge/learn.html')
