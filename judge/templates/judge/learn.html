@@ -1,7 +1,7 @@
 {% extends 'judge/base.html' %}
 {% load static %}
 
-{% block title %}算法研习社{% endblock %}
+{% block title %}算法学习{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" id="hljs-theme-link">
@@ -13,12 +13,23 @@
 /* ---- 视差 Hero ---- */
 .learn-hero {
     position: relative;
-    height: 300px;
-    overflow: hidden;
+    height: 320px;
+    overflow: visible;      /* 允许渐隐层超出 */
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
+}
+
+/* hero 底部渐隐遮罩，平滑过渡到页面背景 */
+.learn-hero::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 100px;
+    background: linear-gradient(to bottom, transparent, var(--bg-primary));
+    z-index: 3;
+    pointer-events: none;
 }
 
 .hero-parallax-bg {
@@ -27,15 +38,17 @@
     will-change: transform;
     z-index: 0;
     pointer-events: none;
+    overflow: hidden;       /* 裁剪 SVG 防止溢出 */
 }
 
 .hero-grad {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg,
-        rgba(79,70,229,0.18) 0%,
-        rgba(34,211,238,0.08) 55%,
-        rgba(79,70,229,0.04) 100%);
+    /* 竖向渐隐：顶部有色，底部淡出 */
+    background: linear-gradient(180deg,
+        rgba(79,70,229,0.14) 0%,
+        rgba(34,211,238,0.07) 50%,
+        transparent 100%);
 }
 
 /* SVG 六边形网格 */
@@ -91,12 +104,16 @@
     position: sticky;
     top: 60px;
     z-index: 50;
+    /* 初始透明，吸附后通过 JS 添加 .stuck 类显示背景 */
+    background: transparent;
+    padding: 12px 0 10px;
+    transition: background var(--transition), box-shadow var(--transition);
+}
+.learn-controls.stuck {
     background: var(--navbar-bg);
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    border-bottom: 1px solid var(--border-color);
-    padding: 10px 0;
-    transition: background var(--transition);
+    box-shadow: 0 1px 0 var(--border-color);
 }
 .controls-inner {
     max-width: 1200px;
@@ -429,7 +446,7 @@
       </div>
 
       <div class="hero-content">
-        <h1 class="learn-hero-title">算法研习社</h1>
+        <h1 class="learn-hero-title">算法学习</h1>
         <p class="learn-hero-sub">从原理到实战，系统掌握每一个算法<br>边学习、边刷题，稳步提升竞赛实力</p>
       </div>
     </div>
@@ -472,7 +489,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
 <script>
 /* ============================================================
-   算法研习社 · 主脚本
+   算法学习 · 主脚本
    架构：数据层 → 视图渲染 → 事件绑定 → 动画控制 → 路由
    ============================================================ */
 
@@ -1342,11 +1359,24 @@ function bindDetailEvents() {
 
 
 // ============================================================
-// § 8  视差 Hero
+// § 8  视差 Hero + 控制栏吸附检测
 // ============================================================
 function initParallax() {
-  const el = document.getElementById('heroParallax');
-  if (!el) return;
+  const el       = document.getElementById('heroParallax');
+  const controls = document.getElementById('learnControls');
+  if (!el || !controls) return;
+
+  // 当 controls 吸附到顶部时显示毛玻璃背景
+  const stickyObserver = new IntersectionObserver(
+    ([entry]) => controls.classList.toggle('stuck', !entry.isIntersecting),
+    { threshold: 1, rootMargin: '-60px 0px 0px 0px' }
+  );
+  // 在 controls 上方放一个哨兵元素来检测
+  const sentinel = document.createElement('div');
+  sentinel.style.cssText = 'position:absolute;top:0;height:1px;width:1px;pointer-events:none;';
+  controls.parentElement.insertBefore(sentinel, controls);
+  stickyObserver.observe(sentinel);
+
   window.addEventListener('scroll', () => {
     el.style.transform = `translateY(${window.scrollY * 0.38}px)`;
   }, { passive: true });

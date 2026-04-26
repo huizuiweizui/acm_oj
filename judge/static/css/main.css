@@ -859,6 +859,9 @@ a:hover { color: var(--accent-deep); }
 .hero-title-hl {
     position: relative;
     display: inline-block;
+    /* 重置父元素继承的透明填充色，改为具体颜色 */
+    -webkit-text-fill-color: var(--cyan);
+    color: var(--cyan);
 }
 .hero-title-hl::after {
     content: '';
