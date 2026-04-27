@@ -325,6 +325,10 @@
     color: var(--text-muted); font-size: 0.85rem; margin: 14px 0;
 }
 
+/* 算法示意图（SVG内嵌） */
+.algo-diagram { width: 100%; margin: 14px 0; border-radius: var(--radius-md); overflow: hidden; line-height: 0; }
+.algo-diagram svg { display: block; width: 100%; height: auto; }
+
 /* 复杂度表格 */
 .complexity-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 4px 0; }
 .complexity-table th {
@@ -581,6 +585,53 @@ void bubbleSort(vector<int>& arr) {
         if not swapped:              # 无交换 → 已有序，提前退出
             break` },
     },
+    diagram: `<svg viewBox="0 0 660 228" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;border-radius:8px;background:var(--bg-tertiary);border:1px solid var(--border-color);">
+  <text x="330" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">冒泡排序 · 第一趟图解（数组：5  3  8  1  6  2）</text>
+  <!-- ── 行1：初始状态 [5,3,8,1,6,2] ── -->
+  <text x="4" y="46" font-size="9" font-family="ui-monospace,monospace" fill="#475569">初始</text>
+  <rect x="55"  y="28" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="92"  y="46" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text>
+  <rect x="147" y="28" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="184" y="46" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">3</text>
+  <rect x="239" y="28" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="276" y="46" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">8</text>
+  <rect x="331" y="28" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="368" y="46" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text>
+  <rect x="423" y="28" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="46" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">6</text>
+  <rect x="515" y="28" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="552" y="46" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">2</text>
+  <!-- 注释1：5>3 交换 -->
+  <text x="330" y="65" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="#f59e0b">① 比较(5,3)：5 &gt; 3 → 交换</text>
+  <!-- ── 行2：交换后 [3,5,8,1,6,2]，位置0,1橙色高亮 ── -->
+  <text x="4" y="97" font-size="9" font-family="ui-monospace,monospace" fill="#475569">第①步</text>
+  <rect x="55"  y="78" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="92"  y="96" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">3</text>
+  <rect x="147" y="78" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="184" y="96" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">5</text>
+  <rect x="239" y="78" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="276" y="96" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">8</text>
+  <rect x="331" y="78" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="368" y="96" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text>
+  <rect x="423" y="78" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="96" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">6</text>
+  <rect x="515" y="78" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="552" y="96" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">2</text>
+  <!-- 注释2：跳过5<8，再交换8>1 -->
+  <text x="330" y="115" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="#64748b">② 比较(5,8)：5 &lt; 8 跳过 · ③ 比较(8,1)：8 &gt; 1 → 交换</text>
+  <!-- ── 行3：交换后 [3,5,1,8,6,2]，位置2,3橙色高亮 ── -->
+  <text x="4" y="147" font-size="9" font-family="ui-monospace,monospace" fill="#475569">第③步</text>
+  <rect x="55"  y="128" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="92"  y="146" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">3</text>
+  <rect x="147" y="128" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="184" y="146" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text>
+  <rect x="239" y="128" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="276" y="146" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">1</text>
+  <rect x="331" y="128" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="368" y="146" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">8</text>
+  <rect x="423" y="128" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="146" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">6</text>
+  <rect x="515" y="128" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="552" y="146" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">2</text>
+  <!-- 注释3：8继续右移 -->
+  <text x="330" y="165" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="#64748b">④ 比较(8,6)：8 &gt; 6 → 交换 · ⑤ 比较(8,2)：8 &gt; 2 → 交换 → 8 到达末尾</text>
+  <!-- ── 行4：第一趟结束 [3,5,1,6,2,8]，位置5绿色已归位 ── -->
+  <text x="4" y="197" font-size="9" font-family="ui-monospace,monospace" fill="#475569">趟末</text>
+  <rect x="55"  y="178" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="92"  y="196" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">3</text>
+  <rect x="147" y="178" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="184" y="196" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text>
+  <rect x="239" y="178" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="276" y="196" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text>
+  <rect x="331" y="178" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="368" y="196" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">6</text>
+  <rect x="423" y="178" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="196" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">2</text>
+  <rect x="515" y="178" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.8"/><text x="552" y="196" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">8</text>
+  <circle cx="597" cy="191" r="8" fill="#15803d"/><text x="597" y="195" text-anchor="middle" font-size="10" font-weight="700" fill="white">✓</text>
+  <!-- 图例 -->
+  <rect x="55"  y="213" width="10" height="10" rx="2" fill="#431407" stroke="#f97316" stroke-width="1.2"/><text x="69"  y="221" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">正在交换</text>
+  <rect x="148" y="213" width="10" height="10" rx="2" fill="#052e16" stroke="#22c55e" stroke-width="1.2"/><text x="162" y="221" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">已归位</text>
+  <rect x="220" y="213" width="10" height="10" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="234" y="221" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">待排序</text>
+  <text x="340" y="221" font-size="9" font-family="ui-monospace,monospace" fill="#334155">重复以上过程，每趟让最大值归位，直到无交换</text>
+</svg>`,
     problems: [{ id: 1001, title: '数组排序入门', passRate: '82.3%', difficulty: '入门' }, { id: 1002, title: '逆序对统计', passRate: '53.1%', difficulty: '提高' }],
   },
 
@@ -647,6 +698,49 @@ def quick_sort(arr, lo=0, hi=None):
     quick_sort(arr, lo, p - 1)
     quick_sort(arr, p + 1, hi)` },
     },
+    diagram: `<svg viewBox="0 0 660 184" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;border-radius:8px;background:var(--bg-tertiary);border:1px solid var(--border-color);">
+  <text x="330" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">快速排序 · 分治图解（数组：5  3  8  1  6  2，随机选 pivot = 3）</text>
+  <!-- ── 行1：初始数组，pivot 用靛色标出 ── -->
+  <text x="4" y="44" font-size="9" font-family="ui-monospace,monospace" fill="#475569">初始</text>
+  <rect x="55"  y="26" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="92"  y="44" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text>
+  <rect x="147" y="26" width="74" height="26" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.8"/><text x="184" y="44" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#a5b4fc">3</text>
+  <rect x="239" y="26" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="276" y="44" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">8</text>
+  <rect x="331" y="26" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="368" y="44" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text>
+  <rect x="423" y="26" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="44" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">6</text>
+  <rect x="515" y="26" width="74" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="552" y="44" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">2</text>
+  <!-- 注释1 -->
+  <text x="330" y="64" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="#6366f1">① 以 pivot=3 为基准划分：≤ 3 移到左边，&gt; 3 移到右边，pivot 落到其最终正确位置</text>
+  <!-- ── 行2：划分结果 [2,1 | 3✓ | 5,8,6]，三色分区 ── -->
+  <text x="4" y="90" font-size="9" font-family="ui-monospace,monospace" fill="#475569">划分后</text>
+  <rect x="55"  y="72" width="74" height="26" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="92"  y="90" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#93c5fd">2</text>
+  <rect x="147" y="72" width="74" height="26" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="184" y="90" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#93c5fd">1</text>
+  <line x1="230" y1="70" x2="230" y2="100" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+  <rect x="239" y="72" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.8"/><text x="276" y="90" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">3</text>
+  <text x="303" y="79" font-size="9" font-weight="700" font-family="ui-monospace,monospace" fill="#22c55e">✓</text>
+  <line x1="322" y1="70" x2="322" y2="100" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+  <rect x="331" y="72" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="368" y="90" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">5</text>
+  <rect x="423" y="72" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="460" y="90" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">8</text>
+  <rect x="515" y="72" width="74" height="26" rx="4" fill="#431407" stroke="#f97316" stroke-width="1.5"/><text x="552" y="90" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#fed7aa">6</text>
+  <!-- 三区标签 -->
+  <text x="138" y="110" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#3b82f6">左子数组 ≤ 3</text>
+  <text x="276" y="110" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#22c55e">已归位</text>
+  <text x="460" y="110" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#f97316">右子数组 &gt; 3</text>
+  <!-- 注释2 -->
+  <text x="330" y="126" text-anchor="middle" font-size="9.5" font-family="ui-monospace,monospace" fill="#64748b">② 递归对 [2,1] 和 [5,8,6] 分别做同样操作（再选 pivot，再划分）→ 子问题规模不断缩小</text>
+  <!-- ── 行3：递归完成，最终有序 ── -->
+  <text x="4" y="152" font-size="9" font-family="ui-monospace,monospace" fill="#475569">有序</text>
+  <rect x="55"  y="134" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.5"/><text x="92"  y="152" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">1</text>
+  <rect x="147" y="134" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.5"/><text x="184" y="152" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">2</text>
+  <rect x="239" y="134" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.8"/><text x="276" y="152" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">3</text>
+  <rect x="331" y="134" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.5"/><text x="368" y="152" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">5</text>
+  <rect x="423" y="134" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.5"/><text x="460" y="152" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">6</text>
+  <rect x="515" y="134" width="74" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="1.5"/><text x="552" y="152" text-anchor="middle" font-size="14" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">8</text>
+  <!-- 图例 -->
+  <rect x="55"  y="169" width="10" height="10" rx="2" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2"/><text x="69"  y="177" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">随机选中的 pivot</text>
+  <rect x="185" y="169" width="10" height="10" rx="2" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="199" y="177" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">≤ pivot（左区）</text>
+  <rect x="305" y="169" width="10" height="10" rx="2" fill="#431407" stroke="#f97316" stroke-width="1.2"/><text x="319" y="177" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">&gt; pivot（右区）</text>
+  <rect x="415" y="169" width="10" height="10" rx="2" fill="#052e16" stroke="#22c55e" stroke-width="1.2"/><text x="429" y="177" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">已正确归位</text>
+</svg>`,
     problems: [{ id: 1003, title: '第 K 大元素', passRate: '67.4%', difficulty: '提高' }, { id: 1004, title: '区间内小于 x 的个数', passRate: '48.9%', difficulty: '进阶' }],
   },
 
@@ -706,6 +800,65 @@ import bisect
 # bisect.bisect_left(arr, x)   → 第一个 >= x 的位置
 # bisect.bisect_right(arr, x)  → 第一个 >  x 的位置` },
     },
+    diagram: `<svg viewBox="0 0 660 222" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;border-radius:8px;background:var(--bg-tertiary);border:1px solid var(--border-color);">
+  <text x="330" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">二分搜索 · 图解（有序数组 [1,3,5,7,9,11,13]，查找 target = 9）</text>
+  <!-- ── 步骤①：lo=0 hi=6 mid=3，arr[3]=7 ── -->
+  <text x="4" y="44" font-size="9" font-family="ui-monospace,monospace" fill="#475569">第①步</text>
+  <rect x="40"  y="28" width="60" height="26" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.8"/><text x="70"  y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text>
+  <rect x="110" y="28" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="140" y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">3</text>
+  <rect x="180" y="28" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="210" y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text>
+  <rect x="250" y="28" width="60" height="26" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.8"/><text x="280" y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#a5b4fc">7</text>
+  <rect x="320" y="28" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="350" y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">9</text>
+  <rect x="390" y="28" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="420" y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">11</text>
+  <rect x="460" y="28" width="60" height="26" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1.8"/><text x="490" y="46" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">13</text>
+  <text x="70"  y="62" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#3b82f6">▲ lo=0</text>
+  <text x="280" y="62" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#6366f1">▲ mid=3</text>
+  <text x="490" y="62" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#f59e0b">▲ hi=6</text>
+  <text x="70"  y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[0]</text>
+  <text x="140" y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[1]</text>
+  <text x="210" y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[2]</text>
+  <text x="280" y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[3]</text>
+  <text x="350" y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[4]</text>
+  <text x="420" y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[5]</text>
+  <text x="490" y="74" text-anchor="middle" font-size="8" font-family="ui-monospace,monospace" fill="#334155">[6]</text>
+  <text x="526" y="40" font-size="9" font-family="ui-monospace,monospace" fill="#6366f1">arr[3]=7 &lt; 9</text>
+  <text x="526" y="54" font-size="9" font-family="ui-monospace,monospace" fill="#f59e0b">→ lo=mid+1=4 ▶</text>
+  <!-- ── 步骤②：lo=4 hi=6 mid=5，arr[5]=11 ── -->
+  <text x="4" y="106" font-size="9" font-family="ui-monospace,monospace" fill="#475569">第②步</text>
+  <g opacity="0.2"><rect x="40"  y="90" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="70"  y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text></g>
+  <g opacity="0.2"><rect x="110" y="90" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="140" y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">3</text></g>
+  <g opacity="0.2"><rect x="180" y="90" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="210" y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text></g>
+  <g opacity="0.2"><rect x="250" y="90" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="280" y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">7</text></g>
+  <line x1="316" y1="88" x2="316" y2="118" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+  <rect x="320" y="90" width="60" height="26" rx="4" fill="#1e293b" stroke="#3b82f6" stroke-width="1.8"/><text x="350" y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">9</text>
+  <rect x="390" y="90" width="60" height="26" rx="4" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.8"/><text x="420" y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#a5b4fc">11</text>
+  <rect x="460" y="90" width="60" height="26" rx="4" fill="#1e293b" stroke="#f59e0b" stroke-width="1.8"/><text x="490" y="108" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">13</text>
+  <text x="350" y="126" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#3b82f6">▲ lo=4</text>
+  <text x="420" y="126" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#6366f1">▲ mid=5</text>
+  <text x="490" y="126" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#f59e0b">▲ hi=6</text>
+  <text x="526" y="102" font-size="9" font-family="ui-monospace,monospace" fill="#6366f1">arr[5]=11 &gt; 9</text>
+  <text x="526" y="116" font-size="9" font-family="ui-monospace,monospace" fill="#f59e0b">◀ hi=mid-1=4</text>
+  <!-- ── 步骤③：lo=4 hi=4 mid=4，arr[4]=9 命中！ ── -->
+  <text x="4" y="168" font-size="9" font-family="ui-monospace,monospace" fill="#475569">第③步</text>
+  <g opacity="0.2"><rect x="40"  y="152" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="70"  y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">1</text></g>
+  <g opacity="0.2"><rect x="110" y="152" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="140" y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">3</text></g>
+  <g opacity="0.2"><rect x="180" y="152" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="210" y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">5</text></g>
+  <g opacity="0.2"><rect x="250" y="152" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="280" y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">7</text></g>
+  <line x1="316" y1="150" x2="316" y2="180" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+  <rect x="320" y="152" width="60" height="26" rx="4" fill="#052e16" stroke="#22c55e" stroke-width="2.0"/><text x="350" y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#86efac">9</text>
+  <line x1="386" y1="150" x2="386" y2="180" stroke="#475569" stroke-width="1" stroke-dasharray="4,3"/>
+  <g opacity="0.2"><rect x="390" y="152" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="420" y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">11</text></g>
+  <g opacity="0.2"><rect x="460" y="152" width="60" height="26" rx="4" fill="#1e293b" stroke="#334155"/><text x="490" y="170" text-anchor="middle" font-size="13" font-weight="700" font-family="ui-monospace,monospace" fill="#cbd5e1">13</text></g>
+  <text x="350" y="188" text-anchor="middle" font-size="9" font-family="ui-monospace,monospace" fill="#22c55e">▲ lo=mid=hi=4</text>
+  <text x="526" y="162" font-size="9" font-family="ui-monospace,monospace" fill="#6366f1">arr[4]=9 == 9</text>
+  <text x="526" y="176" font-size="9" font-family="ui-monospace,monospace" fill="#22c55e">✓ 命中！返回 4</text>
+  <!-- 图例 -->
+  <rect x="40"  y="204" width="10" height="10" rx="2" fill="#1e1b4b" stroke="#6366f1" stroke-width="1.2"/><text x="54"  y="212" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">当前 mid</text>
+  <rect x="135" y="204" width="10" height="10" rx="2" fill="#1e293b" stroke="#3b82f6" stroke-width="1.2"/><text x="149" y="212" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">lo 指针</text>
+  <rect x="215" y="204" width="10" height="10" rx="2" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2"/><text x="229" y="212" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">hi 指针</text>
+  <rect x="295" y="204" width="10" height="10" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1" style="opacity:0.2"/><text x="309" y="212" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">已排除（不可能含目标）</text>
+  <rect x="490" y="204" width="10" height="10" rx="2" fill="#052e16" stroke="#22c55e" stroke-width="1.2"/><text x="504" y="212" font-size="9" font-family="ui-monospace,monospace" fill="#64748b">命中</text>
+</svg>`,
     problems: [{ id: 1005, title: '有序数组查找', passRate: '91.2%', difficulty: '入门' }, { id: 1006, title: '猜数游戏', passRate: '78.5%', difficulty: '入门' }, { id: 1007, title: '最小化最大值（二分答案）', passRate: '44.7%', difficulty: '进阶' }],
   },
 
@@ -1208,7 +1361,7 @@ function renderDetail(id) {
     <div class="detail-section">
       <h2 class="section-title">算法原理</h2>
       <div class="detail-text"><p>${detail.description}</p></div>
-      <div class="algo-placeholder-img">[ 算法示意图 · 占位 ]</div>
+      ${detail.diagram ? '<div class="algo-diagram">' + detail.diagram + '</div>' : '<div class="algo-placeholder-img">[ 算法示意图 · 占位 ]</div>'}
     </div>
 
     <div class="detail-section">
