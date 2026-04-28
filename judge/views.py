@@ -721,3 +721,28 @@ def my_profile(request):
 def learn_view(request):
     """算法研习社：算法标签首页 + SPA 详情页（纯前端渲染）"""
     return render(request, 'judge/learn.html')
+
+
+def learn_tag_problems(request):
+    """按标签分组返回已发布题目列表，供算法学习页动态加载（无需登录）。"""
+    from collections import defaultdict
+    tag_map = defaultdict(list)
+    problems = (
+        Problem.objects.filter(is_published=True)
+        .prefetch_related('tags')
+        .only('id', 'title', 'difficulty', 'ac_count', 'submit_count')
+    )
+    for prob in problems:
+        pass_rate = (
+            f'{round(prob.ac_count / prob.submit_count * 100, 1)}%'
+            if prob.submit_count > 0 else '0.0%'
+        )
+        entry = {
+            'id': prob.id,
+            'title': prob.title,
+            'difficulty': prob.difficulty,
+            'pass_rate': pass_rate,
+        }
+        for tag in prob.tags.all():
+            tag_map[tag.name].append(entry)
+    return JsonResponse(dict(tag_map))

@@ -540,38 +540,90 @@
 // § 1  数据层
 // ============================================================
 
-const CATEGORIES = ['全部', '排序', '搜索', '动态规划', '图论', '贪心', '数据结构', '字符串', '数学'];
+const CATEGORIES = ['全部', '基础算法', '排序', '搜索', '贪心', '动态规划', '图论', '数据结构', '字符串', '数学'];
 
 const ALGORITHMS = [
-  /* 排序 */
-  { id: 'bubble-sort',    name: '冒泡排序',       nameEn: 'Bubble Sort',           category: '排序',   difficulty: '入门', desc: '重复交换相邻逆序元素，将最大值逐步"冒泡"至末尾，可用无交换标志提前退出。' },
-  { id: 'quick-sort',     name: '快速排序',        nameEn: 'Quick Sort',            category: '排序',   difficulty: '提高', desc: '分治思想，选取基准将数组分为两段递归排序，期望 O(n log n)，原地不稳定。' },
-  { id: 'merge-sort',     name: '归并排序',        nameEn: 'Merge Sort',            category: '排序',   difficulty: '提高', desc: '稳定的分治排序，拆分后有序合并，O(n log n)，常用于逆序对计数与外排序。' },
-  { id: 'heap-sort',      name: '堆排序',          nameEn: 'Heap Sort',             category: '排序',   difficulty: '提高', desc: '利用最大堆原地实现 O(n log n) 排序，不稳定，额外空间 O(1)。' },
-  /* 搜索 */
-  { id: 'binary-search',  name: '二分搜索',        nameEn: 'Binary Search',         category: '搜索',   difficulty: '入门', desc: '在有序区间每次折半定位目标，O(log n) 查找，二分答案是其重要扩展。' },
-  { id: 'dfs',            name: '深度优先搜索',    nameEn: 'DFS',                   category: '搜索',   difficulty: '提高', desc: '沿路径尽可能深入，回溯后探索下一分支，适用于连通性判断、路径搜索与拓扑。' },
-  { id: 'bfs',            name: '广度优先搜索',    nameEn: 'BFS',                   category: '搜索',   difficulty: '提高', desc: '逐层扩展，天然保证无权图最短步数，适用于最短路与层序遍历。' },
-  /* 动态规划 */
-  { id: 'knapsack',       name: '背包问题',        nameEn: 'Knapsack DP',           category: '动态规划', difficulty: '提高', desc: '01/完全背包经典 DP，容量限制下求最大价值，滚动数组优化至 O(W) 空间。' },
-  { id: 'lcs',            name: '最长公共子序列',  nameEn: 'LCS',                   category: '动态规划', difficulty: '进阶', desc: '二维 DP 求两序列最长公共子序列，O(nm)，是 diff 工具的核心算法。' },
-  { id: 'lis',            name: '最长递增子序列',  nameEn: 'LIS',                   category: '动态规划', difficulty: '进阶', desc: '经典 DP 可用二分+贪心优化至 O(n log n)，维护最优末尾序列。' },
-  /* 图论 */
-  { id: 'dijkstra',       name: 'Dijkstra 最短路', nameEn: "Dijkstra's Algorithm",  category: '图论',   difficulty: '进阶', desc: '贪心 + 优先队列，非负权图单源最短路，O((V+E) log V)，竞赛最常用。' },
-  { id: 'floyd',          name: 'Floyd-Warshall',  nameEn: 'Floyd-Warshall',        category: '图论',   difficulty: '提高', desc: '三重循环求所有点对最短路，O(V³)，支持负权不支持负环，代码极简。' },
-  { id: 'kruskal',        name: 'Kruskal 最小生成树', nameEn: "Kruskal's MST",      category: '图论',   difficulty: '进阶', desc: '按边权升序贪心加边，并查集判环，O(E log E) 构造最小生成树。' },
-  { id: 'topo-sort',      name: '拓扑排序',        nameEn: 'Topological Sort',      category: '图论',   difficulty: '提高', desc: '对有向无环图线性排序，Kahn（BFS）与 DFS 两种写法，处理任务依赖关系。' },
-  /* 贪心 */
-  { id: 'activity-select',name: '活动选择',        nameEn: 'Activity Selection',    category: '贪心',   difficulty: '提高', desc: '按结束时间排序，每次选不冲突的最早结束活动，贪心策略经典入门题。' },
-  /* 数据结构 */
-  { id: 'union-find',     name: '并查集',          nameEn: 'Union-Find (DSU)',       category: '数据结构', difficulty: '提高', desc: '路径压缩 + 按秩合并，均摊近似 O(1) 的集合合并与连通性查询。' },
-  { id: 'segment-tree',   name: '线段树',          nameEn: 'Segment Tree',          category: '数据结构', difficulty: '进阶', desc: '区间查询与区间修改，O(log n) 支持区间求和、最值，懒标记处理区间修改。' },
-  /* 字符串 */
-  { id: 'kmp',            name: 'KMP 算法',        nameEn: 'KMP Algorithm',         category: '字符串', difficulty: '进阶', desc: '部分匹配表避免冗余比较，O(n+m) 线性时间完成字符串模式匹配。' },
-  { id: 'trie',           name: 'Trie 树',         nameEn: 'Trie',                  category: '字符串', difficulty: '提高', desc: '前缀树结构，O(m) 插入与查询，用于词典、自动补全和字符串集合管理。' },
-  /* 数学 */
-  { id: 'fast-pow',       name: '快速幂',          nameEn: 'Fast Exponentiation',   category: '数学',   difficulty: '入门', desc: '反复平方将幂运算从 O(n) 降至 O(log n)，取模快速幂是竞赛必备技巧。' },
-  { id: 'sieve',          name: '欧拉筛（线性筛）', nameEn: "Euler's Sieve",         category: '数学',   difficulty: '提高', desc: '每个合数只被最小质因子筛一次，O(n) 线性时间筛出 n 以内全部素数。' },
+  /* ===== 基础算法 ===== */
+  { id: 'simulation',         name: '模拟',           nameEn: 'Simulation',              category: '基础算法', difficulty: '入门', desc: '按题意直接逐步模拟，适合逻辑清晰的过程性问题，无需特殊技巧。' },
+  { id: 'enumeration',        name: '枚举',           nameEn: 'Enumeration',             category: '基础算法', difficulty: '入门', desc: '穷举所有合法情况逐一判断，搜索空间有限时可直接给出答案。' },
+  { id: 'brute-force',        name: '暴力',           nameEn: 'Brute Force',             category: '基础算法', difficulty: '入门', desc: '不加剪枝地枚举所有方案，是理解问题和验证最优解的基准方法。' },
+  { id: 'recurrence',         name: '递推',           nameEn: 'Recurrence',              category: '基础算法', difficulty: '入门', desc: '根据前若干项的规律推导下一项，Fibonacci 数列是最典型的递推模型。' },
+  { id: 'recursion',          name: '递归',           nameEn: 'Recursion',               category: '基础算法', difficulty: '入门', desc: '函数调用自身解决规模更小的子问题，需定义递归基避免无限递归。' },
+  { id: 'divide-conquer',     name: '分治',           nameEn: 'Divide & Conquer',        category: '基础算法', difficulty: '提高', desc: '将问题分解为独立子问题分别求解再合并，归并排序与 FFT 是典型应用。' },
+  { id: 'two-pointers',       name: '双指针',         nameEn: 'Two Pointers',            category: '基础算法', difficulty: '入门', desc: '用两个指针在数组中协同移动，O(n) 解决滑动窗口、求和对等问题。' },
+  /* ===== 排序 ===== */
+  { id: 'sort-general',       name: '排序',           nameEn: 'Sorting',                 category: '排序',     difficulty: '入门', desc: '将序列按规则重排，包括比较类（快排 O(n log n)）和非比较类（计数排序 O(n+k)）。' },
+  { id: 'bubble-sort',        name: '冒泡排序',       nameEn: 'Bubble Sort',             category: '排序',     difficulty: '入门', desc: '重复交换相邻逆序元素，将最大值逐步"冒泡"至末尾，可用无交换标志提前退出。' },
+  { id: 'quick-sort',         name: '快速排序',       nameEn: 'Quick Sort',              category: '排序',     difficulty: '提高', desc: '分治思想，选取基准将数组分为两段递归排序，期望 O(n log n)，原地不稳定。' },
+  { id: 'merge-sort',         name: '归并排序',       nameEn: 'Merge Sort',              category: '排序',     difficulty: '提高', desc: '稳定的分治排序，拆分后有序合并，O(n log n)，常用于逆序对计数与外排序。' },
+  { id: 'heap-sort',          name: '堆排序',         nameEn: 'Heap Sort',               category: '排序',     difficulty: '提高', desc: '利用最大堆原地实现 O(n log n) 排序，不稳定，额外空间 O(1)。' },
+  /* ===== 搜索 ===== */
+  { id: 'search-general',     name: '搜索',           nameEn: 'Search',                  category: '搜索',     difficulty: '入门', desc: '在状态空间或序列中系统探索以找到目标解，DFS 和 BFS 是最核心的两种策略。' },
+  { id: 'binary-search',      name: '二分',           nameEn: 'Binary Search',           category: '搜索',     difficulty: '入门', desc: '在有序区间每次折半定位目标，O(log n) 查找，二分答案是其重要扩展。' },
+  { id: 'dfs',                name: '深搜DFS',        nameEn: 'Depth-First Search',      category: '搜索',     difficulty: '提高', desc: '沿路径尽可能深入，回溯后探索下一分支，适用于连通性判断、路径搜索与拓扑。' },
+  { id: 'bfs',                name: '广搜BFS',        nameEn: 'Breadth-First Search',    category: '搜索',     difficulty: '提高', desc: '逐层扩展，天然保证无权图最短步数，适用于最短路与层序遍历。' },
+  /* ===== 贪心 ===== */
+  { id: 'greedy',             name: '贪心',           nameEn: 'Greedy Algorithm',        category: '贪心',     difficulty: '提高', desc: '每步做局部最优决策，若局部最优能推出全局最优则策略成立，需严格证明正确性。' },
+  { id: 'activity-select',    name: '活动选择',       nameEn: 'Activity Selection',      category: '贪心',     difficulty: '提高', desc: '按结束时间排序，每次选不冲突的最早结束活动，贪心策略经典入门题。' },
+  /* ===== 动态规划 ===== */
+  { id: 'dp-general',         name: '动态规划',       nameEn: 'Dynamic Programming',     category: '动态规划', difficulty: '提高', desc: '把大问题拆分为重叠子问题，记忆化或递推避免重复计算，是竞赛核心算法。' },
+  { id: 'knapsack',           name: '背包',           nameEn: 'Knapsack DP',             category: '动态规划', difficulty: '提高', desc: '01/完全背包经典 DP，容量限制下求最大价值，滚动数组优化至 O(W) 空间。' },
+  { id: 'lcs',                name: '最长公共子序列', nameEn: 'LCS',                     category: '动态规划', difficulty: '进阶', desc: '二维 DP 求两序列最长公共子序列，O(nm)，是 diff 工具的核心算法。' },
+  { id: 'lis',                name: '最长递增子序列', nameEn: 'LIS',                     category: '动态规划', difficulty: '进阶', desc: '经典 DP 可用二分+贪心优化至 O(n log n)，维护最优末尾序列。' },
+  { id: 'bitmask-dp',         name: '状压DP',         nameEn: 'Bitmask DP',              category: '动态规划', difficulty: '进阶', desc: '用二进制位压缩集合状态，将指数级状态空间压缩，适用于小集合枚举问题。' },
+  { id: 'interval-dp',        name: '区间DP',         nameEn: 'Interval DP',             category: '动态规划', difficulty: '进阶', desc: '以区间 [l,r] 为状态从小到大扩展，典型题有石子合并、矩阵链乘。' },
+  { id: 'tree-dp',            name: '树形DP',         nameEn: 'Tree DP',                 category: '动态规划', difficulty: '进阶', desc: '在树上做 DP，DFS 过程中自底向上合并子树信息，处理树上路径、选点等问题。' },
+  { id: 'digit-dp',           name: '数位DP',         nameEn: 'Digit DP',                category: '动态规划', difficulty: '进阶', desc: '按数字每一位从高到低做 DP，统计 [l,r] 内满足数位条件的整数个数。' },
+  /* ===== 图论 ===== */
+  { id: 'graph-general',      name: '图论',           nameEn: 'Graph Theory',            category: '图论',     difficulty: '提高', desc: '研究顶点与边构成的图，涵盖遍历、最短路、最小生成树、网络流等核心算法。' },
+  { id: 'shortest-path',      name: '最短路',         nameEn: 'Shortest Path',           category: '图论',     difficulty: '提高', desc: '求图中两点路径的最小权重，Dijkstra 处理非负权，Bellman-Ford 支持负权。' },
+  { id: 'mst',                name: '最小生成树',     nameEn: 'Minimum Spanning Tree',   category: '图论',     difficulty: '提高', desc: '连通所有节点且总边权最小的树，Kruskal 按边权排序，Prim 从节点扩展。' },
+  { id: 'topo-sort',          name: '拓扑排序',       nameEn: 'Topological Sort',        category: '图论',     difficulty: '提高', desc: '对有向无环图线性排序，Kahn（BFS）与 DFS 两种写法，处理任务依赖关系。' },
+  { id: 'network-flow',       name: '网络流',         nameEn: 'Network Flow',            category: '图论',     difficulty: '进阶', desc: '有向图中从源到汇的最大流，Dinic 算法 O(V²E)，是许多规划问题的建模工具。' },
+  { id: 'min-cost-flow',      name: '费用流',         nameEn: 'Min Cost Flow',           category: '图论',     difficulty: '进阶', desc: '在满足流量约束下最小化总费用，结合 SPFA 或 Dijkstra+势能找最短增广路。' },
+  { id: 'bipartite',          name: '二分图',         nameEn: 'Bipartite Graph',         category: '图论',     difficulty: '进阶', desc: '顶点可二着色的图，匈牙利算法求最大匹配，König 定理联系最大匹配与最小覆盖。' },
+  { id: 'binary-lifting',     name: '倍增',           nameEn: 'Binary Lifting',          category: '图论',     difficulty: '提高', desc: '预处理每个节点的 2^k 步祖先，O(n log n) 预处理后 O(log n) 回答 LCA 查询。' },
+  { id: 'lca',                name: 'LCA',            nameEn: 'Lowest Common Ancestor',  category: '图论',     difficulty: '提高', desc: '求树中两节点最近公共祖先，倍增 LCA 是竞赛主流实现，O(n log n)+O(log n)。' },
+  { id: 'dijkstra',           name: 'Dijkstra',       nameEn: "Dijkstra's Algorithm",    category: '图论',     difficulty: '进阶', desc: '贪心 + 优先队列，非负权图单源最短路，O((V+E) log V)，竞赛最常用。' },
+  { id: 'floyd',              name: 'Floyd-Warshall', nameEn: 'Floyd-Warshall',          category: '图论',     difficulty: '提高', desc: '三重循环求所有点对最短路，O(V³)，支持负权不支持负环，代码极简。' },
+  { id: 'kruskal',            name: 'Kruskal',        nameEn: "Kruskal's MST",           category: '图论',     difficulty: '进阶', desc: '按边权升序贪心加边，并查集判环，O(E log E) 构造最小生成树。' },
+  /* ===== 数据结构 ===== */
+  { id: 'data-struct-general',name: '数据结构',       nameEn: 'Data Structures',         category: '数据结构', difficulty: '提高', desc: '高效组织和存储数据的方式，包括线性结构、树形结构和哈希等核心类型。' },
+  { id: 'tree-struct',        name: '树形结构',       nameEn: 'Tree',                    category: '数据结构', difficulty: '提高', desc: '以层次关系组织节点的非线性结构，包括二叉树、多叉树、Trie、平衡树等形态。' },
+  { id: 'stack',              name: '栈',             nameEn: 'Stack',                   category: '数据结构', difficulty: '入门', desc: '后进先出（LIFO）线性结构，支持 push/pop，用于括号匹配、表达式求值、DFS。' },
+  { id: 'queue',              name: '队列',           nameEn: 'Queue',                   category: '数据结构', difficulty: '入门', desc: '先进先出（FIFO）线性结构，BFS 的核心工具，双端队列支持两端 O(1) 操作。' },
+  { id: 'linked-list',        name: '链表',           nameEn: 'Linked List',             category: '数据结构', difficulty: '入门', desc: '节点间通过指针相连，O(1) 插入/删除，不支持随机访问，是动态内存的基础。' },
+  { id: 'binary-tree',        name: '二叉树',         nameEn: 'Binary Tree',             category: '数据结构', difficulty: '入门', desc: '每节点最多两个子节点，前/中/后序遍历各有用途，BST 支持 O(log n) 有序操作。' },
+  { id: 'heap',               name: '堆',             nameEn: 'Heap',                    category: '数据结构', difficulty: '提高', desc: '完全二叉树实现的优先队列，O(log n) 插入和提取极值，支撑堆排序和 Dijkstra。' },
+  { id: 'sparse-table',       name: 'ST表',           nameEn: 'Sparse Table',            category: '数据结构', difficulty: '提高', desc: '倍增预处理区间最值，O(n log n) 建表后 O(1) 回答 RMQ 查询，不支持修改。' },
+  { id: 'bit',                name: '树状数组',       nameEn: 'Fenwick Tree (BIT)',       category: '数据结构', difficulty: '提高', desc: 'O(log n) 单点修改与前缀和查询，代码精简，常用于逆序对统计与区间求和。' },
+  { id: 'balanced-tree',      name: '平衡树',         nameEn: 'Balanced BST',            category: '数据结构', difficulty: '进阶', desc: '自动维持高度平衡的 BST，如 Treap、红黑树，保证 O(log n) 全部操作。' },
+  { id: 'priority-queue',     name: '优先队列',       nameEn: 'Priority Queue',          category: '数据结构', difficulty: '提高', desc: '每次取出最高优先级元素的结构，用堆实现，是 Dijkstra、事件模拟的核心工具。' },
+  { id: 'monotone-stack',     name: '单调栈',         nameEn: 'Monotone Stack',          category: '数据结构', difficulty: '提高', desc: '维护单调递增/递减序的栈，O(n) 处理每个元素的下一个更大/更小元素问题。' },
+  { id: 'monotone-queue',     name: '单调队列',       nameEn: 'Monotone Queue',          category: '数据结构', difficulty: '提高', desc: '双端队列维护滑动窗口极值，O(n) 解决定长窗口最值，是单调栈的队列版本。' },
+  { id: 'union-find',         name: '并查集',         nameEn: 'Union-Find (DSU)',         category: '数据结构', difficulty: '提高', desc: '路径压缩 + 按秩合并，均摊近似 O(1) 的集合合并与连通性查询。' },
+  { id: 'segment-tree',       name: '线段树',         nameEn: 'Segment Tree',            category: '数据结构', difficulty: '进阶', desc: '区间查询与区间修改，O(log n) 支持区间求和、最值，懒标记处理区间修改。' },
+  { id: 'trie',               name: '字典树',         nameEn: 'Trie',                    category: '数据结构', difficulty: '提高', desc: '前缀树结构，O(m) 插入与查询，用于词典、自动补全和字符串集合管理。' },
+  /* ===== 字符串 ===== */
+  { id: 'string-general',     name: '字符串',         nameEn: 'String Algorithms',       category: '字符串',   difficulty: '提高', desc: '字符序列的高效处理，包括模式匹配、哈希、回文、后缀结构等核心技术。' },
+  { id: 'hashing',            name: '哈希',           nameEn: 'Hashing',                 category: '字符串',   difficulty: '提高', desc: '多项式哈希将字符串映射为整数，O(1) 比较任意子串，是快速字符串比较的利器。' },
+  { id: 'kmp',                name: 'KMP',            nameEn: 'KMP Algorithm',           category: '字符串',   difficulty: '进阶', desc: '部分匹配表避免冗余比较，O(n+m) 线性时间完成字符串模式匹配。' },
+  { id: 'suffix-array',       name: '后缀数组',       nameEn: 'Suffix Array',            category: '字符串',   difficulty: '进阶', desc: '字典序排列所有后缀，结合 LCP 数组可处理最长公共子串等复杂字符串问题。' },
+  { id: 'aho-corasick',       name: 'AC自动机',       nameEn: 'Aho-Corasick',            category: '字符串',   difficulty: '进阶', desc: '在 Trie 上加失配指针，O(n+m) 同时在文本中搜索多个模式串。' },
+  /* ===== 数学 ===== */
+  { id: 'math-general',       name: '数学',           nameEn: 'Mathematics',             category: '数学',     difficulty: '提高', desc: '竞赛数学涵盖数论、组合、几何、概率等，掌握基本定理是高效解题的关键。' },
+  { id: 'number-theory',      name: '数论',           nameEn: 'Number Theory',           category: '数学',     difficulty: '提高', desc: '研究整数性质，包括质数筛、GCD/LCM、欧拉定理、中国剩余定理等核心工具。' },
+  { id: 'big-integer',        name: '高精度',         nameEn: 'Big Integer',             category: '数学',     difficulty: '提高', desc: '用数组模拟任意精度整数的四则运算，处理超出 long long 范围的计算问题。' },
+  { id: 'bitwise',            name: '位运算',         nameEn: 'Bit Manipulation',        category: '数学',     difficulty: '提高', desc: '用二进制位操作加速计算，常用于状态压缩、快速奇偶判断、子集枚举等场景。' },
+  { id: 'prefix-sum',         name: '前缀和',         nameEn: 'Prefix Sum',              category: '数学',     difficulty: '入门', desc: 'O(n) 预处理后 O(1) 回答区间和，可扩展为二维前缀和处理矩阵区域查询。' },
+  { id: 'difference-array',   name: '差分',           nameEn: 'Difference Array',        category: '数学',     difficulty: '入门', desc: '差分数组支持 O(1) 区间加法、O(n) 复原，是前缀和的逆运算，处理区间修改。' },
+  { id: 'combinatorics',      name: '组合数学',       nameEn: 'Combinatorics',           category: '数学',     difficulty: '进阶', desc: '排列组合、卡特兰数、容斥原理、Burnside 引理等计数工具，是数学竞赛核心。' },
+  { id: 'matrix',             name: '矩阵',           nameEn: 'Matrix',                  category: '数学',     difficulty: '进阶', desc: '矩阵快速幂将线性递推第 n 项求解降至 O(k³ log n)，也用于图上路径计数。' },
+  { id: 'geometry',           name: '几何',           nameEn: 'Computational Geometry',  category: '数学',     difficulty: '进阶', desc: '凸包、点线面关系、旋转卡壳等，叉积是判断方向的核心工具，需仔细处理精度。' },
+  { id: 'game-theory',        name: '博弈论',         nameEn: 'Game Theory',             category: '数学',     difficulty: '进阶', desc: 'Nim 游戏、SG 函数分析先手必胜/必败，Sprague-Grundy 定理是组合博弈的核心。' },
+  { id: 'probability',        name: '概率',           nameEn: 'Probability & Expectation',category: '数学',    difficulty: '进阶', desc: '期望 DP、随机算法等，常求解随机过程的期望步数或特定事件的发生概率。' },
+  { id: 'fast-pow',           name: '快速幂',         nameEn: 'Fast Exponentiation',     category: '数学',     difficulty: '入门', desc: '反复平方将幂运算从 O(n) 降至 O(log n)，取模快速幂是竞赛必备技巧。' },
+  { id: 'sieve',              name: '线性筛',         nameEn: "Euler's Sieve",           category: '数学',     difficulty: '提高', desc: '每个合数只被最小质因子筛一次，O(n) 线性时间筛出 n 以内全部素数。' },
 ];
 
 // 算法详情数据
@@ -5923,6 +5975,59 @@ ALGORITHMS.forEach(algo => {
     };
   }
 });
+
+
+// ============================================================
+// § 1.5  动态加载题目（按标签从题库拉取，自动与知识点关联）
+// ============================================================
+
+const TAG_TO_ALGO_ID = {
+  '模拟': 'simulation',      '字符串': 'string-general',  '排序': 'sort-general',
+  '枚举': 'enumeration',     '贪心': 'greedy',             '递推': 'recurrence',
+  '递归': 'recursion',       '搜索': 'search-general',     '深搜DFS': 'dfs',
+  '广搜BFS': 'bfs',          '动态规划': 'dp-general',     '分治': 'divide-conquer',
+  '高精度': 'big-integer',   '数论': 'number-theory',      '图论': 'graph-general',
+  '数据结构': 'data-struct-general', '树形结构': 'tree-struct', '线段树': 'segment-tree',
+  '二分': 'binary-search',   '暴力': 'brute-force',        '数学': 'math-general',
+  '位运算': 'bitwise',       '并查集': 'union-find',       '最短路': 'shortest-path',
+  '最小生成树': 'mst',       '拓扑排序': 'topo-sort',      '哈希': 'hashing',
+  '前缀和': 'prefix-sum',    '差分': 'difference-array',   '双指针': 'two-pointers',
+  '栈': 'stack',             '队列': 'queue',              '链表': 'linked-list',
+  '二叉树': 'binary-tree',   '堆': 'heap',                 'ST表': 'sparse-table',
+  '树状数组': 'bit',         '平衡树': 'balanced-tree',    '字典树': 'trie',
+  '后缀数组': 'suffix-array','KMP': 'kmp',                 'AC自动机': 'aho-corasick',
+  '网络流': 'network-flow',  '费用流': 'min-cost-flow',    '二分图': 'bipartite',
+  '状压DP': 'bitmask-dp',    '区间DP': 'interval-dp',      '树形DP': 'tree-dp',
+  '数位DP': 'digit-dp',      '博弈论': 'game-theory',      '概率': 'probability',
+  '组合数学': 'combinatorics','矩阵': 'matrix',             '几何': 'geometry',
+  '背包': 'knapsack',        '优先队列': 'priority-queue', '单调栈': 'monotone-stack',
+  '单调队列': 'monotone-queue','倍增': 'binary-lifting',   'LCA': 'lca',
+};
+
+const DB_DIFF_MAP = {
+  '暂无评定': '入门', '入门': '入门', '普及-': '入门',
+  '普及/提高-': '提高', '普及+/提高': '提高',
+  '提高+/省选-': '进阶', '省选/NOI-': '进阶', 'NOI/NOI+/CTSC': '进阶',
+};
+
+fetch('/api/learn/problems/')
+  .then(r => r.json())
+  .then(tagProblems => {
+    for (const [tagName, probs] of Object.entries(tagProblems)) {
+      const algoId = TAG_TO_ALGO_ID[tagName];
+      if (!algoId || !DETAIL_DATA[algoId]) continue;
+      DETAIL_DATA[algoId].problems = probs.map(p => ({
+        id: p.id,
+        title: p.title,
+        difficulty: DB_DIFF_MAP[p.difficulty] || '提高',
+        passRate: p.pass_rate,
+      }));
+    }
+    // 若详情页当前已打开，刷新题目列表
+    const hash = window.location.hash;
+    if (hash.startsWith('#detail/')) renderDetail(hash.slice('#detail/'.length));
+  })
+  .catch(() => {});
 
 
 // ============================================================

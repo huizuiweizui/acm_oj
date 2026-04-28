@@ -42,4 +42,5 @@ urlpatterns = [
 
     # 算法学习
     path('learn/', views.learn_view, name='learn'),
+    path('api/learn/problems/', views.learn_tag_problems, name='learn_tag_problems'),
 ]
