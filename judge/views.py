@@ -666,6 +666,21 @@ def create_discussion(request, problem_id):
     return render(request, 'judge/create_discussion.html', {'form': form, 'problem': problem})
 
 
+@login_required
+def create_discussion_general(request):
+    if request.method == 'POST':
+        form = DiscussionForm(request.POST)
+        if form.is_valid():
+            disc = form.save(commit=False)
+            disc.user = request.user
+            disc.save()
+            messages.success(request, '帖子发布成功')
+            return redirect('discussion_detail', discussion_id=disc.id)
+    else:
+        form = DiscussionForm()
+    return render(request, 'judge/create_discussion.html', {'form': form, 'problem': None})
+
+
 # ==================== 个人主页 ====================
 
 def profile_view(request, user_id):

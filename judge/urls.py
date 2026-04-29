@@ -33,6 +33,7 @@ urlpatterns = [
 
     # 讨论区
     path('discussions/', views.discussion_list, name='discussion_list'),
+    path('discussions/new/', views.create_discussion_general, name='create_discussion_general'),
     path('discussions/<int:discussion_id>/', views.discussion_detail, name='discussion_detail'),
     path('problems/<int:problem_id>/discuss/', views.create_discussion, name='create_discussion'),
 
