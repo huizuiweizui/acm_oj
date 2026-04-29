@@ -5669,6 +5669,69 @@ def knapsack_complete(W, weights, values):
             dp[j] = max(dp[j], dp[j - w] + v)
     return dp[W]` },
     },
+    diagram: `<svg viewBox="0 0 680 310" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">01背包 · dp滚动数组状态转移（容量W=6，物品：w=[2,3,4] v=[3,4,5]）</text>
+  <!-- 列标题：容量 j=0..6 -->
+  <text x="60"  y="40" font-size="10" fill="#64748b" text-anchor="middle">j=0</text>
+  <text x="140" y="40" font-size="10" fill="#64748b" text-anchor="middle">j=1</text>
+  <text x="220" y="40" font-size="10" fill="#64748b" text-anchor="middle">j=2</text>
+  <text x="300" y="40" font-size="10" fill="#64748b" text-anchor="middle">j=3</text>
+  <text x="380" y="40" font-size="10" fill="#64748b" text-anchor="middle">j=4</text>
+  <text x="460" y="40" font-size="10" fill="#64748b" text-anchor="middle">j=5</text>
+  <text x="540" y="40" font-size="10" fill="#64748b" text-anchor="middle">j=6</text>
+  <!-- 行：初始 -->
+  <text x="8" y="70" font-size="9" fill="#64748b">初始</text>
+  <rect x="20" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="60"  y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="100" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="140" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="180" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="220" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="260" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="300" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="340" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="380" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="420" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="500" y="48" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="540" y="67" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <!-- 物品1标签 -->
+  <text x="340" y="94" text-anchor="middle" font-size="9.5" fill="#f59e0b">物品1：w=2, v=3　j 从 W=6 逆序枚举到 w=2（01背包关键：逆序防重复选）</text>
+  <!-- 行：物品1后 -->
+  <text x="8" y="118" font-size="9" fill="#64748b">物品1</text>
+  <rect x="20"  y="96" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="60"  y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="100" y="96" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="140" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="180" y="96" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="220" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">3</text>
+  <rect x="260" y="96" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="300" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">3</text>
+  <rect x="340" y="96" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="380" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">3</text>
+  <rect x="420" y="96" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="460" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">3</text>
+  <rect x="500" y="96" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="540" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">3</text>
+  <!-- 物品2标签 -->
+  <text x="340" y="142" text-anchor="middle" font-size="9.5" fill="#f59e0b">物品2：w=3, v=4　dp[j] = max(dp[j], dp[j-3]+4)</text>
+  <!-- 行：物品2后 -->
+  <text x="8" y="166" font-size="9" fill="#64748b">物品2</text>
+  <rect x="20"  y="144" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="60"  y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="100" y="144" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="140" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="180" y="144" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="220" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">3</text>
+  <rect x="260" y="144" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="300" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">4</text>
+  <rect x="340" y="144" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="380" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">3</text>
+  <rect x="420" y="144" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="460" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">7</text>
+  <rect x="500" y="144" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="540" y="163" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">7</text>
+  <!-- 物品3标签 -->
+  <text x="340" y="190" text-anchor="middle" font-size="9.5" fill="#f59e0b">物品3：w=4, v=5　dp[j] = max(dp[j], dp[j-4]+5)</text>
+  <!-- 行：物品3后（最终结果）-->
+  <text x="8" y="214" font-size="9" fill="#64748b">物品3</text>
+  <rect x="20"  y="192" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="60"  y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="100" y="192" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="140" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">0</text>
+  <rect x="180" y="192" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="220" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">3</text>
+  <rect x="260" y="192" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="300" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">4</text>
+  <rect x="340" y="192" width="80" height="28" rx="4" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="380" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#86efac">5</text>
+  <rect x="420" y="192" width="80" height="28" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="460" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#cbd5e1">7</text>
+  <rect x="500" y="192" width="80" height="28" rx="4" fill="#312e00" stroke="#f59e0b" stroke-width="2"/><text x="540" y="211" text-anchor="middle" font-size="14" font-weight="700" fill="#fde68a">8</text>
+  <!-- 答案注释 -->
+  <text x="540" y="232" text-anchor="middle" font-size="9" fill="#f59e0b">← 最优解</text>
+  <!-- 图例 -->
+  <rect x="20"  y="250" width="10" height="10" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/><text x="34"  y="259" font-size="9" fill="#64748b">本轮更新</text>
+  <rect x="110" y="250" width="10" height="10" rx="2" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="124" y="259" font-size="9" fill="#64748b">最终答案</text>
+  <rect x="200" y="250" width="10" height="10" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1.2"/><text x="214" y="259" font-size="9" fill="#64748b">未变化</text>
+  <text x="340" y="259" text-anchor="middle" font-size="9" fill="#475569">逆序枚举保证每个物品最多使用一次（01背包核心约束）</text>
+  <!-- 转移公式 -->
+  <text x="340" y="280" text-anchor="middle" font-size="10" fill="#94a3b8">转移公式：dp[j] = max(dp[j],  dp[j − w] + v)　（j 从 W 倒序到 w）</text>
+  <text x="340" y="298" text-anchor="middle" font-size="9.5" fill="#475569">答案：dp[W] = dp[6] = 8（选物品1+物品2，价值3+4=7；或选物品1+物品3不满容量；实际选品1+品3: 2+4=6≤6,3+5=8✓）</text>
+</svg>`,
     problems: [{ id: 2001, title: '01 背包问题', passRate: '61.4%', difficulty: '提高' }, { id: 2002, title: '完全背包', passRate: '55.8%', difficulty: '提高' }, { id: 2003, title: '混合背包', passRate: '38.2%', difficulty: '进阶' }],
   },
 
@@ -5745,6 +5808,117 @@ def dijkstra(s, n, graph):
 
     return dist` },
     },
+    diagram: `<svg viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">Dijkstra · 单源最短路图解（源点 S，5个节点，非负权图）</text>
+  <!-- ── 图结构（左侧） ── -->
+  <!-- 节点定义：S(120,90) A(260,55) B(260,145) C(400,55) D(400,145) -->
+  <!-- 边：S→A=4, S→B=2, A→C=5, A→B=1, B→D=8, B→C=6, C→D=3, D→T不画,简化 -->
+  <!-- 背景区 -->
+  <rect x="8" y="28" width="340" height="230" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1.2"/>
+  <text x="178" y="46" text-anchor="middle" font-size="9.5" fill="#475569">图结构</text>
+  <!-- 边（先画边，节点压在上面） -->
+  <!-- S→A  weight=4 -->
+  <line x1="120" y1="90" x2="220" y2="65" stroke="#334155" stroke-width="1.5"/>
+  <text x="164" y="70" font-size="9" fill="#94a3b8" text-anchor="middle">4</text>
+  <!-- S→B  weight=2 -->
+  <line x1="120" y1="90" x2="220" y2="148" stroke="#334155" stroke-width="1.5"/>
+  <text x="162" y="130" font-size="9" fill="#94a3b8" text-anchor="middle">2</text>
+  <!-- A→C  weight=5 -->
+  <line x1="240" y1="65" x2="300" y2="65" stroke="#334155" stroke-width="1.5"/>
+  <text x="270" y="59" font-size="9" fill="#94a3b8" text-anchor="middle">5</text>
+  <!-- A→B  weight=1 -->
+  <line x1="240" y1="72" x2="240" y2="141" stroke="#334155" stroke-width="1.5"/>
+  <text x="248" y="110" font-size="9" fill="#94a3b8">1</text>
+  <!-- B→C  weight=6 -->
+  <line x1="240" y1="148" x2="300" y2="72" stroke="#334155" stroke-width="1.5"/>
+  <text x="278" y="118" font-size="9" fill="#94a3b8">6</text>
+  <!-- B→D  weight=8 -->
+  <line x1="240" y1="155" x2="300" y2="155" stroke="#334155" stroke-width="1.5"/>
+  <text x="270" y="170" font-size="9" fill="#94a3b8" text-anchor="middle">8</text>
+  <!-- C→D  weight=3 -->
+  <line x1="316" y1="75" x2="316" y2="145" stroke="#334155" stroke-width="1.5"/>
+  <text x="326" y="113" font-size="9" fill="#94a3b8">3</text>
+  <!-- 节点（圆圈） -->
+  <!-- S -->
+  <circle cx="120" cy="90" r="20" fill="#1e3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="120" y="95" text-anchor="middle" font-size="13" font-weight="700" fill="#93c5fd">S</text>
+  <!-- A -->
+  <circle cx="240" cy="65" r="18" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="240" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">A</text>
+  <!-- B -->
+  <circle cx="240" cy="155" r="18" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="240" y="160" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">B</text>
+  <!-- C -->
+  <circle cx="316" cy="65" r="18" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="316" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">C</text>
+  <!-- D -->
+  <circle cx="316" cy="155" r="18" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="316" y="160" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">D</text>
+  <!-- 最短路径高亮（最终结果：S→B→A→C→D）-->
+  <line x1="120" y1="98" x2="222" y2="147" stroke="#22c55e" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.7"/>
+  <line x1="240" y1="137" x2="240" y2="83" stroke="#22c55e" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.7"/>
+  <line x1="258" y1="65" x2="298" y2="65" stroke="#22c55e" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.7"/>
+  <line x1="316" y1="83" x2="316" y2="137" stroke="#22c55e" stroke-width="2.5" stroke-dasharray="5,3" opacity="0.7"/>
+  <!-- 最终dist标注 -->
+  <text x="120" y="116" text-anchor="middle" font-size="8.5" fill="#3b82f6">dist=0</text>
+  <text x="240" y="48" text-anchor="middle" font-size="8.5" fill="#22c55e">dist=3</text>
+  <text x="240" y="181" text-anchor="middle" font-size="8.5" fill="#22c55e">dist=2</text>
+  <text x="316" y="48" text-anchor="middle" font-size="8.5" fill="#22c55e">dist=8</text>
+  <text x="316" y="181" text-anchor="middle" font-size="8.5" fill="#22c55e">dist=11</text>
+  <!-- ── 右侧：步骤表 ── -->
+  <rect x="356" y="28" width="316" height="230" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1.2"/>
+  <text x="514" y="46" text-anchor="middle" font-size="9.5" fill="#475569">优先队列松弛过程</text>
+  <!-- 表头 -->
+  <text x="370" y="62" font-size="9" fill="#64748b">步骤</text>
+  <text x="416" y="62" font-size="9" fill="#64748b">弹出</text>
+  <text x="466" y="62" font-size="9" fill="#64748b">更新邻居</text>
+  <text x="610" y="62" font-size="9" fill="#64748b">堆内容</text>
+  <line x1="360" y1="66" x2="668" y2="66" stroke="#1e293b" stroke-width="1"/>
+  <!-- 步骤1 -->
+  <text x="370" y="82" font-size="9" fill="#cbd5e1">①</text>
+  <text x="410" y="82" font-size="9" fill="#3b82f6" font-weight="700">(0,S)</text>
+  <text x="460" y="82" font-size="8.5" fill="#94a3b8">A←4  B←2</text>
+  <text x="600" y="82" font-size="8.5" fill="#64748b">[(2,B)(4,A)]</text>
+  <!-- 步骤2 -->
+  <text x="370" y="100" font-size="9" fill="#cbd5e1">②</text>
+  <text x="410" y="100" font-size="9" fill="#22c55e" font-weight="700">(2,B)</text>
+  <text x="460" y="100" font-size="8.5" fill="#94a3b8">A←3  C←8  D←10</text>
+  <text x="600" y="100" font-size="8.5" fill="#64748b">[(3,A)…]</text>
+  <!-- 步骤3 -->
+  <text x="370" y="118" font-size="9" fill="#cbd5e1">③</text>
+  <text x="410" y="118" font-size="9" fill="#22c55e" font-weight="700">(3,A)</text>
+  <text x="460" y="118" font-size="8.5" fill="#94a3b8">C←8  (4,A)过期跳过</text>
+  <text x="600" y="118" font-size="8.5" fill="#64748b">[(8,C)(10,D)]</text>
+  <!-- 步骤4 -->
+  <text x="370" y="136" font-size="9" fill="#cbd5e1">④</text>
+  <text x="410" y="136" font-size="9" fill="#22c55e" font-weight="700">(8,C)</text>
+  <text x="460" y="136" font-size="8.5" fill="#94a3b8">D←11</text>
+  <text x="600" y="136" font-size="8.5" fill="#64748b">[(10,D)(11,D)]</text>
+  <!-- 步骤5 -->
+  <text x="370" y="154" font-size="9" fill="#cbd5e1">⑤</text>
+  <text x="410" y="154" font-size="9" fill="#22c55e" font-weight="700">(10,D)</text>
+  <text x="460" y="154" font-size="8.5" fill="#94a3b8">无更新（(11,D)过期）</text>
+  <text x="600" y="154" font-size="8.5" fill="#64748b">[(11,D)]</text>
+  <!-- 步骤6 -->
+  <text x="370" y="172" font-size="9" fill="#cbd5e1">⑥</text>
+  <text x="410" y="172" font-size="9" fill="#64748b">(11,D)</text>
+  <text x="460" y="172" font-size="8.5" fill="#475569">d&gt;dist[D] 跳过</text>
+  <text x="600" y="172" font-size="8.5" fill="#64748b">[]  结束</text>
+  <!-- 分割线 -->
+  <line x1="360" y1="182" x2="668" y2="182" stroke="#1e293b" stroke-width="1"/>
+  <!-- 最终结果 -->
+  <text x="514" y="197" text-anchor="middle" font-size="9" fill="#64748b">最终 dist[]：S=0  A=3  B=2  C=8  D=10</text>
+  <text x="514" y="212" text-anchor="middle" font-size="9" fill="#22c55e">S→B(2)→A(3)→C(8)→D(11)  最优路径</text>
+  <!-- 注意：过期节点跳过是Dijkstra堆实现的关键 -->
+  <text x="514" y="226" text-anchor="middle" font-size="8.5" fill="#475569">「d &gt; dist[u]则跳过」避免重复扩展已确定节点</text>
+  <!-- ── 图例 ── -->
+  <rect x="8" y="265" width="660" height="48" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <circle cx="28" cy="280" r="7" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="40" y="284" font-size="9" fill="#64748b">源点</text>
+  <rect x="80" y="273" width="10" height="10" rx="2" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/><text x="94" y="284" font-size="9" fill="#64748b">已确定最短距离</text>
+  <line x1="200" y1="279" x2="220" y2="279" stroke="#22c55e" stroke-width="2" stroke-dasharray="4,2"/><text x="226" y="284" font-size="9" fill="#64748b">最短路径</text>
+  <text x="340" y="284" font-size="9" fill="#64748b">过期节点：堆中d &gt; dist[u]时直接跳过，无需删除</text>
+  <text x="340" y="300" font-size="9" fill="#475569">时间复杂度：O((V+E) log V)　要求：所有边权非负</text>
+</svg>`,
     problems: [{ id: 3001, title: '单源最短路', passRate: '57.3%', difficulty: '进阶' }, { id: 3002, title: '带障碍的迷宫最短路', passRate: '49.1%', difficulty: '进阶' }],
   },
 
@@ -5822,6 +5996,86 @@ struct DSU {
 
     def same(self, x, y): return self.find(x) == self.find(y)` },
     },
+    diagram: `<svg viewBox="0 0 680 308" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">并查集 · 路径压缩 + 按秩合并图解（节点 0-6）</text>
+
+  <!-- ── 阶段1：初始（每人独立） ── -->
+  <text x="8" y="38" font-size="9.5" fill="#f59e0b" font-weight="700">① 初始化：parent[i]=i，每个节点自成一组</text>
+  <!-- 7个独立节点 -->
+  <g fill="#1e293b" stroke="#475569" stroke-width="1.2">
+    <circle cx="52"  cy="62" r="16"/><text x="52"  y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">0</text>
+    <circle cx="132" cy="62" r="16"/><text x="132" y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">1</text>
+    <circle cx="212" cy="62" r="16"/><text x="212" y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">2</text>
+    <circle cx="292" cy="62" r="16"/><text x="292" y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">3</text>
+    <circle cx="372" cy="62" r="16"/><text x="372" y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">4</text>
+    <circle cx="452" cy="62" r="16"/><text x="452" y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">5</text>
+    <circle cx="532" cy="62" r="16"/><text x="532" y="67" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">6</text>
+  </g>
+  <!-- parent数组标注 -->
+  <text x="52"  y="86" text-anchor="middle" font-size="8" fill="#64748b">p=0</text>
+  <text x="132" y="86" text-anchor="middle" font-size="8" fill="#64748b">p=1</text>
+  <text x="212" y="86" text-anchor="middle" font-size="8" fill="#64748b">p=2</text>
+  <text x="292" y="86" text-anchor="middle" font-size="8" fill="#64748b">p=3</text>
+  <text x="372" y="86" text-anchor="middle" font-size="8" fill="#64748b">p=4</text>
+  <text x="452" y="86" text-anchor="middle" font-size="8" fill="#64748b">p=5</text>
+  <text x="532" y="86" text-anchor="middle" font-size="8" fill="#64748b">p=6</text>
+
+  <!-- ── 阶段2：unite(0,1) unite(1,2) → 链 0-1-2 ── -->
+  <text x="8" y="106" font-size="9.5" fill="#f59e0b" font-weight="700">② unite(0,1)·unite(1,2)·unite(3,4)：按秩合并，秩小挂到秩大下</text>
+  <!-- 树1：根=0，子=1，子子=2（链，未压缩） -->
+  <circle cx="52"  cy="135" r="16" fill="#1a3a5f" stroke="#3b82f6" stroke-width="2"/><text x="52"  y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#93c5fd">0</text>
+  <line x1="52" y1="151" x2="52" y2="164" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="52"  cy="178" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="52"  y="183" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">1</text>
+  <line x1="52" y1="194" x2="52" y2="207" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="52"  cy="221" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="52"  y="226" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">2</text>
+  <text x="52" y="244" text-anchor="middle" font-size="8" fill="#64748b">链（未压缩）</text>
+  <!-- 树2：根=3，子=4 -->
+  <circle cx="172" cy="135" r="16" fill="#1a3a5f" stroke="#3b82f6" stroke-width="2"/><text x="172" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#93c5fd">3</text>
+  <line x1="172" y1="151" x2="172" y2="164" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="172" cy="178" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="172" y="183" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">4</text>
+  <!-- 5,6 孤立 -->
+  <circle cx="292" cy="135" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="292" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">5</text>
+  <circle cx="372" cy="135" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="372" y="140" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">6</text>
+  <!-- 箭头marker -->
+  <defs>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#475569"/>
+    </marker>
+    <marker id="arr2" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L6,3 z" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <!-- ── 阶段3：find(2) 路径压缩 ── -->
+  <text x="440" y="106" font-size="9.5" fill="#f59e0b" font-weight="700">③ find(2) 路径压缩：沿途直连根</text>
+  <!-- 压缩前 -->
+  <text x="470" y="122" font-size="8.5" fill="#64748b">压缩前：2→1→0（根）</text>
+  <!-- 压缩后树形（0为根，1和2直接挂根） -->
+  <circle cx="560" cy="145" r="16" fill="#1a3a5f" stroke="#3b82f6" stroke-width="2"/><text x="560" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#93c5fd">0</text>
+  <line x1="540" y1="157" x2="512" y2="172" stroke="#22c55e" stroke-width="1.8" marker-end="url(#arr2)"/>
+  <line x1="560" y1="161" x2="560" y2="174" stroke="#22c55e" stroke-width="1.8" marker-end="url(#arr2)"/>
+  <circle cx="500" cy="186" r="16" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/><text x="500" y="191" text-anchor="middle" font-size="12" font-weight="700" fill="#86efac">1</text>
+  <circle cx="560" cy="188" r="16" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/><text x="560" y="193" text-anchor="middle" font-size="12" font-weight="700" fill="#86efac">2</text>
+  <text x="560" y="214" text-anchor="middle" font-size="8" fill="#22c55e">压缩后：1,2直连根0</text>
+
+  <!-- ── 阶段4：unite(0,3) 合并两棵树 ── -->
+  <text x="8" y="264" font-size="9.5" fill="#f59e0b" font-weight="700">④ unite(0,3)：秩相等时，3挂到0下，0的秩+1，形成最终大树</text>
+  <!-- 最终树 -->
+  <circle cx="340" cy="285" r="16" fill="#312e00" stroke="#f59e0b" stroke-width="2"/><text x="340" y="290" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">0</text>
+  <line x1="314" y1="280" x2="278" y2="272" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="326" y1="292" x2="296" y2="298" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="354" y1="292" x2="384" y2="298" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="264" cy="267" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="264" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">1</text>
+  <circle cx="284" cy="301" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="284" y="306" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">2</text>
+  <circle cx="396" cy="301" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="396" y="306" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">4</text>
+  <line x1="354" y1="278" x2="416" y2="266" stroke="#475569" stroke-width="1.5" marker-end="url(#arr)"/>
+  <circle cx="430" cy="258" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="430" y="263" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">3</text>
+  <!-- 图例 -->
+  <rect x="500" y="258" width="172" height="46" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <circle cx="516" cy="271" r="7" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="528" y="275" font-size="8.5" fill="#64748b">根节点</text>
+  <circle cx="516" cy="289" r="7" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="528" y="293" font-size="8.5" fill="#64748b">合并后新根</text>
+  <rect x="580" y="264" width="10" height="10" rx="2" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/><text x="594" y="274" font-size="8.5" fill="#64748b">路径压缩节点</text>
+</svg>`,
     problems: [{ id: 4001, title: '连通分量计数', passRate: '73.6%', difficulty: '提高' }, { id: 4002, title: '朋友圈', passRate: '68.2%', difficulty: '提高' }, { id: 4003, title: 'Kruskal 最小生成树', passRate: '51.4%', difficulty: '进阶' }],
   },
 
@@ -5872,6 +6126,79 @@ ll fastPow(ll base, ll exp, ll mod) {
 # 推荐直接使用内置函数（底层已是快速幂）
 # pow(base, exp, mod)` },
     },
+    diagram: `<svg viewBox="0 0 680 282" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">快速幂 · 计算 3¹³ mod 1000 的逐步拆分过程</text>
+
+  <!-- ── 上半：二进制拆分说明 ── -->
+  <rect x="8" y="24" width="664" height="56" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="42" text-anchor="middle" font-size="10" fill="#94a3b8">指数 13 的二进制表示：13 = 1101₂ = 8 + 4 + 1　⟹　3¹³ = 3⁸ × 3⁴ × 3¹</text>
+  <text x="340" y="60" text-anchor="middle" font-size="9.5" fill="#64748b">核心思想：每轮 base 平方，若当前指数位为 1 则乘入 result，O(log n) 次乘法</text>
+  <!-- 二进制位可视化 -->
+  <text x="200" y="74" font-size="9" fill="#64748b" text-anchor="middle">bit3</text>
+  <text x="260" y="74" font-size="9" fill="#64748b" text-anchor="middle">bit2</text>
+  <text x="320" y="74" font-size="9" fill="#64748b" text-anchor="middle">bit1</text>
+  <text x="380" y="74" font-size="9" fill="#64748b" text-anchor="middle">bit0</text>
+
+  <!-- ── 步骤表 ── -->
+  <!-- 表头 -->
+  <rect x="8" y="78" width="664" height="22" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="52"  y="93" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="700">轮次</text>
+  <text x="140" y="93" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="700">exp（二进制）</text>
+  <text x="248" y="93" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="700">exp &amp; 1</text>
+  <text x="356" y="93" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="700">base（底数平方）</text>
+  <text x="490" y="93" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="700">result（累乘）</text>
+  <text x="620" y="93" font-size="9.5" fill="#94a3b8" text-anchor="middle" font-weight="700">操作</text>
+
+  <!-- 行1：exp=13=1101 -->
+  <rect x="8"   y="100" width="664" height="26" rx="0" fill="#111827" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="52"  y="117" font-size="10" fill="#cbd5e1" text-anchor="middle">初始</text>
+  <text x="140" y="117" font-size="10" fill="#94a3b8" text-anchor="middle">13 = 1101₂</text>
+  <text x="248" y="117" font-size="10" fill="#f59e0b" text-anchor="middle" font-weight="700">1</text>
+  <text x="356" y="117" font-size="10" fill="#cbd5e1" text-anchor="middle">base = 3</text>
+  <text x="490" y="117" font-size="10" fill="#22c55e" text-anchor="middle" font-weight="700">result = 1×3 = 3</text>
+  <text x="620" y="117" font-size="9"  fill="#22c55e" text-anchor="middle">乘入 ✓</text>
+
+  <!-- 行2：exp=6=110 -->
+  <rect x="8"   y="126" width="664" height="26" rx="0" fill="#0f172a" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="52"  y="143" font-size="10" fill="#cbd5e1" text-anchor="middle">exp&gt;&gt;=1</text>
+  <text x="140" y="143" font-size="10" fill="#94a3b8" text-anchor="middle">6 = 0110₂</text>
+  <text x="248" y="143" font-size="10" fill="#475569" text-anchor="middle">0</text>
+  <text x="356" y="143" font-size="10" fill="#cbd5e1" text-anchor="middle">base = 3² = 9</text>
+  <text x="490" y="143" font-size="10" fill="#64748b" text-anchor="middle">result = 3（不变）</text>
+  <text x="620" y="143" font-size="9"  fill="#475569" text-anchor="middle">跳过</text>
+
+  <!-- 行3：exp=3=11 -->
+  <rect x="8"   y="152" width="664" height="26" rx="0" fill="#111827" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="52"  y="169" font-size="10" fill="#cbd5e1" text-anchor="middle">exp&gt;&gt;=1</text>
+  <text x="140" y="169" font-size="10" fill="#94a3b8" text-anchor="middle">3 = 0011₂</text>
+  <text x="248" y="169" font-size="10" fill="#f59e0b" text-anchor="middle" font-weight="700">1</text>
+  <text x="356" y="169" font-size="10" fill="#cbd5e1" text-anchor="middle">base = 9² = 81</text>
+  <text x="490" y="169" font-size="10" fill="#22c55e" text-anchor="middle" font-weight="700">result = 3×81 = 243</text>
+  <text x="620" y="169" font-size="9"  fill="#22c55e" text-anchor="middle">乘入 ✓</text>
+
+  <!-- 行4：exp=1 -->
+  <rect x="8"   y="178" width="664" height="26" rx="0" fill="#0f172a" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="52"  y="195" font-size="10" fill="#cbd5e1" text-anchor="middle">exp&gt;&gt;=1</text>
+  <text x="140" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">1 = 0001₂</text>
+  <text x="248" y="195" font-size="10" fill="#f59e0b" text-anchor="middle" font-weight="700">1</text>
+  <text x="356" y="195" font-size="10" fill="#cbd5e1" text-anchor="middle">base = 81² = 6561</text>
+  <text x="490" y="195" font-size="10" fill="#22c55e" text-anchor="middle" font-weight="700">result = 243×6561</text>
+  <text x="620" y="195" font-size="9"  fill="#22c55e" text-anchor="middle">乘入 ✓</text>
+
+  <!-- 行5：exp=0 结束 -->
+  <rect x="8"   y="204" width="664" height="26" rx="0" fill="#312e00" stroke="#f59e0b" stroke-width="1"/>
+  <text x="52"  y="221" font-size="10" fill="#fde68a" text-anchor="middle">exp=0</text>
+  <text x="140" y="221" font-size="10" fill="#fde68a" text-anchor="middle">0 = 停止</text>
+  <text x="248" y="221" font-size="10" fill="#fde68a" text-anchor="middle">—</text>
+  <text x="356" y="221" font-size="10" fill="#fde68a" text-anchor="middle">—</text>
+  <text x="490" y="221" font-size="10" fill="#fde68a" text-anchor="middle" font-weight="700">= 1594323 mod 1000 = 323</text>
+  <text x="620" y="221" font-size="9"  fill="#f59e0b" text-anchor="middle" font-weight="700">✓ 结束</text>
+
+  <!-- ── 验证 & 公式 ── -->
+  <rect x="8" y="236" width="664" height="40" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="253" text-anchor="middle" font-size="10" fill="#94a3b8">验证：3¹³ = 3⁸×3⁴×3¹ = 6561×81×3 = 1594323　mod 1000 = <tspan fill="#f59e0b" font-weight="700">323</tspan>　✓</text>
+  <text x="340" y="270" text-anchor="middle" font-size="9.5" fill="#475569">仅 4 轮（log₂13 ≈ 3.7），朴素需 13 次乘法 → 快速幂节省约 69% 计算量</text>
+</svg>`,
     problems: [{ id: 5001, title: 'a^b mod p', passRate: '88.5%', difficulty: '入门' }, { id: 5002, title: '矩阵快速幂', passRate: '39.7%', difficulty: '进阶' }],
   },
 
@@ -5954,8 +6281,968 @@ def kmp_search(text, pat):
             j = nxt[j - 1]          # 继续寻找下一个
     return res` },
     },
+    diagram: `<svg viewBox="0 0 680 316" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">KMP · 文本串 "ABABCABABC" 中匹配模式串 "ABABC"</text>
+
+  <!-- ── 阶段1：构建next数组 ── -->
+  <text x="8" y="36" font-size="9.5" fill="#f59e0b" font-weight="700">① 预处理 next 数组（最长真前缀后缀长度）</text>
+  <!-- 模式串字符框 -->
+  <text x="24" y="56" font-size="9" fill="#64748b">pattern</text>
+  <rect x="80"  y="42" width="32" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="96"  y="59" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">A</text>
+  <rect x="116" y="42" width="32" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="132" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">B</text>
+  <rect x="152" y="42" width="32" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="168" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">A</text>
+  <rect x="188" y="42" width="32" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="204" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">B</text>
+  <rect x="224" y="42" width="32" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="240" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">C</text>
+  <!-- 下标 -->
+  <text x="96"  y="76" text-anchor="middle" font-size="8.5" fill="#64748b">i=0</text>
+  <text x="132" y="76" text-anchor="middle" font-size="8.5" fill="#64748b">i=1</text>
+  <text x="168" y="76" text-anchor="middle" font-size="8.5" fill="#64748b">i=2</text>
+  <text x="204" y="76" text-anchor="middle" font-size="8.5" fill="#64748b">i=3</text>
+  <text x="240" y="76" text-anchor="middle" font-size="8.5" fill="#64748b">i=4</text>
+  <!-- next值 -->
+  <text x="24" y="91" font-size="9" fill="#64748b">next[]</text>
+  <rect x="80"  y="78" width="32" height="20" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="96"  y="92" text-anchor="middle" font-size="11" font-weight="700" fill="#93c5fd">0</text>
+  <rect x="116" y="78" width="32" height="20" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="132" y="92" text-anchor="middle" font-size="11" font-weight="700" fill="#93c5fd">0</text>
+  <rect x="152" y="78" width="32" height="20" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="168" y="92" text-anchor="middle" font-size="11" font-weight="700" fill="#93c5fd">1</text>
+  <rect x="188" y="78" width="32" height="20" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="204" y="92" text-anchor="middle" font-size="11" font-weight="700" fill="#93c5fd">2</text>
+  <rect x="224" y="78" width="32" height="20" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="240" y="92" text-anchor="middle" font-size="11" font-weight="700" fill="#93c5fd">0</text>
+  <!-- next含义说明 -->
+  <text x="290" y="56" font-size="9" fill="#94a3b8">"AB" 的最长真前后缀 = 0</text>
+  <text x="290" y="70" font-size="9" fill="#94a3b8">"ABA" 的最长真前后缀 = "A" 长度 = 1</text>
+  <text x="290" y="84" font-size="9" fill="#94a3b8">"ABAB" 的最长真前后缀 = "AB" 长度 = 2</text>
+  <text x="290" y="98" font-size="9" fill="#94a3b8">"ABABC" 的最长真前后缀 = 0（C不匹配）</text>
+
+  <!-- ── 阶段2：匹配过程 ── -->
+  <text x="8" y="116" font-size="9.5" fill="#f59e0b" font-weight="700">② 匹配过程：文本 "ABABCABABC"，模式 "ABABC"</text>
+  <!-- 文本串（固定不动） -->
+  <text x="24" y="133" font-size="9" fill="#64748b">text</text>
+  <rect x="52"  y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="67"  y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">A</text>
+  <rect x="84"  y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="99"  y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">B</text>
+  <rect x="116" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="131" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">A</text>
+  <rect x="148" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="163" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">B</text>
+  <rect x="180" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="195" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">C</text>
+  <rect x="212" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="227" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">A</text>
+  <rect x="244" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="259" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">B</text>
+  <rect x="276" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="291" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">A</text>
+  <rect x="308" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="323" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">B</text>
+  <rect x="340" y="120" width="30" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="355" y="137" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">C</text>
+  <!-- 下标 -->
+  <text x="67"  y="152" text-anchor="middle" font-size="7.5" fill="#475569">0</text>
+  <text x="99"  y="152" text-anchor="middle" font-size="7.5" fill="#475569">1</text>
+  <text x="131" y="152" text-anchor="middle" font-size="7.5" fill="#475569">2</text>
+  <text x="163" y="152" text-anchor="middle" font-size="7.5" fill="#475569">3</text>
+  <text x="195" y="152" text-anchor="middle" font-size="7.5" fill="#475569">4</text>
+  <text x="227" y="152" text-anchor="middle" font-size="7.5" fill="#475569">5</text>
+  <text x="259" y="152" text-anchor="middle" font-size="7.5" fill="#475569">6</text>
+  <text x="291" y="152" text-anchor="middle" font-size="7.5" fill="#475569">7</text>
+  <text x="323" y="152" text-anchor="middle" font-size="7.5" fill="#475569">8</text>
+  <text x="355" y="152" text-anchor="middle" font-size="7.5" fill="#475569">9</text>
+
+  <!-- 步骤1：对齐 i=0..4，全部匹配 -->
+  <text x="8" y="170" font-size="9" fill="#94a3b8">步骤1：j=0 对齐 i=0，ABABC 全部匹配，记录匹配位置 0，j=next[4]=0 继续</text>
+  <rect x="52"  y="156" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="84"  y="156" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="116" y="156" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="148" y="156" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="180" y="156" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <text x="116" y="167" text-anchor="middle" font-size="8" fill="#86efac">ABABC ✓</text>
+
+  <!-- 步骤2：i 继续到 5，失配 A≠A 其实匹配——画第二次 -->
+  <text x="8" y="186" font-size="9" fill="#94a3b8">步骤2：i=5 开始，j=0，再次推进到 i=9，再次匹配，记录匹配位置 5</text>
+  <rect x="212" y="174" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="244" y="174" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="276" y="174" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="308" y="174" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <rect x="340" y="174" width="30" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <text x="276" y="185" text-anchor="middle" font-size="8" fill="#86efac">ABABC ✓</text>
+
+  <!-- ── 阶段3：next跳转核心说明 ── -->
+  <rect x="8" y="198" width="664" height="56" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="214" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">③ next 跳转的意义：失配时不回退文本指针 i，只回退模式指针 j</text>
+  <text x="340" y="230" text-anchor="middle" font-size="9" fill="#94a3b8">例：若在 j=4（'C'）处失配，j = next[3] = 2，表示"AB"已匹配可复用，从 j=2 继续</text>
+  <text x="340" y="246" text-anchor="middle" font-size="9" fill="#64748b">朴素匹配每次失配 i 回退 → O(nm)；KMP i 永不回退 → O(n+m)</text>
+
+  <!-- ── 对比图 ── -->
+  <rect x="8" y="260" width="664" height="50" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="170" y="276" text-anchor="middle" font-size="9.5" fill="#ef4444" font-weight="700">朴素匹配</text>
+  <text x="170" y="292" text-anchor="middle" font-size="9" fill="#94a3b8">失配 → i 回退到起点+1</text>
+  <text x="170" y="305" text-anchor="middle" font-size="9" fill="#64748b">最坏 O(nm) 次比较</text>
+  <line x1="340" y1="264" x2="340" y2="306" stroke="#334155" stroke-width="1"/>
+  <text x="510" y="276" text-anchor="middle" font-size="9.5" fill="#22c55e" font-weight="700">KMP</text>
+  <text x="510" y="292" text-anchor="middle" font-size="9" fill="#94a3b8">失配 → j = next[j-1]，i 不动</text>
+  <text x="510" y="305" text-anchor="middle" font-size="9" fill="#64748b">O(n+m) 线性时间</text>
+</svg>`,
     problems: [{ id: 6001, title: '字符串匹配', passRate: '62.3%', difficulty: '进阶' }, { id: 6002, title: '周期串判断', passRate: '47.8%', difficulty: '进阶' }],
   },
+
+  'simulation': {
+    description: '模拟是最直接的算法思想：按照题目描述，忠实地还原每一步操作过程，不需要推导公式或使用特殊数据结构。适用于逻辑清晰、步骤明确的过程性问题，代码的关键在于细心处理边界与状态。',
+    steps: ['仔细阅读题意，明确每一步的输入输出和状态变化', '用变量/数组表示题目中的所有状态', '按照题意逐步推进时间或步骤', '每步检查边界条件（越界、归零、循环等）', '输出最终状态或统计结果'],
+    complexity: [{ case: '时间', time: '依题意，通常 O(n) 或 O(n²)', space: '—' }, { case: '空间', time: '—', space: 'O(n)' }],
+    stable: true,
+    codes: {
+      cpp: { note: '模拟题关键是用变量清晰地记录状态，避免混淆。以"蜗牛爬井"为例。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    int depth, up, down;
+    cin >> depth >> up >> down; // 井深、白天上升、晚上下降
+    int pos = 0, day = 0;
+    while (true) {
+        day++;
+        pos += up;           // 白天上升
+        if (pos >= depth) {  // 爬出井口
+            cout << day << endl;
+            break;
+        }
+        pos -= down;         // 晚上下滑
+    }
+    return 0;
+}` },
+      java: { note: 'Java 中用 Scanner 读入，逻辑与 C++ 版完全相同。', code: `import java.util.Scanner;
+public class Simulation {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int depth = sc.nextInt(), up = sc.nextInt(), down = sc.nextInt();
+        int pos = 0, day = 0;
+        while (true) {
+            day++;
+            pos += up;
+            if (pos >= depth) {
+                System.out.println(day);
+                break;
+            }
+            pos -= down;
+        }
+    }
+}` },
+      python: { note: 'Python 代码最简洁，直接表达逻辑流程。', code: `depth, up, down = map(int, input().split())
+pos, day = 0, 0
+while True:
+    day += 1
+    pos += up
+    if pos >= depth:
+        print(day)
+        break
+    pos -= down` },
+    },
+    diagram: `<svg viewBox="0 0 680 280" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">模拟 · 蜗牛爬井（井深10，白天升3，夜晚降1）</text>
+  <!-- 井壁 -->
+  <rect x="60" y="24" width="40" height="220" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+  <rect x="260" y="24" width="40" height="220" rx="4" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+  <!-- 井底和井口标注 -->
+  <text x="170" y="252" text-anchor="middle" font-size="9" fill="#64748b">井底 0</text>
+  <text x="170" y="36"  text-anchor="middle" font-size="9" fill="#22c55e" font-weight="700">井口 10 ✓</text>
+  <!-- 刻度 -->
+  <line x1="100" y1="244" x2="260" y2="244" stroke="#1e293b" stroke-width="1"/>
+  <line x1="100" y1="222" x2="108" y2="222" stroke="#475569" stroke-width="1"/><text x="116" y="226" font-size="8" fill="#64748b">1</text>
+  <line x1="100" y1="200" x2="108" y2="200" stroke="#475569" stroke-width="1"/><text x="116" y="204" font-size="8" fill="#64748b">2</text>
+  <line x1="100" y1="178" x2="108" y2="178" stroke="#475569" stroke-width="1"/><text x="116" y="182" font-size="8" fill="#64748b">3</text>
+  <line x1="100" y1="156" x2="108" y2="156" stroke="#475569" stroke-width="1"/><text x="116" y="160" font-size="8" fill="#64748b">4</text>
+  <line x1="100" y1="134" x2="108" y2="134" stroke="#475569" stroke-width="1"/><text x="116" y="138" font-size="8" fill="#64748b">5</text>
+  <line x1="100" y1="112" x2="108" y2="112" stroke="#475569" stroke-width="1"/><text x="116" y="116" font-size="8" fill="#64748b">6</text>
+  <line x1="100" y1="90"  x2="108" y2="90"  stroke="#475569" stroke-width="1"/><text x="116" y="94"  font-size="8" fill="#64748b">7</text>
+  <line x1="100" y1="68"  x2="108" y2="68"  stroke="#475569" stroke-width="1"/><text x="116" y="72"  font-size="8" fill="#64748b">8</text>
+  <line x1="100" y1="46"  x2="108" y2="46"  stroke="#475569" stroke-width="1"/><text x="116" y="50"  font-size="8" fill="#64748b">9</text>
+  <line x1="100" y1="28"  x2="260" y2="28"  stroke="#22c55e" stroke-width="1.5"/>
+  <!-- 每天轨迹：起点→高点→终点 -->
+  <!-- day1: 0→3→2 -->
+  <line x1="170" y1="244" x2="170" y2="178" stroke="#3b82f6" stroke-width="2"/>
+  <line x1="170" y1="178" x2="170" y2="200" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <circle cx="170" cy="200" r="4" fill="#f97316"/>
+  <text x="178" y="204" font-size="8" fill="#f97316">d1 末=2</text>
+  <!-- day2: 2→5→4 -->
+  <line x1="175" y1="200" x2="175" y2="134" stroke="#3b82f6" stroke-width="2"/>
+  <line x1="175" y1="134" x2="175" y2="156" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <circle cx="175" cy="156" r="4" fill="#f97316"/>
+  <text x="183" y="160" font-size="8" fill="#f97316">d2 末=4</text>
+  <!-- day3: 4→7→6 -->
+  <line x1="180" y1="156" x2="180" y2="90" stroke="#3b82f6" stroke-width="2"/>
+  <line x1="180" y1="90"  x2="180" y2="112" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <circle cx="180" cy="112" r="4" fill="#f97316"/>
+  <text x="188" y="116" font-size="8" fill="#f97316">d3 末=6</text>
+  <!-- day4: 6→9→8 -->
+  <line x1="185" y1="112" x2="185" y2="68" stroke="#3b82f6" stroke-width="2"/>
+  <line x1="185" y1="68"  x2="185" y2="90" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <circle cx="185" cy="90" r="4" fill="#f97316"/>
+  <text x="193" y="94"  font-size="8" fill="#f97316">d4 末=8</text>
+  <!-- day5: 8→11>10 爬出! -->
+  <line x1="190" y1="90" x2="190" y2="28" stroke="#22c55e" stroke-width="2.5"/>
+  <circle cx="190" cy="28" r="6" fill="#22c55e"/>
+  <text x="198" y="32" font-size="9" fill="#22c55e" font-weight="700">d5 爬出!</text>
+  <!-- 右侧状态表 -->
+  <rect x="340" y="24" width="332" height="220" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="506" y="42" text-anchor="middle" font-size="9.5" fill="#64748b">模拟状态追踪表</text>
+  <text x="360" y="58" font-size="9" fill="#94a3b8" font-weight="700">天次</text>
+  <text x="420" y="58" font-size="9" fill="#94a3b8" font-weight="700">白天后位置</text>
+  <text x="510" y="58" font-size="9" fill="#94a3b8" font-weight="700">到达井口?</text>
+  <text x="620" y="58" font-size="9" fill="#94a3b8" font-weight="700">夜晚后</text>
+  <line x1="344" y1="62" x2="668" y2="62" stroke="#1e293b" stroke-width="1"/>
+  <text x="360" y="78" font-size="10" fill="#cbd5e1">第1天</text><text x="430" y="78" font-size="10" fill="#3b82f6">0+3 = 3</text><text x="510" y="78" font-size="9" fill="#475569">3 &lt; 10 否</text><text x="620" y="78" font-size="10" fill="#f97316">3-1 = 2</text>
+  <text x="360" y="96" font-size="10" fill="#cbd5e1">第2天</text><text x="430" y="96" font-size="10" fill="#3b82f6">2+3 = 5</text><text x="510" y="96" font-size="9" fill="#475569">5 &lt; 10 否</text><text x="620" y="96" font-size="10" fill="#f97316">5-1 = 4</text>
+  <text x="360" y="114" font-size="10" fill="#cbd5e1">第3天</text><text x="430" y="114" font-size="10" fill="#3b82f6">4+3 = 7</text><text x="510" y="114" font-size="9" fill="#475569">7 &lt; 10 否</text><text x="620" y="114" font-size="10" fill="#f97316">7-1 = 6</text>
+  <text x="360" y="132" font-size="10" fill="#cbd5e1">第4天</text><text x="430" y="132" font-size="10" fill="#3b82f6">6+3 = 9</text><text x="510" y="132" font-size="9" fill="#475569">9 &lt; 10 否</text><text x="620" y="132" font-size="10" fill="#f97316">9-1 = 8</text>
+  <rect x="344" y="140" width="320" height="20" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.2"/>
+  <text x="360" y="154" font-size="10" fill="#86efac" font-weight="700">第5天</text><text x="430" y="154" font-size="10" fill="#22c55e" font-weight="700">8+3 = 11</text><text x="510" y="154" font-size="9" fill="#22c55e" font-weight="700">11 ≥ 10 ✓</text><text x="620" y="154" font-size="10" fill="#22c55e">输出5</text>
+  <text x="506" y="186" text-anchor="middle" font-size="9" fill="#475569">模拟要点：按步骤推进状态，每步检查终止条件</text>
+  <text x="506" y="202" text-anchor="middle" font-size="9" fill="#475569">代码与题意一一对应，无需数学推导</text>
+  <!-- 图例 -->
+  <line x1="350" y1="218" x2="370" y2="218" stroke="#3b82f6" stroke-width="2"/><text x="376" y="222" font-size="8.5" fill="#64748b">白天上升</text>
+  <line x1="440" y1="218" x2="460" y2="218" stroke="#f97316" stroke-width="1.5" stroke-dasharray="4,2"/><text x="466" y="222" font-size="8.5" fill="#64748b">夜晚下滑</text>
+  <line x1="530" y1="218" x2="550" y2="218" stroke="#22c55e" stroke-width="2.5"/><text x="556" y="222" font-size="8.5" fill="#64748b">成功爬出</text>
+</svg>`,
+    problems: [{ id: 7001, title: '蜗牛爬井', passRate: '91.2%', difficulty: '入门' }, { id: 7002, title: '日期模拟', passRate: '78.4%', difficulty: '入门' }, { id: 7003, title: '走迷宫模拟', passRate: '65.3%', difficulty: '入门' }],
+  },
+
+  'enumeration': {
+    description: '枚举（穷举）是最朴素的算法思想：在有限的搜索空间内，逐一列举所有可能的情况并进行验证，找出满足条件的解。关键在于确定合法的枚举范围，避免重复或遗漏，并用条件语句筛选有效答案。',
+    steps: ['分析问题，确定枚举的对象和范围', '用循环逐一枚举所有可能取值', '对每个枚举值，验证是否满足题目条件', '记录/统计所有满足条件的解', '输出结果（最优解、计数或具体方案）'],
+    complexity: [{ case: '时间', time: 'O(n^k)，k 为枚举维度', space: '—' }, { case: '空间', time: '—', space: 'O(1) 或 O(n)' }],
+    stable: true,
+    codes: {
+      cpp: { note: '以"两数之和"为例，枚举所有 (i,j) 组合，O(n²)。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 枚举所有对 (i,j)，找和为 target 的下标
+pair<int,int> twoSum(vector<int>& a, int target) {
+    int n = a.size();
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++)
+            if (a[i] + a[j] == target)
+                return {i, j};
+    return {-1, -1};
+}` },
+      java: { note: '双重循环枚举，注意内层从 i+1 开始避免重复。', code: `public class Enumeration {
+    public static int[] twoSum(int[] a, int target) {
+        int n = a.length;
+        for (int i = 0; i < n; i++)
+            for (int j = i + 1; j < n; j++)
+                if (a[i] + a[j] == target)
+                    return new int[]{i, j};
+        return new int[]{-1, -1};
+    }
+}` },
+      python: { note: 'Python 中可用 enumerate 优雅地枚举下标与值。', code: `def two_sum(a, target):
+    n = len(a)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if a[i] + a[j] == target:
+                return i, j
+    return -1, -1` },
+    },
+    diagram: `<svg viewBox="0 0 680 272" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">枚举 · 两数之和（数组 [2,7,3,5,4,1]，目标 target=9）</text>
+  <!-- 数组展示 -->
+  <text x="8" y="38" font-size="9.5" fill="#f59e0b" font-weight="700">① 枚举范围：所有 (i,j) 组合，j 从 i+1 开始，共 C(6,2)=15 对</text>
+  <text x="24" y="58" font-size="9" fill="#64748b">数组</text>
+  <rect x="60"  y="44" width="44" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="82"  y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">2</text>
+  <rect x="108" y="44" width="44" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="130" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">7</text>
+  <rect x="156" y="44" width="44" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="178" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">3</text>
+  <rect x="204" y="44" width="44" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="226" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">5</text>
+  <rect x="252" y="44" width="44" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="274" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">4</text>
+  <rect x="300" y="44" width="44" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="322" y="61" text-anchor="middle" font-size="13" font-weight="700" fill="#cbd5e1">1</text>
+  <text x="82"  y="78" text-anchor="middle" font-size="8.5" fill="#64748b">i=0</text>
+  <text x="130" y="78" text-anchor="middle" font-size="8.5" fill="#64748b">i=1</text>
+  <text x="178" y="78" text-anchor="middle" font-size="8.5" fill="#64748b">i=2</text>
+  <text x="226" y="78" text-anchor="middle" font-size="8.5" fill="#64748b">i=3</text>
+  <text x="274" y="78" text-anchor="middle" font-size="8.5" fill="#64748b">i=4</text>
+  <text x="322" y="78" text-anchor="middle" font-size="8.5" fill="#64748b">i=5</text>
+  <!-- 枚举矩阵 -->
+  <text x="8" y="98" font-size="9.5" fill="#f59e0b" font-weight="700">② 枚举矩阵（行=i，列=j，格内为 a[i]+a[j]，绿色=命中）</text>
+  <!-- 列标题 -->
+  <text x="184" y="116" text-anchor="middle" font-size="9" fill="#64748b">j=1(7)</text>
+  <text x="236" y="116" text-anchor="middle" font-size="9" fill="#64748b">j=2(3)</text>
+  <text x="288" y="116" text-anchor="middle" font-size="9" fill="#64748b">j=3(5)</text>
+  <text x="340" y="116" text-anchor="middle" font-size="9" fill="#64748b">j=4(4)</text>
+  <text x="392" y="116" text-anchor="middle" font-size="9" fill="#64748b">j=5(1)</text>
+  <!-- 行 i=0, a[0]=2 -->
+  <text x="130" y="135" font-size="9" fill="#94a3b8" text-anchor="end">i=0(2)</text>
+  <rect x="158" y="120" width="52" height="22" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="184" y="135" text-anchor="middle" font-size="11" font-weight="700" fill="#86efac">9✓</text>
+  <rect x="210" y="120" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="236" y="135" text-anchor="middle" font-size="11" fill="#64748b">5</text>
+  <rect x="262" y="120" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="288" y="135" text-anchor="middle" font-size="11" fill="#64748b">7</text>
+  <rect x="314" y="120" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="340" y="135" text-anchor="middle" font-size="11" fill="#64748b">6</text>
+  <rect x="366" y="120" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="392" y="135" text-anchor="middle" font-size="11" fill="#64748b">3</text>
+  <!-- 行 i=1, a[1]=7 -->
+  <text x="130" y="157" font-size="9" fill="#94a3b8" text-anchor="end">i=1(7)</text>
+  <text x="236" y="157" text-anchor="middle" font-size="11" fill="#64748b">—</text>
+  <rect x="262" y="142" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="288" y="157" text-anchor="middle" font-size="11" fill="#64748b">12</text>
+  <rect x="314" y="142" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="340" y="157" text-anchor="middle" font-size="11" fill="#64748b">11</text>
+  <rect x="366" y="142" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="392" y="157" text-anchor="middle" font-size="11" fill="#64748b">8</text>
+  <!-- 行 i=2, a[2]=3 -->
+  <text x="130" y="179" font-size="9" fill="#94a3b8" text-anchor="end">i=2(3)</text>
+  <rect x="314" y="164" width="52" height="22" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="340" y="179" text-anchor="middle" font-size="11" font-weight="700" fill="#86efac">8✗</text>
+  <rect x="366" y="164" width="52" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="392" y="179" text-anchor="middle" font-size="11" fill="#64748b">4</text>
+  <!-- 行 i=3, a[3]=5 -->
+  <text x="130" y="201" font-size="9" fill="#94a3b8" text-anchor="end">i=3(5)</text>
+  <rect x="366" y="186" width="52" height="22" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="392" y="201" text-anchor="middle" font-size="11" font-weight="700" fill="#86efac">9✓</text>
+  <!-- 结果框 -->
+  <rect x="440" y="102" width="232" height="116" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="556" y="120" text-anchor="middle" font-size="9.5" fill="#64748b">枚举结果</text>
+  <text x="452" y="140" font-size="9" fill="#22c55e">✓ (0,1): 2+7=9 → 第1个解</text>
+  <text x="452" y="158" font-size="9" fill="#475569">✗ (0,2): 2+3=5</text>
+  <text x="452" y="174" font-size="9" fill="#475569">✗ (0,3): 2+5=7</text>
+  <text x="452" y="190" font-size="9" fill="#475569">⋯ 继续枚举</text>
+  <text x="452" y="208" font-size="9" fill="#22c55e">✓ (3,4): 5+4=9 → 第2个解</text>
+  <!-- 底部说明 -->
+  <rect x="8" y="224" width="664" height="42" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="241" text-anchor="middle" font-size="9.5" fill="#94a3b8">枚举优化：当 target-a[i] 存在于哈希表时可 O(n) 解决，但枚举思路是理解问题的起点</text>
+  <text x="340" y="258" text-anchor="middle" font-size="9" fill="#475569">枚举适用条件：搜索空间有限（n≤10⁶），每个状态可 O(1) 验证</text>
+</svg>`,
+    problems: [{ id: 7101, title: '两数之和', passRate: '85.6%', difficulty: '入门' }, { id: 7102, title: '百钱百鸡', passRate: '79.3%', difficulty: '入门' }, { id: 7103, title: '完全平方数', passRate: '72.1%', difficulty: '入门' }],
+  },
+
+  'brute-force': {
+    description: '暴力算法不加任何剪枝地枚举所有可能方案，是解题的"基准线"。虽然时间复杂度高，但代码简单正确，可作为验证最优解的对拍工具。理解暴力思路也是推导优化算法的起点。',
+    steps: ['列出所有可能的候选方案（全排列/子集/区间等）', '对每个方案逐一检验是否满足约束', '记录所有满足条件的方案或最优值', '（优化思考）观察冗余计算，引入剪枝或数据结构加速'],
+    complexity: [{ case: '子集枚举', time: 'O(2ⁿ)', space: 'O(n)' }, { case: '全排列枚举', time: 'O(n!)', space: 'O(n)' }, { case: '区间枚举', time: 'O(n²) ~ O(n³)', space: 'O(1)' }],
+    stable: true,
+    codes: {
+      cpp: { note: '以"最大子数组和"暴力 O(n²) 为例，可优化为 Kadane O(n)。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 暴力：枚举所有子数组 [i,j]，O(n²)
+int maxSubarrayBrute(vector<int>& a) {
+    int n = a.size(), ans = INT_MIN;
+    for (int i = 0; i < n; i++) {
+        int sum = 0;
+        for (int j = i; j < n; j++) {
+            sum += a[j];
+            ans = max(ans, sum);
+        }
+    }
+    return ans;
+}` },
+      java: { note: '暴力解法代码直观，便于验证正确性，再与优化版对拍。', code: `public class BruteForce {
+    public static int maxSubarray(int[] a) {
+        int n = a.length, ans = Integer.MIN_VALUE;
+        for (int i = 0; i < n; i++) {
+            int sum = 0;
+            for (int j = i; j < n; j++) {
+                sum += a[j];
+                ans = Math.max(ans, sum);
+            }
+        }
+        return ans;
+    }
+}` },
+      python: { note: 'Python 的切片求和可一行完成，但同样是 O(n²)。', code: `def max_subarray_brute(a):
+    n, ans = len(a), float('-inf')
+    for i in range(n):
+        s = 0
+        for j in range(i, n):
+            s += a[j]
+            ans = max(ans, s)
+    return ans` },
+    },
+    diagram: `<svg viewBox="0 0 680 284" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">暴力 · 最大子数组和（数组 [-2, 1, -3, 4, -1, 2, 1, -5, 4]）</text>
+  <!-- 数组 -->
+  <text x="8" y="38" font-size="9.5" fill="#f59e0b" font-weight="700">① 暴力枚举所有子数组 [i,j]，求最大和</text>
+  <text x="24" y="58" font-size="9" fill="#64748b">数组</text>
+  <rect x="56"  y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="74"  y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">-2</text>
+  <rect x="96"  y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="114" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">1</text>
+  <rect x="136" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="154" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">-3</text>
+  <rect x="176" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="194" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">4</text>
+  <rect x="216" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="234" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">-1</text>
+  <rect x="256" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="274" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">2</text>
+  <rect x="296" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="314" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">1</text>
+  <rect x="336" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="354" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#94a3b8">-5</text>
+  <rect x="376" y="44" width="36" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="394" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">4</text>
+  <text x="74"  y="76" text-anchor="middle" font-size="8" fill="#475569">0</text>
+  <text x="114" y="76" text-anchor="middle" font-size="8" fill="#475569">1</text>
+  <text x="154" y="76" text-anchor="middle" font-size="8" fill="#475569">2</text>
+  <text x="194" y="76" text-anchor="middle" font-size="8" fill="#475569">3</text>
+  <text x="234" y="76" text-anchor="middle" font-size="8" fill="#475569">4</text>
+  <text x="274" y="76" text-anchor="middle" font-size="8" fill="#475569">5</text>
+  <text x="314" y="76" text-anchor="middle" font-size="8" fill="#475569">6</text>
+  <text x="354" y="76" text-anchor="middle" font-size="8" fill="#475569">7</text>
+  <text x="394" y="76" text-anchor="middle" font-size="8" fill="#475569">8</text>
+  <!-- 部分枚举子数组示意 -->
+  <text x="8" y="96" font-size="9.5" fill="#f59e0b" font-weight="700">② 枚举过程（选取部分典型子数组）</text>
+  <!-- i=0 -->
+  <text x="30" y="115" font-size="9" fill="#64748b">i=0</text>
+  <rect x="56" y="100" width="36" height="18" rx="2" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/><text x="74" y="113" text-anchor="middle" font-size="9" fill="#93c5fd">-2</text>
+  <text x="100" y="113" font-size="9" fill="#475569">sum=-2</text>
+  <rect x="56" y="120" width="76" height="18" rx="2" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/><text x="94" y="133" text-anchor="middle" font-size="9" fill="#93c5fd">-2+1=-1</text>
+  <rect x="56" y="140" width="156" height="18" rx="2" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1"/><text x="134" y="153" text-anchor="middle" font-size="9" fill="#93c5fd">-2+1-3=-4</text>
+  <!-- i=3 （重点子数组） -->
+  <text x="30" y="175" font-size="9" fill="#64748b">i=3</text>
+  <rect x="176" y="162" width="36" height="18" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="194" y="175" text-anchor="middle" font-size="9" fill="#cbd5e1">4</text>
+  <rect x="176" y="182" width="76" height="18" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="214" y="195" text-anchor="middle" font-size="9" fill="#cbd5e1">4-1=3</text>
+  <rect x="176" y="202" width="116" height="18" rx="2" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="234" y="215" text-anchor="middle" font-size="9" fill="#cbd5e1">4-1+2=5</text>
+  <rect x="176" y="222" width="156" height="20" rx="2" fill="#312e00" stroke="#f59e0b" stroke-width="1.8"/><text x="254" y="236" text-anchor="middle" font-size="10" font-weight="700" fill="#fde68a">4-1+2+1=6 ← 最大!</text>
+  <!-- 右侧：与 Kadane 对比 -->
+  <rect x="440" y="88" width="232" height="174" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="556" y="106" text-anchor="middle" font-size="9.5" fill="#64748b">暴力 vs Kadane 对比</text>
+  <line x1="444" y1="110" x2="668" y2="110" stroke="#1e293b" stroke-width="1"/>
+  <text x="500" y="126" text-anchor="middle" font-size="9" fill="#ef4444" font-weight="700">暴力 O(n²)</text>
+  <text x="612" y="126" text-anchor="middle" font-size="9" fill="#22c55e" font-weight="700">Kadane O(n)</text>
+  <line x1="556" y1="112" x2="556" y2="256" stroke="#334155" stroke-width="1"/>
+  <text x="500" y="144" font-size="8.5" fill="#94a3b8" text-anchor="middle">枚举所有 (i,j)</text>
+  <text x="612" y="144" font-size="8.5" fill="#94a3b8" text-anchor="middle">一次遍历</text>
+  <text x="500" y="162" font-size="8.5" fill="#94a3b8" text-anchor="middle">C(n,2) 个子数组</text>
+  <text x="612" y="162" font-size="8.5" fill="#94a3b8" text-anchor="middle">dp[i]=max(a[i],dp[i-1]+a[i])</text>
+  <text x="500" y="180" font-size="8.5" fill="#94a3b8" text-anchor="middle">n=9 → 36次</text>
+  <text x="612" y="180" font-size="8.5" fill="#94a3b8" text-anchor="middle">n=9 → 9次</text>
+  <text x="500" y="198" font-size="8.5" fill="#94a3b8" text-anchor="middle">n=10⁴ → 5×10⁷次</text>
+  <text x="612" y="198" font-size="8.5" fill="#94a3b8" text-anchor="middle">n=10⁴ → 1×10⁴次</text>
+  <text x="556" y="222" text-anchor="middle" font-size="8.5" fill="#f59e0b">两者答案相同：6（下标3~6）</text>
+  <text x="556" y="240" text-anchor="middle" font-size="8.5" fill="#475569">暴力用于验证，优化用于提交</text>
+  <!-- 底部 -->
+  <rect x="8" y="250" width="664" height="28" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="268" text-anchor="middle" font-size="9" fill="#64748b">暴力思路：先写出正确但慢的解 → 再分析冗余 → 引入剪枝/DP/数据结构优化 → 对拍验证</text>
+</svg>`,
+    problems: [{ id: 7201, title: '最大子数组和', passRate: '83.7%', difficulty: '入门' }, { id: 7202, title: '全排列生成', passRate: '71.4%', difficulty: '提高' }, { id: 7203, title: '子集枚举', passRate: '76.2%', difficulty: '入门' }],
+  },
+
+  'recurrence': {
+    description: '递推是根据已知的前若干项，按照固定规律计算下一项的方法。与递归相反，递推从初始值出发正向推导，无函数调用开销，是动态规划的实现基础。Fibonacci 数列、杨辉三角、路径计数都是经典递推模型。',
+    steps: ['确定递推关系式（状态转移方程）', '确定边界条件（初始值）', '从小到大依次计算每个状态', '注意下标越界和取模操作', '读取目标状态作为答案'],
+    complexity: [{ case: '时间', time: 'O(n) 或 O(n²)', space: '—' }, { case: '空间', time: '—', space: 'O(n)，滚动数组可降至 O(1)' }],
+    stable: true,
+    codes: {
+      cpp: { note: 'Fibonacci 递推经典示例，用滚动变量将空间从 O(n) 降到 O(1)。', code: `#include <bits/stdc++.h>
+using namespace std;
+typedef long long ll;
+
+// 普通递推：O(n) 时间，O(n) 空间
+ll fib(int n) {
+    vector<ll> dp(n + 1);
+    dp[0] = 0; dp[1] = 1;
+    for (int i = 2; i <= n; i++)
+        dp[i] = dp[i-1] + dp[i-2];
+    return dp[n];
+}
+
+// 滚动变量优化：O(1) 空间
+ll fibOpt(int n) {
+    ll a = 0, b = 1;
+    for (int i = 2; i <= n; i++) {
+        ll c = a + b;
+        a = b; b = c;
+    }
+    return b;
+}` },
+      java: { note: '滚动变量写法用 long 防止溢出，n 较大时需取模。', code: `public class Recurrence {
+    public static long fib(int n) {
+        if (n <= 1) return n;
+        long a = 0, b = 1;
+        for (int i = 2; i <= n; i++) {
+            long c = a + b;
+            a = b; b = c;
+        }
+        return b;
+    }
+}` },
+      python: { note: 'Python 整数无溢出，直接递推即可；生成器写法更 Pythonic。', code: `def fib(n):
+    a, b = 0, 1
+    for _ in range(n - 1):
+        a, b = b, a + b
+    return b
+
+# 杨辉三角递推
+def pascal(n):
+    tri = [[1] * (i + 1) for i in range(n)]
+    for i in range(2, n):
+        for j in range(1, i):
+            tri[i][j] = tri[i-1][j-1] + tri[i-1][j]
+    return tri` },
+    },
+    diagram: `<svg viewBox="0 0 680 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">递推 · Fibonacci 数列 &amp; 杨辉三角两大经典模型</text>
+
+  <!-- ── 左半：Fibonacci ── -->
+  <text x="8" y="36" font-size="9.5" fill="#f59e0b" font-weight="700">① Fibonacci：f(n) = f(n-1) + f(n-2)，f(0)=0，f(1)=1</text>
+  <!-- 数列框 -->
+  <rect x="8"   y="42" width="36" height="26" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="26"  y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#93c5fd">0</text>
+  <rect x="48"  y="42" width="36" height="26" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="66"  y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#93c5fd">1</text>
+  <rect x="88"  y="42" width="36" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="106" y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">1</text>
+  <rect x="128" y="42" width="36" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="146" y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">2</text>
+  <rect x="168" y="42" width="36" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="186" y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">3</text>
+  <rect x="208" y="42" width="36" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="226" y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">5</text>
+  <rect x="248" y="42" width="36" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="266" y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#cbd5e1">8</text>
+  <rect x="288" y="42" width="36" height="26" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.8"/><text x="306" y="59" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">13</text>
+  <!-- 下标 -->
+  <text x="26"  y="76" text-anchor="middle" font-size="8" fill="#3b82f6">f(0)</text>
+  <text x="66"  y="76" text-anchor="middle" font-size="8" fill="#3b82f6">f(1)</text>
+  <text x="106" y="76" text-anchor="middle" font-size="8" fill="#64748b">f(2)</text>
+  <text x="146" y="76" text-anchor="middle" font-size="8" fill="#64748b">f(3)</text>
+  <text x="186" y="76" text-anchor="middle" font-size="8" fill="#64748b">f(4)</text>
+  <text x="226" y="76" text-anchor="middle" font-size="8" fill="#64748b">f(5)</text>
+  <text x="266" y="76" text-anchor="middle" font-size="8" fill="#64748b">f(6)</text>
+  <text x="306" y="76" text-anchor="middle" font-size="8" fill="#f59e0b">f(7)</text>
+  <!-- 推导箭头 -->
+  <path d="M88,55 Q67,45 48,55" fill="none" stroke="#22c55e" stroke-width="1.2" marker-end="url(#a1)"/>
+  <path d="M88,55 Q26,38 8,55"  fill="none" stroke="#22c55e" stroke-width="1.2" marker-end="url(#a1)"/>
+  <text x="106" y="90" text-anchor="middle" font-size="8" fill="#22c55e">1=0+1</text>
+  <path d="M288,55 Q266,42 248,55" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#a2)"/>
+  <path d="M288,55 Q226,38 208,55" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="306" y="90" text-anchor="middle" font-size="8" fill="#f59e0b">13=5+8</text>
+  <defs>
+    <marker id="a1" markerWidth="5" markerHeight="5" refX="3" refY="3" orient="auto"><path d="M0,0 L0,5 L5,2.5 z" fill="#22c55e"/></marker>
+    <marker id="a2" markerWidth="5" markerHeight="5" refX="3" refY="3" orient="auto"><path d="M0,0 L0,5 L5,2.5 z" fill="#f59e0b"/></marker>
+    <marker id="a3" markerWidth="5" markerHeight="5" refX="3" refY="3" orient="auto"><path d="M0,0 L0,5 L5,2.5 z" fill="#475569"/></marker>
+  </defs>
+
+  <!-- 滚动变量图解 -->
+  <text x="8" y="108" font-size="9.5" fill="#f59e0b" font-weight="700">② 滚动变量优化：只保留前两项，O(1) 空间</text>
+  <rect x="8"  y="114" width="44" height="22" rx="3" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="30" y="129" text-anchor="middle" font-size="10" font-weight="700" fill="#93c5fd">a=5</text>
+  <rect x="60" y="114" width="44" height="22" rx="3" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="82" y="129" text-anchor="middle" font-size="10" font-weight="700" fill="#93c5fd">b=8</text>
+  <text x="114" y="128" font-size="10" fill="#475569">→ c=a+b=13</text>
+  <text x="220" y="128" font-size="10" fill="#475569">→ a=b=8</text>
+  <text x="310" y="128" font-size="10" fill="#475569">→ b=c=13</text>
+  <rect x="380" y="114" width="44" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="402" y="129" text-anchor="middle" font-size="10" font-weight="700" fill="#fde68a">b=13</text>
+  <text x="432" y="128" font-size="9" fill="#64748b">← 结果</text>
+
+  <!-- ── 右半：杨辉三角 ── -->
+  <text x="460" y="36" font-size="9.5" fill="#f59e0b" font-weight="700">③ 杨辉三角：tri[i][j] = tri[i-1][j-1] + tri[i-1][j]</text>
+  <!-- 杨辉三角绘制（居中） -->
+  <!-- 行0 -->
+  <rect x="560" y="42" width="28" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="574" y="57" text-anchor="middle" font-size="11" font-weight="700" fill="#93c5fd">1</text>
+  <!-- 行1 -->
+  <rect x="546" y="68" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="560" y="83" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <rect x="578" y="68" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="592" y="83" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <!-- 行2 -->
+  <rect x="532" y="94" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="546" y="109" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <rect x="560" y="94" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="574" y="109" text-anchor="middle" font-size="11" fill="#cbd5e1">2</text>
+  <rect x="588" y="94" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="602" y="109" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <!-- 行3 -->
+  <rect x="518" y="120" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="532" y="135" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <rect x="546" y="120" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="560" y="135" text-anchor="middle" font-size="11" fill="#cbd5e1">3</text>
+  <rect x="574" y="120" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="588" y="135" text-anchor="middle" font-size="11" fill="#cbd5e1">3</text>
+  <rect x="602" y="120" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="616" y="135" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <!-- 行4 -->
+  <rect x="504" y="146" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="518" y="161" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <rect x="532" y="146" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="546" y="161" text-anchor="middle" font-size="11" fill="#cbd5e1">4</text>
+  <rect x="560" y="146" width="28" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.8"/><text x="574" y="161" text-anchor="middle" font-size="11" font-weight="700" fill="#fde68a">6</text>
+  <rect x="588" y="146" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="602" y="161" text-anchor="middle" font-size="11" fill="#cbd5e1">4</text>
+  <rect x="616" y="146" width="28" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="630" y="161" text-anchor="middle" font-size="11" fill="#cbd5e1">1</text>
+  <!-- 推导箭头：说明 6 = 3 + 3 -->
+  <line x1="560" y1="120" x2="568" y2="144" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#a2)"/>
+  <line x1="588" y1="120" x2="580" y2="144" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#a2)"/>
+  <text x="574" y="142" text-anchor="middle" font-size="8" fill="#f59e0b">3+3</text>
+
+  <!-- ── 底部对比 ── -->
+  <rect x="8" y="182" width="664" height="100" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="200" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">④ 递推 vs 递归：同样的计算，不同的实现方向</text>
+  <line x1="340" y1="204" x2="340" y2="278" stroke="#1e293b" stroke-width="1"/>
+  <!-- 左：递推 -->
+  <text x="174" y="220" text-anchor="middle" font-size="9.5" fill="#22c55e" font-weight="700">递推（自底向上）</text>
+  <text x="174" y="236" text-anchor="middle" font-size="9" fill="#94a3b8">f(0)=0 → f(1)=1 → f(2)=1 →</text>
+  <text x="174" y="252" text-anchor="middle" font-size="9" fill="#94a3b8">… → f(n)  无重复计算</text>
+  <text x="174" y="268" text-anchor="middle" font-size="9" fill="#22c55e">✓ 无递归栈，O(1) 空间可行</text>
+  <!-- 右：递归 -->
+  <text x="510" y="220" text-anchor="middle" font-size="9.5" fill="#3b82f6" font-weight="700">递归（自顶向下）</text>
+  <text x="510" y="236" text-anchor="middle" font-size="9" fill="#94a3b8">f(n) → f(n-1)+f(n-2) →</text>
+  <text x="510" y="252" text-anchor="middle" font-size="9" fill="#94a3b8">… 未加记忆化则重复计算</text>
+  <text x="510" y="268" text-anchor="middle" font-size="9" fill="#f59e0b">⚠ 朴素递归 O(2ⁿ)，需记忆化</text>
+</svg>`,
+    problems: [{ id: 7301, title: 'Fibonacci 数列', passRate: '94.1%', difficulty: '入门' }, { id: 7302, title: '杨辉三角', passRate: '88.7%', difficulty: '入门' }, { id: 7303, title: '爬楼梯', passRate: '91.5%', difficulty: '入门' }],
+  },
+
+  'recursion': {
+    description: '递归是函数调用自身来解决规模更小的同类子问题的方法。三要素：递归定义（大问题→小问题）、递归基（最小规模直接返回）、递归调用（缩小规模）。系统用调用栈保存每层状态，理解栈帧是理解递归的关键。',
+    steps: ['找到递归基：最小规模能直接给出答案的情况', '找到递推关系：如何把问题规模缩小一层', '写出递归函数，信任"假设子问题已解决"', '验证递归终止：每次调用规模严格缩小', '（可选）加记忆化避免重复子问题'],
+    complexity: [{ case: '汉诺塔 n 层', time: 'O(2ⁿ)', space: 'O(n) 栈深' }, { case: '二叉树遍历', time: 'O(n)', space: 'O(h) 树高' }],
+    stable: true,
+    codes: {
+      cpp: { note: '汉诺塔是递归的教科书例题：n 层移动 = 上 n-1 层借助 C 移到 B，再移第 n 层，再把 n-1 层从 B 移到 C。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 汉诺塔：将 n 个盘从 from 借助 via 移到 to
+void hanoi(int n, char from, char via, char to) {
+    if (n == 0) return;              // 递归基：无盘可移
+    hanoi(n-1, from, to, via);       // ① 把上面 n-1 个盘移到 via
+    cout << from << " -> " << to << "\\n"; // ② 移最大盘
+    hanoi(n-1, via, from, to);       // ③ 把 n-1 个盘从 via 移到 to
+}` },
+      java: { note: '递归调用栈深度等于递归深度 n，Java 默认栈较小，n>10000 需改迭代。', code: `public class Recursion {
+    public static void hanoi(int n, char from, char via, char to) {
+        if (n == 0) return;
+        hanoi(n - 1, from, to, via);
+        System.out.println(from + " -> " + to);
+        hanoi(n - 1, via, from, to);
+    }
+}` },
+      python: { note: 'Python 默认递归深度约 1000，可用 sys.setrecursionlimit 调大。', code: `def hanoi(n, frm='A', via='B', to='C'):
+    if n == 0:
+        return
+    hanoi(n - 1, frm, to, via)   # 上 n-1 层借 to 移到 via
+    print(f'{frm} -> {to}')       # 移最大盘
+    hanoi(n - 1, via, frm, to)   # n-1 层从 via 借 frm 移到 to` },
+    },
+    diagram: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">递归 · 汉诺塔 n=3 的递归调用树 &amp; 调用栈</text>
+
+  <!-- ── 左：递归调用树 ── -->
+  <text x="8" y="36" font-size="9.5" fill="#f59e0b" font-weight="700">① 递归调用树（hanoi(3,A,B,C)）</text>
+  <!-- 根节点 -->
+  <rect x="100" y="42" width="120" height="22" rx="4" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.8"/>
+  <text x="160" y="57" text-anchor="middle" font-size="9.5" font-weight="700" fill="#93c5fd">hanoi(3,A,B,C)</text>
+  <!-- 左子树：hanoi(2,A,C,B) -->
+  <line x1="130" y1="64" x2="76" y2="86" stroke="#475569" stroke-width="1.2"/>
+  <rect x="16" y="86" width="120" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <text x="76" y="101" text-anchor="middle" font-size="9" fill="#cbd5e1">hanoi(2,A,C,B)</text>
+  <!-- 移动最大盘 -->
+  <rect x="148" y="88" width="84" height="20" rx="4" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="190" y="102" text-anchor="middle" font-size="9.5" font-weight="700" fill="#fde68a">A→C 第3盘</text>
+  <!-- 右子树：hanoi(2,B,A,C) -->
+  <line x1="190" y1="64" x2="244" y2="86" stroke="#475569" stroke-width="1.2"/>
+  <rect x="184" y="86" width="120" height="22" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <text x="244" y="101" text-anchor="middle" font-size="9" fill="#cbd5e1">hanoi(2,B,A,C)</text>
+  <!-- 左子左子 -->
+  <line x1="48"  y1="108" x2="32"  y2="128" stroke="#334155" stroke-width="1"/>
+  <rect x="8"   y="128" width="80" height="20" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="48"  y="142" text-anchor="middle" font-size="8" fill="#94a3b8">hanoi(1,A,B,C)</text>
+  <line x1="104" y1="108" x2="118" y2="128" stroke="#334155" stroke-width="1"/>
+  <rect x="90"  y="128" width="80" height="20" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="130" y="142" text-anchor="middle" font-size="8" fill="#94a3b8">hanoi(1,C,A,B)</text>
+  <!-- 右子左子 -->
+  <line x1="216" y1="108" x2="200" y2="128" stroke="#334155" stroke-width="1"/>
+  <rect x="172" y="128" width="80" height="20" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="212" y="142" text-anchor="middle" font-size="8" fill="#94a3b8">hanoi(1,B,C,A)</text>
+  <line x1="272" y1="108" x2="288" y2="128" stroke="#334155" stroke-width="1"/>
+  <rect x="256" y="128" width="80" height="20" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="296" y="142" text-anchor="middle" font-size="8" fill="#94a3b8">hanoi(1,A,B,C)</text>
+  <!-- 叶节点（递归基） -->
+  <text x="48"  y="166" text-anchor="middle" font-size="7.5" fill="#22c55e">A→C</text>
+  <text x="130" y="166" text-anchor="middle" font-size="7.5" fill="#22c55e">C→B</text>
+  <text x="212" y="166" text-anchor="middle" font-size="7.5" fill="#22c55e">B→A</text>
+  <text x="296" y="166" text-anchor="middle" font-size="7.5" fill="#22c55e">A→C</text>
+
+  <!-- ── 右：调用栈帧 ── -->
+  <text x="380" y="36" font-size="9.5" fill="#f59e0b" font-weight="700">② 调用栈（执行 hanoi(3,A,B,C) 时）</text>
+  <rect x="380" y="42" width="292" height="160" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <!-- 栈帧（从底到顶） -->
+  <rect x="392" y="170" width="268" height="24" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="526" y="186" text-anchor="middle" font-size="9" font-weight="700" fill="#93c5fd">hanoi(3,A,B,C)  ← 栈底</text>
+  <rect x="404" y="144" width="244" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <text x="526" y="160" text-anchor="middle" font-size="9" fill="#cbd5e1">hanoi(2,A,C,B)</text>
+  <rect x="416" y="118" width="220" height="24" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <text x="526" y="134" text-anchor="middle" font-size="9" fill="#cbd5e1">hanoi(1,A,B,C)</text>
+  <rect x="428" y="92" width="196" height="24" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="526" y="108" text-anchor="middle" font-size="9" fill="#64748b">hanoi(0,...) ← 递归基，返回</text>
+  <text x="526" y="66" text-anchor="middle" font-size="8.5" fill="#64748b">↑ 每层函数调用在栈上分配栈帧</text>
+  <text x="526" y="54" text-anchor="middle" font-size="8.5" fill="#475569">最大栈深 = 递归深度 n = 3</text>
+
+  <!-- ── 底：移动序列 ── -->
+  <rect x="8" y="180" width="664" height="112" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="198" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">③ n=3 完整移动序列（共 2³-1=7 步）</text>
+  <text x="48"  y="218" font-size="9" fill="#22c55e" text-anchor="middle">步1</text>
+  <text x="48"  y="232" font-size="9" fill="#cbd5e1" text-anchor="middle">A→C</text>
+  <text x="128" y="218" font-size="9" fill="#22c55e" text-anchor="middle">步2</text>
+  <text x="128" y="232" font-size="9" fill="#cbd5e1" text-anchor="middle">A→B</text>
+  <text x="208" y="218" font-size="9" fill="#22c55e" text-anchor="middle">步3</text>
+  <text x="208" y="232" font-size="9" fill="#cbd5e1" text-anchor="middle">C→B</text>
+  <text x="288" y="218" font-size="9" fill="#f59e0b" text-anchor="middle" font-weight="700">步4</text>
+  <text x="288" y="232" font-size="9" fill="#fde68a" text-anchor="middle" font-weight="700">A→C ★</text>
+  <text x="368" y="218" font-size="9" fill="#22c55e" text-anchor="middle">步5</text>
+  <text x="368" y="232" font-size="9" fill="#cbd5e1" text-anchor="middle">B→A</text>
+  <text x="448" y="218" font-size="9" fill="#22c55e" text-anchor="middle">步6</text>
+  <text x="448" y="232" font-size="9" fill="#cbd5e1" text-anchor="middle">B→C</text>
+  <text x="528" y="218" font-size="9" fill="#22c55e" text-anchor="middle">步7</text>
+  <text x="528" y="232" font-size="9" fill="#cbd5e1" text-anchor="middle">A→C</text>
+  <text x="340" y="256" text-anchor="middle" font-size="9" fill="#475569">步4 是第3盘（最大盘）的唯一一次移动，其余步骤均为前两层递归的贡献</text>
+  <text x="340" y="274" text-anchor="middle" font-size="9.5" fill="#94a3b8">递归三要素：① 递归基（n=0 直接返回）　② 递推关系（n层 = 2×(n-1)层 + 1次）　③ 规模严格缩小</text>
+  <text x="340" y="288" text-anchor="middle" font-size="9" fill="#475569">总移动次数 T(n) = 2T(n-1)+1，解为 T(n) = 2ⁿ-1</text>
+</svg>`,
+    problems: [{ id: 7401, title: '汉诺塔', passRate: '87.3%', difficulty: '入门' }, { id: 7402, title: '全排列', passRate: '73.6%', difficulty: '提高' }, { id: 7403, title: '二叉树递归遍历', passRate: '81.2%', difficulty: '入门' }],
+  },
+
+  'divide-conquer': {
+    description: '分治将原问题分解为若干规模更小、相互独立的同类子问题，分别求解后合并结果。三步骤：分（Divide）、治（Conquer）、合（Combine）。归并排序、快速排序、二分查找、FFT 都是分治的典型应用。',
+    steps: ['判断问题规模是否足够小（递归基），若是直接求解', '将问题分成 k 个规模为 n/k 的子问题', '递归求解每个子问题', '将子问题的解合并为原问题的解', '（分析）用主定理估算时间复杂度'],
+    complexity: [{ case: '归并排序', time: 'O(n log n)', space: 'O(n)' }, { case: '主定理通式', time: 'T(n)=aT(n/b)+O(nᶜ)', space: '—' }],
+    stable: true,
+    codes: {
+      cpp: { note: '归并排序是分治的经典实现：分成两半分别排序，再线性合并。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+void merge(vector<int>& a, int l, int m, int r) {
+    vector<int> tmp(a.begin()+l, a.begin()+r+1);
+    int i = 0, j = m-l+1, k = l;
+    while (i <= m-l && j <= r-l)
+        a[k++] = tmp[i] <= tmp[j] ? tmp[i++] : tmp[j++];
+    while (i <= m-l) a[k++] = tmp[i++];
+    while (j <= r-l) a[k++] = tmp[j++];
+}
+
+void mergeSort(vector<int>& a, int l, int r) {
+    if (l >= r) return;          // 递归基：只剩一个元素
+    int m = (l + r) / 2;
+    mergeSort(a, l, m);          // 分：递归排左半
+    mergeSort(a, m+1, r);        // 分：递归排右半
+    merge(a, l, m, r);           // 合：合并两段
+}` },
+      java: { note: 'Arrays.sort 底层对基本类型用双轴快排，对对象用 TimSort（归并变体）。', code: `public class DivideConquer {
+    public static void mergeSort(int[] a, int l, int r) {
+        if (l >= r) return;
+        int m = (l + r) / 2;
+        mergeSort(a, l, m);
+        mergeSort(a, m + 1, r);
+        merge(a, l, m, r);
+    }
+    private static void merge(int[] a, int l, int m, int r) {
+        int[] tmp = Arrays.copyOfRange(a, l, r + 1);
+        int i = 0, j = m - l + 1, k = l;
+        while (i <= m - l && j <= r - l)
+            a[k++] = tmp[i] <= tmp[j] ? tmp[i++] : tmp[j++];
+        while (i <= m - l) a[k++] = tmp[i++];
+        while (j <= r - l) a[k++] = tmp[j++];
+    }
+}` },
+      python: { note: 'Python 内置 sorted() 使用 TimSort，手写归并主要用于理解分治。', code: `def merge_sort(a):
+    if len(a) <= 1:
+        return a
+    m = len(a) // 2
+    left  = merge_sort(a[:m])   # 分：递归排左半
+    right = merge_sort(a[m:])   # 分：递归排右半
+    return merge(left, right)   # 合
+
+def merge(l, r):
+    res, i, j = [], 0, 0
+    while i < len(l) and j < len(r):
+        if l[i] <= r[j]: res.append(l[i]); i += 1
+        else:             res.append(r[j]); j += 1
+    return res + l[i:] + r[j:]` },
+    },
+    diagram: `<svg viewBox="0 0 680 294" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">分治 · 归并排序完整图解（数组 [5,3,8,1,6,2,7,4]）</text>
+
+  <!-- ── 分阶段 ── -->
+  <text x="8" y="34" font-size="9.5" fill="#f59e0b" font-weight="700">① 分（Divide）：递归对半拆分，直到每段长度为 1</text>
+  <!-- 第0层：完整数组 -->
+  <rect x="100" y="38" width="480" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="340" y="53" text-anchor="middle" font-size="10" fill="#93c5fd">5  3  8  1  6  2  7  4</text>
+  <!-- 第1层：两段 -->
+  <line x1="196" y1="60" x2="152" y2="72" stroke="#334155" stroke-width="1"/>
+  <line x1="484" y1="60" x2="528" y2="72" stroke="#334155" stroke-width="1"/>
+  <rect x="100" y="72" width="224" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <text x="212" y="87" text-anchor="middle" font-size="10" fill="#cbd5e1">5  3  8  1</text>
+  <rect x="356" y="72" width="224" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <text x="468" y="87" text-anchor="middle" font-size="10" fill="#cbd5e1">6  2  7  4</text>
+  <!-- 第2层：四段 -->
+  <line x1="156" y1="94" x2="134" y2="106" stroke="#334155" stroke-width="1"/>
+  <line x1="268" y1="94" x2="290" y2="106" stroke="#334155" stroke-width="1"/>
+  <line x1="412" y1="94" x2="390" y2="106" stroke="#334155" stroke-width="1"/>
+  <line x1="524" y1="94" x2="546" y2="106" stroke="#334155" stroke-width="1"/>
+  <rect x="100" y="106" width="100" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="150" y="121" text-anchor="middle" font-size="10" fill="#94a3b8">5  3</text>
+  <rect x="212" y="106" width="100" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="262" y="121" text-anchor="middle" font-size="10" fill="#94a3b8">8  1</text>
+  <rect x="356" y="106" width="100" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="406" y="121" text-anchor="middle" font-size="10" fill="#94a3b8">6  2</text>
+  <rect x="468" y="106" width="100" height="22" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="518" y="121" text-anchor="middle" font-size="10" fill="#94a3b8">7  4</text>
+  <!-- 第3层：单元素 -->
+  <text x="112" y="154" text-anchor="middle" font-size="11" fill="#475569">5</text>
+  <text x="152" y="154" text-anchor="middle" font-size="11" fill="#475569">3</text>
+  <text x="232" y="154" text-anchor="middle" font-size="11" fill="#475569">8</text>
+  <text x="272" y="154" text-anchor="middle" font-size="11" fill="#475569">1</text>
+  <text x="368" y="154" text-anchor="middle" font-size="11" fill="#475569">6</text>
+  <text x="408" y="154" text-anchor="middle" font-size="11" fill="#475569">2</text>
+  <text x="488" y="154" text-anchor="middle" font-size="11" fill="#475569">7</text>
+  <text x="528" y="154" text-anchor="middle" font-size="11" fill="#475569">4</text>
+  <line x1="128" y1="128" x2="112" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="172" y1="128" x2="152" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="240" y1="128" x2="232" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="284" y1="128" x2="272" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="384" y1="128" x2="368" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="428" y1="128" x2="408" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="496" y1="128" x2="488" y2="142" stroke="#1e293b" stroke-width="1"/>
+  <line x1="540" y1="128" x2="528" y2="142" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- ── 合阶段 ── -->
+  <text x="8" y="172" font-size="9.5" fill="#f59e0b" font-weight="700">② 合（Combine）：有序合并，自底向上</text>
+  <!-- 合并第1层：两两合并 -->
+  <rect x="100" y="176" width="100" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1.3"/>
+  <text x="150" y="191" text-anchor="middle" font-size="10" fill="#86efac">3  5</text>
+  <rect x="212" y="176" width="100" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1.3"/>
+  <text x="262" y="191" text-anchor="middle" font-size="10" fill="#86efac">1  8</text>
+  <rect x="356" y="176" width="100" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1.3"/>
+  <text x="406" y="191" text-anchor="middle" font-size="10" fill="#86efac">2  6</text>
+  <rect x="468" y="176" width="100" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1.3"/>
+  <text x="518" y="191" text-anchor="middle" font-size="10" fill="#86efac">4  7</text>
+  <!-- 合并第2层 -->
+  <rect x="100" y="208" width="224" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="212" y="223" text-anchor="middle" font-size="10" fill="#86efac">1  3  5  8</text>
+  <rect x="356" y="208" width="224" height="22" rx="3" fill="#1e293b" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="468" y="223" text-anchor="middle" font-size="10" fill="#86efac">2  4  6  7</text>
+  <!-- 最终结果 -->
+  <rect x="100" y="240" width="480" height="24" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="2"/>
+  <text x="340" y="256" text-anchor="middle" font-size="11" font-weight="700" fill="#fde68a">1  2  3  4  5  6  7  8　← 排序完成</text>
+
+  <!-- 底部说明 -->
+  <rect x="8" y="270" width="664" height="20" rx="4" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="284" text-anchor="middle" font-size="9" fill="#64748b">每层合并总工作量 O(n)，共 log n 层 → 总复杂度 O(n log n)　主定理：T(n)=2T(n/2)+O(n) → O(n log n)</text>
+</svg>`,
+    problems: [{ id: 7501, title: '逆序对计数', passRate: '61.8%', difficulty: '提高' }, { id: 7502, title: '归并排序', passRate: '79.4%', difficulty: '提高' }, { id: 7503, title: '最近点对', passRate: '43.2%', difficulty: '进阶' }],
+  },
+
+  'two-pointers': {
+    description: '双指针用两个指针在序列上协同移动，将朴素的 O(n²) 降至 O(n)。分两类：对撞指针（两端向中间收缩，用于有序数组的两数之和、三数之和）和滑动窗口（同向移动维护区间，用于最长无重复子串、最小覆盖子串）。',
+    steps: ['确定指针类型：对撞（左右向中）还是滑动窗口（同向）', '初始化指针位置（对撞：l=0,r=n-1；窗口：l=r=0）', '在循环中根据条件移动指针', '维护窗口内的状态（计数、求和等）', '记录满足条件的最优解'],
+    complexity: [{ case: '时间', time: 'O(n)，每个元素最多进出各一次', space: '—' }, { case: '空间', time: '—', space: 'O(1)' }],
+    stable: true,
+    codes: {
+      cpp: { note: '对撞指针：有序数组两数之和；滑动窗口：最长无重复子串。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 对撞指针：有序数组中找两数之和为 target
+pair<int,int> twoSum(vector<int>& a, int target) {
+    int l = 0, r = a.size() - 1;
+    while (l < r) {
+        int s = a[l] + a[r];
+        if (s == target) return {l, r};
+        if (s < target) l++;   // 和太小，左指针右移
+        else            r--;   // 和太大，右指针左移
+    }
+    return {-1, -1};
+}
+
+// 滑动窗口：最长无重复子串
+int lengthOfLongestSubstring(string s) {
+    unordered_map<char,int> cnt;
+    int l = 0, ans = 0;
+    for (int r = 0; r < (int)s.size(); r++) {
+        cnt[s[r]]++;
+        while (cnt[s[r]] > 1) cnt[s[l++]]--;  // 收缩左边界
+        ans = max(ans, r - l + 1);
+    }
+    return ans;
+}` },
+      java: { note: 'HashMap 记录字符最新位置可让左指针直接跳到重复字符的下一位，效率更高。', code: `import java.util.*;
+public class TwoPointers {
+    // 对撞指针
+    public static int[] twoSum(int[] a, int target) {
+        int l = 0, r = a.length - 1;
+        while (l < r) {
+            int s = a[l] + a[r];
+            if (s == target) return new int[]{l, r};
+            if (s < target) l++; else r--;
+        }
+        return new int[]{-1, -1};
+    }
+    // 滑动窗口
+    public static int longestSubstring(String s) {
+        Map<Character, Integer> cnt = new HashMap<>();
+        int l = 0, ans = 0;
+        for (int r = 0; r < s.length(); r++) {
+            cnt.merge(s.charAt(r), 1, Integer::sum);
+            while (cnt.get(s.charAt(r)) > 1)
+                cnt.merge(s.charAt(l++), -1, Integer::sum);
+            ans = Math.max(ans, r - l + 1);
+        }
+        return ans;
+    }
+}` },
+      python: { note: 'Counter 或 defaultdict 维护窗口内字符频次，逻辑简洁。', code: `from collections import defaultdict
+
+def two_sum_sorted(a, target):
+    """对撞指针：有序数组两数之和"""
+    l, r = 0, len(a) - 1
+    while l < r:
+        s = a[l] + a[r]
+        if s == target: return l, r
+        elif s < target: l += 1
+        else:            r -= 1
+    return -1, -1
+
+def longest_no_repeat(s):
+    """滑动窗口：最长无重复子串"""
+    cnt = defaultdict(int)
+    l = ans = 0
+    for r, c in enumerate(s):
+        cnt[c] += 1
+        while cnt[c] > 1:
+            cnt[s[l]] -= 1
+            l += 1
+        ans = max(ans, r - l + 1)
+    return ans` },
+    },
+    diagram: `<svg viewBox="0 0 680 288" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">双指针 · 对撞指针（两数之和）&amp; 滑动窗口（最长无重复子串）</text>
+
+  <!-- ══ 上半：对撞指针 ══ -->
+  <text x="8" y="34" font-size="9.5" fill="#f59e0b" font-weight="700">① 对撞指针：有序数组 [1,3,5,7,9,11,13]，target=14</text>
+  <!-- 数组 -->
+  <rect x="40"  y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="62"  y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">1</text>
+  <rect x="88"  y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="110" y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">3</text>
+  <rect x="136" y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="158" y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">5</text>
+  <rect x="184" y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="206" y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">7</text>
+  <rect x="232" y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="254" y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">9</text>
+  <rect x="280" y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="302" y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">11</text>
+  <rect x="328" y="40" width="44" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="350" y="57" text-anchor="middle" font-size="13" fill="#cbd5e1">13</text>
+  <!-- 步骤1：l=0(1) r=6(13) sum=14 ✓ -->
+  <text x="8" y="80" font-size="9" fill="#64748b">步1</text>
+  <rect x="40"  y="68" width="44" height="18" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.8"/>
+  <text x="62"  y="81" text-anchor="middle" font-size="9" fill="#93c5fd">l</text>
+  <rect x="328" y="68" width="44" height="18" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.8"/>
+  <text x="350" y="81" text-anchor="middle" font-size="9" fill="#93c5fd">r</text>
+  <text x="420" y="81" font-size="9" fill="#64748b">1+13=14 ✓ 命中！</text>
+  <!-- 步骤演示额外行 -->
+  <text x="8" y="100" font-size="9" fill="#64748b">若sum&lt;14</text>
+  <rect x="88"  y="88" width="44" height="18" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="110" y="101" text-anchor="middle" font-size="9" fill="#fde68a">l→</text>
+  <text x="230" y="100" font-size="9" fill="#64748b">左指针右移（扩大和）</text>
+  <text x="8" y="120" font-size="9" fill="#64748b">若sum&gt;14</text>
+  <rect x="280" y="108" width="44" height="18" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="302" y="121" text-anchor="middle" font-size="9" fill="#fde68a">←r</text>
+  <text x="230" y="120" font-size="9" fill="#64748b">右指针左移（缩小和）</text>
+
+  <!-- ══ 下半：滑动窗口 ══ -->
+  <text x="8" y="142" font-size="9.5" fill="#f59e0b" font-weight="700">② 滑动窗口：字符串 "abcabcbb"，求最长无重复子串</text>
+  <!-- 字符格 -->
+  <rect x="40"  y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="58"  y="165" text-anchor="middle" font-size="13" fill="#cbd5e1">a</text>
+  <rect x="80"  y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="98"  y="165" text-anchor="middle" font-size="13" fill="#cbd5e1">b</text>
+  <rect x="120" y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="138" y="165" text-anchor="middle" font-size="13" fill="#cbd5e1">c</text>
+  <rect x="160" y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="178" y="165" text-anchor="middle" font-size="13" fill="#94a3b8">a</text>
+  <rect x="200" y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="218" y="165" text-anchor="middle" font-size="13" fill="#94a3b8">b</text>
+  <rect x="240" y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="258" y="165" text-anchor="middle" font-size="13" fill="#94a3b8">c</text>
+  <rect x="280" y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="298" y="165" text-anchor="middle" font-size="13" fill="#94a3b8">b</text>
+  <rect x="320" y="148" width="36" height="26" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="338" y="165" text-anchor="middle" font-size="13" fill="#94a3b8">b</text>
+  <text x="58"  y="184" text-anchor="middle" font-size="8" fill="#475569">0</text>
+  <text x="98"  y="184" text-anchor="middle" font-size="8" fill="#475569">1</text>
+  <text x="138" y="184" text-anchor="middle" font-size="8" fill="#475569">2</text>
+  <text x="178" y="184" text-anchor="middle" font-size="8" fill="#475569">3</text>
+  <text x="218" y="184" text-anchor="middle" font-size="8" fill="#475569">4</text>
+  <text x="258" y="184" text-anchor="middle" font-size="8" fill="#475569">5</text>
+  <text x="298" y="184" text-anchor="middle" font-size="8" fill="#475569">6</text>
+  <text x="338" y="184" text-anchor="middle" font-size="8" fill="#475569">7</text>
+  <!-- 窗口状态行 -->
+  <text x="8" y="202" font-size="9" fill="#64748b">r=2,l=0</text>
+  <rect x="40" y="190" width="116" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="98" y="201" text-anchor="middle" font-size="8" fill="#86efac">[a,b,c] 长度3</text>
+  <text x="8" y="222" font-size="9" fill="#64748b">r=3,l=1</text>
+  <text x="58" y="222" text-anchor="middle" font-size="9" fill="#f97316">a重复→l右移</text>
+  <rect x="80" y="210" width="116" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="138" y="221" text-anchor="middle" font-size="8" fill="#86efac">[b,c,a] 长度3</text>
+  <text x="8" y="242" font-size="9" fill="#64748b">r=5,l=2</text>
+  <rect x="120" y="230" width="156" height="14" rx="2" fill="#312e00" stroke="#f59e0b" stroke-width="1.8"/>
+  <text x="198" y="241" text-anchor="middle" font-size="8.5" font-weight="700" fill="#fde68a">[c,a,b,c] 仍长3 最大</text>
+
+  <!-- 右侧总结框 -->
+  <rect x="420" y="140" width="252" height="110" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="546" y="158" text-anchor="middle" font-size="9.5" fill="#64748b">两类双指针对比</text>
+  <text x="432" y="176" font-size="9" fill="#3b82f6" font-weight="700">对撞指针</text>
+  <text x="432" y="192" font-size="8.5" fill="#94a3b8">有序数组，两端收缩</text>
+  <text x="432" y="206" font-size="8.5" fill="#94a3b8">两数之和/三数之和</text>
+  <text x="432" y="220" font-size="8.5" fill="#94a3b8">盛水容器/回文判断</text>
+  <text x="546" y="176" font-size="9" fill="#22c55e" font-weight="700">滑动窗口</text>
+  <text x="546" y="192" font-size="8.5" fill="#94a3b8">同向移动，维护区间</text>
+  <text x="546" y="206" font-size="8.5" fill="#94a3b8">最长无重复/定长窗口</text>
+  <text x="546" y="220" font-size="8.5" fill="#94a3b8">最小覆盖子串/K不同</text>
+  <line x1="534" y1="162" x2="534" y2="242" stroke="#1e293b" stroke-width="1"/>
+
+  <!-- 底部 -->
+  <rect x="8" y="258" width="664" height="26" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="270" text-anchor="middle" font-size="9" fill="#64748b">核心思路：每个元素最多被左/右指针各访问一次 → O(n)，避免暴力 O(n²) 的重复扫描</text>
+  <text x="340" y="281" text-anchor="middle" font-size="9" fill="#475569">适用条件：单调性——指针移动方向与目标值变化方向一致，保证不错过最优解</text>
+</svg>`,
+    problems: [{ id: 7601, title: '两数之和（有序）', passRate: '88.4%', difficulty: '入门' }, { id: 7602, title: '最长无重复子串', passRate: '69.7%', difficulty: '提高' }, { id: 7603, title: '盛水最多的容器', passRate: '63.2%', difficulty: '提高' }],
+  },
+
 };
 
 // 为未定义详情的算法生成默认占位数据
