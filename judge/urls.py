@@ -24,9 +24,13 @@ urlpatterns = [
 
     # 比赛
     path('contests/', views.contest_list, name='contest_list'),
+    path('contests/create/', views.contest_create, name='contest_create'),
     path('contests/<int:contest_id>/', views.contest_detail, name='contest_detail'),
     path('contests/<int:contest_id>/register/', views.contest_register, name='contest_register'),
     path('contests/<int:contest_id>/ranking/', views.contest_ranking, name='contest_ranking'),
+
+    # API
+    path('api/problems/', views.api_problems, name='api_problems'),
 
     # 排行榜
     path('rank/', views.leaderboard, name='leaderboard'),

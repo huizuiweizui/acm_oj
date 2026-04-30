@@ -10,16 +10,16 @@
                 <a href="?tab=rating" class="tab {% if tab == 'rating' %}active{% endif %}">Rating 排名</a>
             </div>
         </div>
-        {% for p in users %}
+        {% for rank, p in ranked_users %}
         <div class="rank-row">
-            <span class="rank-position {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">{{ forloop.counter }}</span>
+            <span class="rank-position {% if rank == 1 %}gold{% elif rank == 2 %}silver{% elif rank == 3 %}bronze{% endif %}">{{ rank }}</span>
             <div class="rank-info" style="display:flex;align-items:center;gap:10px;">
                 <span class="user-avatar" style="background:{{ p.avatar_color }};width:32px;height:32px;font-size:0.8rem;">{{ p.user.username|first|upper }}</span>
                 <a href="{% url 'profile' p.user.id %}">{{ p.user.username }}</a>
             </div>
-            <span class="rank-value">{% if tab == 'rating' %}{{ p.rating }}{% else %}{{ p.ac_count }}{% endif %}</span>
+            <span class="rank-value">{% if tab == 'rating' %}{{ p.display_rating }}{% else %}{{ p.real_ac }}{% endif %}</span>
             <span class="text-muted" style="font-size:0.82rem;min-width:80px;text-align:right;">
-                {% if tab == 'rating' %}AC: {{ p.ac_count }}{% else %}提交: {{ p.submit_count }}{% endif %}
+                {% if tab == 'rating' %}AC: {{ p.real_ac }}{% else %}提交: {{ p.real_submit }}{% endif %}
             </span>
         </div>
         {% empty %}

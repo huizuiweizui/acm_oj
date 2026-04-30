@@ -112,6 +112,15 @@ html, body {
     padding-left: 24px;
     margin-bottom: 10px;
 }
+.markdown-body img {
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    display: block;
+}
+.problem-fs-info {
+    overflow-x: hidden;
+}
 
 .sample-block {
     background: var(--code-bg);

@@ -45,7 +45,7 @@
             {% for cp in contest_problems %}
             <tr>
                 <td><span style="font-family:var(--font-mono);font-weight:700;font-size:1.1rem;color:var(--accent);">{{ cp.label }}</span></td>
-                <td><a href="{% url 'problem_detail' cp.problem.id %}" class="problem-title-link">{{ cp.problem.title }}</a></td>
+                <td><a href="{% url 'problem_detail' cp.problem.id %}?contest_id={{ contest.id }}" class="problem-title-link">{{ cp.problem.title }}</a></td>
                 <td><span class="diff-badge {{ cp.problem.difficulty|difficulty_class }}">{{ cp.problem.difficulty }}</span></td>
                 <td>
                     {% with ps=problem_status %}

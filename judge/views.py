@@ -180,6 +180,11 @@ def problem_detail(request, problem_id):
 
     user_submissions = []
     discussions = problem.discussions.select_related('user', 'user__profile')[:5]
+    contest_id = request.GET.get('contest_id', '')
+    contest_context = None
+
+    if contest_id:
+        contest_context = Contest.objects.filter(id=contest_id).first()
 
     if request.user.is_authenticated:
         user_submissions = (
@@ -192,6 +197,8 @@ def problem_detail(request, problem_id):
         'form': form,
         'user_submissions': user_submissions,
         'discussions': discussions,
+        'contest_id': contest_id,
+        'contest_context': contest_context,
     }
     return render(request, 'judge/problem_detail.html', context)
 
@@ -209,10 +216,24 @@ def submit_code(request, problem_id):
         return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
     # 比赛提交检测
+    now = timezone.now()
     contest_id = request.POST.get('contest_id')
     contest = None
     if contest_id:
-        contest = Contest.objects.filter(id=contest_id).first()
+        # 显式传入 contest_id：验证比赛正在进行且用户已报名
+        c = Contest.objects.filter(id=contest_id, start_time__lte=now, end_time__gte=now).first()
+        if c and ContestParticipant.objects.filter(contest=c, user=request.user).exists():
+            contest = c
+    else:
+        # 未传 contest_id：自动检测用户是否正在参加含此题的唯一活跃比赛
+        active = Contest.objects.filter(
+            contest_problems__problem=problem,
+            participants__user=request.user,
+            start_time__lte=now,
+            end_time__gte=now,
+        ).distinct()
+        if active.count() == 1:
+            contest = active.first()
 
     submission = form.save(commit=False)
     submission.user = request.user
@@ -323,6 +344,16 @@ def judge_submission(submission, problem):
         submission.status = verdict
         submission.ai_feedback = ai_text
         submission.save(update_fields=['status', 'ai_feedback'])
+
+        if verdict == 'AC':
+            already_ac = Submission.objects.filter(
+                user=submission.user, problem=problem, status='AC'
+            ).exclude(id=submission.id).exists()
+            if not already_ac:
+                Problem.objects.filter(id=problem.id).update(ac_count=F('ac_count') + 1)
+                UserProfile.objects.filter(user=submission.user).update(ac_count=F('ac_count') + 1)
+                _update_rating(submission.user, problem)
+
         return {'status': verdict, 'ai_feedback': ai_text}
 
     # 创建临时目录
@@ -433,6 +464,7 @@ def judge_submission(submission, problem):
     if not already_ac:
         Problem.objects.filter(id=problem.id).update(ac_count=F('ac_count') + 1)
         UserProfile.objects.filter(user=submission.user).update(ac_count=F('ac_count') + 1)
+        _update_rating(submission.user, problem)
 
     # 比赛提交：更新罚时
     if submission.contest:
@@ -443,6 +475,24 @@ def judge_submission(submission, problem):
         submission.ai_feedback = fb
         submission.save(update_fields=['ai_feedback'])
     return {'status': 'AC', 'time_used': submission.time_used, 'ai_feedback': fb}
+
+
+_DIFFICULTY_RATING = {
+    '入门': 5,
+    '普及-': 8,
+    '普及/提高-': 12,
+    '普及+/提高': 18,
+    '提高+/省选-': 25,
+    '省选/NOI-': 35,
+    'NOI/NOI+/CTSC': 50,
+    '暂无评定': 10,
+}
+
+
+def _update_rating(user, problem):
+    """首次 AC 某题时按难度增加 rating。"""
+    delta = _DIFFICULTY_RATING.get(problem.difficulty, 10)
+    UserProfile.objects.filter(user=user).update(rating=F('rating') + delta)
 
 
 def update_contest_score(submission):
@@ -506,7 +556,7 @@ def submission_detail(request, submission_id):
 def contest_list(request):
     """比赛列表：进行中 / 即将开始 / 已结束"""
     now = timezone.now()
-    contests = Contest.objects.all()
+    contests = Contest.objects.annotate(problem_count=Count('contest_problems'))
 
     tab = request.GET.get('tab', 'all')
     if tab == 'running':
@@ -573,42 +623,293 @@ def contest_register(request, contest_id):
 
 
 def contest_ranking(request, contest_id):
-    """比赛排行榜 — 对应技术方案书 §2.4.3"""
+    """比赛排行榜（实时计算）"""
     contest = get_object_or_404(Contest, id=contest_id)
+    contest_problems = list(
+        contest.contest_problems.select_related('problem').order_by('sort_order')
+    )
+    problem_ids = {cp.problem_id for cp in contest_problems}
+
+    participants = list(
+        ContestParticipant.objects.filter(contest=contest)
+        .select_related('user', 'user__profile')
+    )
+
+    if not participants:
+        return render(request, 'judge/contest_ranking.html', {
+            'contest': contest, 'ranked': [], 'contest_problems': contest_problems,
+        })
+
+    from collections import defaultdict
+    participant_user_ids = [p.user_id for p in participants]
+
+    all_subs = list(
+        Submission.objects.filter(
+            contest=contest,
+            user_id__in=participant_user_ids,
+            problem_id__in=problem_ids,
+            submitted_at__gte=contest.start_time,
+            submitted_at__lte=contest.end_time,
+        )
+        .exclude(status__in=['Pending', 'Judging'])
+        .order_by('submitted_at')
+        .values('user_id', 'problem_id', 'status', 'submitted_at')
+    )
+
+    # (user_id, problem_id) -> [sub, ...] 按时间顺序
+    subs_map = defaultdict(list)
+    for sub in all_subs:
+        subs_map[(sub['user_id'], sub['problem_id'])].append(sub)
+
+    ranking_data = []
+    for participant in participants:
+        uid = participant.user_id
+        prob_results = []  # 按 contest_problems 顺序
+
+        if contest.rule_type == 'ICPC':
+            ac_count = 0
+            total_penalty = 0
+            for cp in contest_problems:
+                subs = subs_map.get((uid, cp.problem_id), [])
+                first_ac = None
+                wrong_before_ac = 0
+                for sub in subs:
+                    if first_ac:
+                        break
+                    if sub['status'] == 'AC':
+                        first_ac = sub
+                    else:
+                        wrong_before_ac += 1
+                if first_ac:
+                    ac_count += 1
+                    ac_min = int((first_ac['submitted_at'] - contest.start_time).total_seconds() / 60)
+                    prob_penalty = ac_min + wrong_before_ac * 20
+                    total_penalty += prob_penalty
+                    prob_results.append({'status': 'AC', 'wrong': wrong_before_ac, 'time': ac_min})
+                elif subs:
+                    prob_results.append({'status': 'WA', 'wrong': len(subs)})
+                else:
+                    prob_results.append(None)
+            ranking_data.append({
+                'participant': participant,
+                'score': ac_count,
+                'penalty': total_penalty,
+                'prob_results': prob_results,
+            })
+
+        else:  # IOI
+            total_score = 0
+            for cp in contest_problems:
+                subs = subs_map.get((uid, cp.problem_id), [])
+                has_ac = any(s['status'] == 'AC' for s in subs)
+                if has_ac:
+                    total_score += 100
+                    prob_results.append({'status': 'AC', 'points': 100})
+                elif subs:
+                    prob_results.append({'status': 'WA', 'wrong': len(subs)})
+                else:
+                    prob_results.append(None)
+            ranking_data.append({
+                'participant': participant,
+                'score': total_score,
+                'penalty': 0,
+                'prob_results': prob_results,
+            })
 
     if contest.rule_type == 'ICPC':
-        ranking = (
-            ContestParticipant.objects.filter(contest=contest)
-            .select_related('user', 'user__profile')
-            .order_by('-score', 'penalty')
-        )
-    else:  # IOI
-        ranking = (
-            ContestParticipant.objects.filter(contest=contest)
-            .select_related('user', 'user__profile')
-            .order_by('-score')
-        )
+        ranking_data.sort(key=lambda x: (-x['score'], x['penalty']))
+    else:
+        ranking_data.sort(key=lambda x: -x['score'])
 
-    contest_problems = contest.contest_problems.select_related('problem').order_by('sort_order')
+    # 计算并列名次
+    ranked = []
+    rank = 0
+    prev_key = None
+    for i, data in enumerate(ranking_data):
+        key = (-data['score'], data['penalty']) if contest.rule_type == 'ICPC' else -data['score']
+        if key != prev_key:
+            rank = i + 1
+            prev_key = key
+        ranked.append((rank, data))
 
     context = {
         'contest': contest,
-        'ranking': ranking,
+        'ranked': ranked,
         'contest_problems': contest_problems,
     }
     return render(request, 'judge/contest_ranking.html', context)
 
 
+@login_required
+def contest_create(request):
+    """创建比赛（两步：基本信息 → 选题）— POST 接收 JSON"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({'success': False, 'error': '请求数据格式错误'}, status=400)
+
+        title = data.get('title', '').strip()
+        description = data.get('description', '').strip()
+        start_time_str = data.get('start_time', '')
+        end_time_str = data.get('end_time', '')
+        problem_ids = data.get('problem_ids', [])
+
+        if not title:
+            return JsonResponse({'success': False, 'error': '比赛名称不能为空'}, status=400)
+        if len(title) > 100:
+            return JsonResponse({'success': False, 'error': '比赛名称不能超过 100 字符'}, status=400)
+
+        from django.utils.dateparse import parse_datetime
+        start_time = parse_datetime(start_time_str)
+        end_time = parse_datetime(end_time_str)
+
+        if not start_time or not end_time:
+            return JsonResponse({'success': False, 'error': '时间格式错误'}, status=400)
+
+        now = timezone.now()
+        if start_time < now:
+            return JsonResponse({'success': False, 'error': '开始时间不能早于当前时间'}, status=400)
+        if end_time <= start_time:
+            return JsonResponse({'success': False, 'error': '结束时间必须晚于开始时间'}, status=400)
+        if (end_time - start_time).total_seconds() < 300:
+            return JsonResponse({'success': False, 'error': '结束时间必须晚于开始时间至少 5 分钟'}, status=400)
+
+        rule_type = data.get('rule_type', 'ICPC')
+        if rule_type not in ('ICPC', 'IOI'):
+            return JsonResponse({'success': False, 'error': '赛制参数错误'}, status=400)
+
+        contest = Contest.objects.create(
+            title=title,
+            description=description,
+            start_time=start_time,
+            end_time=end_time,
+            rule_type=rule_type,
+            created_by=request.user,
+        )
+
+        labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for idx, pid in enumerate(problem_ids):
+            problem = Problem.objects.filter(id=pid, is_published=True).first()
+            if problem:
+                ContestProblem.objects.create(
+                    contest=contest,
+                    problem=problem,
+                    label=labels[idx] if idx < len(labels) else str(idx + 1),
+                    sort_order=idx,
+                )
+
+        return JsonResponse({'success': True, 'contest_id': contest.id})
+
+    all_tags = Tag.objects.annotate(cnt=Count('problems')).order_by('-cnt')
+    has_problems = Problem.objects.filter(is_published=True).exists()
+    return render(request, 'judge/contest_create.html', {
+        'all_tags': all_tags,
+        'has_problems': has_problems,
+    })
+
+
+def api_problems(request):
+    """题目列表 JSON API — 供比赛创建题目选择器使用"""
+    problems = Problem.objects.filter(is_published=True).prefetch_related('tags')
+
+    keyword = request.GET.get('keyword', '').strip()
+    difficulty = request.GET.get('difficulty', '').strip()
+    tag = request.GET.get('tag', '').strip()
+
+    if keyword:
+        problems = problems.filter(Q(title__icontains=keyword) | Q(id__icontains=keyword))
+    if difficulty:
+        problems = problems.filter(difficulty=difficulty)
+    if tag:
+        problems = problems.filter(tags__name=tag)
+
+    paginator = Paginator(problems, 15)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    data = {
+        'problems': [
+            {
+                'id': p.id,
+                'title': p.title,
+                'difficulty': p.difficulty,
+                'tags': [t.name for t in p.tags.all()],
+                'ac_count': p.ac_count,
+                'submit_count': p.submit_count,
+            }
+            for p in page_obj
+        ],
+        'has_next': page_obj.has_next(),
+        'has_previous': page_obj.has_previous(),
+        'page': page_obj.number,
+        'total_pages': page_obj.paginator.num_pages,
+        'total_count': page_obj.paginator.count,
+    }
+    return JsonResponse(data)
+
+
 # ==================== 排行榜 ====================
 
 def leaderboard(request):
-    """全站排行榜：AC数 / Rating"""
+    """全站排行榜：AC数 / Rating（实时从 Submission 表直接聚合）"""
     tab = request.GET.get('tab', 'ac')
+
+    # 直接从 Submission 聚合，避免跨 OneToOne+FK 多级 annotation 产生笛卡尔积
+    ac_counts = dict(
+        Submission.objects.filter(status='AC')
+        .values('user_id')
+        .annotate(cnt=Count('problem_id', distinct=True))
+        .values_list('user_id', 'cnt')
+    )
+    if not ac_counts:
+        return render(request, 'judge/leaderboard.html', {'ranked_users': [], 'tab': tab})
+
+    submit_counts = dict(
+        Submission.objects.filter(user_id__in=ac_counts)
+        .values('user_id')
+        .annotate(cnt=Count('id'))
+        .values_list('user_id', 'cnt')
+    )
+
+    profiles = list(
+        UserProfile.objects.select_related('user').filter(user_id__in=ac_counts)
+    )
+    for p in profiles:
+        p.real_ac = ac_counts.get(p.user_id, 0)
+        p.real_submit = submit_counts.get(p.user_id, 0)
+
     if tab == 'rating':
-        users = UserProfile.objects.select_related('user').order_by('-rating')[:100]
+        ac_difficulties = (
+            Submission.objects.filter(status='AC', user_id__in=ac_counts)
+            .values('user_id', 'problem_id', 'problem__difficulty')
+            .distinct()
+        )
+        user_ratings: dict = {}
+        for item in ac_difficulties:
+            uid = item['user_id']
+            diff = item['problem__difficulty']
+            user_ratings[uid] = user_ratings.get(uid, 1500) + _DIFFICULTY_RATING.get(diff, 10)
+        for p in profiles:
+            p.display_rating = user_ratings.get(p.user_id, 1500)
+        profiles.sort(key=lambda p: (-p.display_rating, -p.real_ac, p.real_submit))
+        key_fn = lambda p: p.display_rating
     else:
-        users = UserProfile.objects.select_related('user').filter(ac_count__gt=0).order_by('-ac_count', 'submit_count')[:100]
-    return render(request, 'judge/leaderboard.html', {'users': users, 'tab': tab})
+        profiles.sort(key=lambda p: (-p.real_ac, p.real_submit))
+        key_fn = lambda p: p.real_ac
+
+    profiles = profiles[:100]
+
+    ranked_users = []
+    rank = 0
+    prev_val = None
+    for i, p in enumerate(profiles):
+        val = key_fn(p)
+        if val != prev_val:
+            rank = i + 1
+            prev_val = val
+        ranked_users.append((rank, p))
+
+    return render(request, 'judge/leaderboard.html', {'ranked_users': ranked_users, 'tab': tab})
 
 
 # ==================== 讨论区 ====================

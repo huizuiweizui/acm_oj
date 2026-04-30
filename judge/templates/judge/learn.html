@@ -7243,6 +7243,179 @@ def longest_no_repeat(s):
     problems: [{ id: 7601, title: '两数之和（有序）', passRate: '88.4%', difficulty: '入门' }, { id: 7602, title: '最长无重复子串', passRate: '69.7%', difficulty: '提高' }, { id: 7603, title: '盛水最多的容器', passRate: '63.2%', difficulty: '提高' }],
   },
 
+  'sort-general': {
+    description: '排序是将序列按规则重新排列的基础操作。比较类排序下界为 O(n log n)，非比较类（计数/基数/桶排序）可突破下界达到 O(n)。稳定性指相等元素的相对顺序是否保持不变，是选择算法的重要依据。',
+    steps: ['分析数据规模与值域，选择合适的排序算法', '比较类：n≤10⁶ 用 std::sort（快排/introsort）', '需要稳定排序：归并排序或 std::stable_sort', '值域小（≤10⁶）：计数排序 O(n+k)', '多关键字：先按次要关键字稳定排，再按主要关键字排'],
+    complexity: [
+      { case: '快速排序（平均）', time: 'O(n log n)', space: 'O(log n) 不稳定' },
+      { case: '归并排序', time: 'O(n log n)', space: 'O(n) 稳定' },
+      { case: '计数排序', time: 'O(n+k)', space: 'O(k) 稳定' },
+    ],
+    stable: false,
+    codes: {
+      cpp: { note: 'std::sort 是 introsort（快排+堆排+插排混合），实践中最快；stable_sort 保序。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 直接使用标准库（竞赛首选）
+void demo(vector<int>& a) {
+    sort(a.begin(), a.end());                        // 升序
+    sort(a.begin(), a.end(), greater<int>());         // 降序
+    stable_sort(a.begin(), a.end());                 // 稳定升序
+}
+
+// 自定义比较：按结构体第二字段升序
+struct Item { int id, val; };
+bool cmp(const Item& a, const Item& b) {
+    return a.val < b.val;
+}
+
+// 计数排序（值域 0~maxVal）
+void countSort(vector<int>& a, int maxVal) {
+    vector<int> cnt(maxVal + 1, 0);
+    for (int x : a) cnt[x]++;
+    int idx = 0;
+    for (int v = 0; v <= maxVal; v++)
+        while (cnt[v]--) a[idx++] = v;
+}` },
+      java: { note: 'Arrays.sort 对基本类型用双轴快排（不稳定），对象类型用 TimSort（稳定）。', code: `import java.util.*;
+public class SortGeneral {
+    public static void demo(int[] a) {
+        Arrays.sort(a);                          // 升序（双轴快排）
+    }
+    public static void demoObj(Integer[] a) {
+        Arrays.sort(a);                          // TimSort（稳定）
+        Arrays.sort(a, Comparator.reverseOrder()); // 降序
+    }
+    // 计数排序
+    public static void countSort(int[] a, int maxVal) {
+        int[] cnt = new int[maxVal + 1];
+        for (int x : a) cnt[x]++;
+        int idx = 0;
+        for (int v = 0; v <= maxVal; v++)
+            while (cnt[v]-- > 0) a[idx++] = v;
+    }
+}` },
+      python: { note: 'Python sorted() 和 list.sort() 均为 TimSort，稳定且 O(n log n)。', code: `# 内置排序（TimSort，稳定）
+a = [5, 3, 8, 1, 6]
+a.sort()                            # 原地升序
+b = sorted(a, reverse=True)        # 返回新列表，降序
+
+# 自定义 key
+items = [(1, 3), (2, 1), (3, 2)]
+items.sort(key=lambda x: x[1])     # 按第二元素升序
+
+# 计数排序
+def count_sort(a, max_val):
+    cnt = [0] * (max_val + 1)
+    for x in a: cnt[x] += 1
+    return [v for v, c in enumerate(cnt) for _ in range(c)]` },
+    },
+    diagram: `<svg viewBox="0 0 680 286" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">排序算法全景对比图</text>
+
+  <!-- ── 算法对比表 ── -->
+  <rect x="8" y="24" width="664" height="26" rx="4" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="90"  y="41" text-anchor="middle" font-size="9.5" fill="#94a3b8" font-weight="700">算法</text>
+  <text x="210" y="41" text-anchor="middle" font-size="9.5" fill="#94a3b8" font-weight="700">平均时间</text>
+  <text x="310" y="41" text-anchor="middle" font-size="9.5" fill="#94a3b8" font-weight="700">最坏时间</text>
+  <text x="405" y="41" text-anchor="middle" font-size="9.5" fill="#94a3b8" font-weight="700">空间</text>
+  <text x="480" y="41" text-anchor="middle" font-size="9.5" fill="#94a3b8" font-weight="700">稳定</text>
+  <text x="580" y="41" text-anchor="middle" font-size="9.5" fill="#94a3b8" font-weight="700">适用场景</text>
+
+  <!-- 快速排序 -->
+  <rect x="8" y="50" width="664" height="22" rx="0" fill="#111827" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="90"  y="65" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">快速排序</text>
+  <text x="210" y="65" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n log n)</text>
+  <text x="310" y="65" text-anchor="middle" font-size="9.5" fill="#ef4444">O(n²)</text>
+  <text x="405" y="65" text-anchor="middle" font-size="9.5" fill="#cbd5e1">O(log n)</text>
+  <text x="480" y="65" text-anchor="middle" font-size="9.5" fill="#ef4444">✗</text>
+  <text x="580" y="65" text-anchor="middle" font-size="9" fill="#94a3b8">通用，实践最快</text>
+
+  <!-- 归并排序 -->
+  <rect x="8" y="72" width="664" height="22" rx="0" fill="#0f172a" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="90"  y="87" text-anchor="middle" font-size="9.5" fill="#3b82f6" font-weight="700">归并排序</text>
+  <text x="210" y="87" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n log n)</text>
+  <text x="310" y="87" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n log n)</text>
+  <text x="405" y="87" text-anchor="middle" font-size="9.5" fill="#f59e0b">O(n)</text>
+  <text x="480" y="87" text-anchor="middle" font-size="9.5" fill="#22c55e">✓</text>
+  <text x="580" y="87" text-anchor="middle" font-size="9" fill="#94a3b8">稳定，外排序</text>
+
+  <!-- 堆排序 -->
+  <rect x="8" y="94" width="664" height="22" rx="0" fill="#111827" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="90"  y="109" text-anchor="middle" font-size="9.5" fill="#a78bfa" font-weight="700">堆排序</text>
+  <text x="210" y="109" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n log n)</text>
+  <text x="310" y="109" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n log n)</text>
+  <text x="405" y="109" text-anchor="middle" font-size="9.5" fill="#22c55e">O(1)</text>
+  <text x="480" y="109" text-anchor="middle" font-size="9.5" fill="#ef4444">✗</text>
+  <text x="580" y="109" text-anchor="middle" font-size="9" fill="#94a3b8">原地，最坏保证</text>
+
+  <!-- 插入排序 -->
+  <rect x="8" y="116" width="664" height="22" rx="0" fill="#0f172a" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="90"  y="131" text-anchor="middle" font-size="9.5" fill="#64748b">插入排序</text>
+  <text x="210" y="131" text-anchor="middle" font-size="9.5" fill="#f59e0b">O(n²)</text>
+  <text x="310" y="131" text-anchor="middle" font-size="9.5" fill="#ef4444">O(n²)</text>
+  <text x="405" y="131" text-anchor="middle" font-size="9.5" fill="#22c55e">O(1)</text>
+  <text x="480" y="131" text-anchor="middle" font-size="9.5" fill="#22c55e">✓</text>
+  <text x="580" y="131" text-anchor="middle" font-size="9" fill="#94a3b8">n&lt;50 或近乎有序</text>
+
+  <!-- 计数排序 -->
+  <rect x="8" y="138" width="664" height="22" rx="0" fill="#111827" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="90"  y="153" text-anchor="middle" font-size="9.5" fill="#22c55e" font-weight="700">计数排序</text>
+  <text x="210" y="153" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n+k)</text>
+  <text x="310" y="153" text-anchor="middle" font-size="9.5" fill="#22c55e">O(n+k)</text>
+  <text x="405" y="153" text-anchor="middle" font-size="9.5" fill="#f59e0b">O(k)</text>
+  <text x="480" y="153" text-anchor="middle" font-size="9.5" fill="#22c55e">✓</text>
+  <text x="580" y="153" text-anchor="middle" font-size="9" fill="#94a3b8">整数且值域小</text>
+
+  <!-- ── 计数排序可视化 ── -->
+  <text x="8" y="176" font-size="9.5" fill="#f59e0b" font-weight="700">① 计数排序图解（数组 [3,1,4,1,5,2,3]，值域 1~5）</text>
+  <!-- 原数组 -->
+  <text x="24" y="194" font-size="9" fill="#64748b">原数组</text>
+  <rect x="80"  y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="97"  y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">3</text>
+  <rect x="118" y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="135" y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">1</text>
+  <rect x="156" y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="173" y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">4</text>
+  <rect x="194" y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="211" y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">1</text>
+  <rect x="232" y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="249" y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">5</text>
+  <rect x="270" y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="287" y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">2</text>
+  <rect x="308" y="180" width="34" height="22" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1"/><text x="325" y="195" text-anchor="middle" font-size="12" fill="#cbd5e1">3</text>
+  <!-- 计数数组 -->
+  <text x="24" y="218" font-size="9" fill="#64748b">cnt[]</text>
+  <rect x="80"  y="204" width="34" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="97"  y="219" text-anchor="middle" font-size="11" fill="#93c5fd">2</text>
+  <rect x="118" y="204" width="34" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="135" y="219" text-anchor="middle" font-size="11" fill="#93c5fd">1</text>
+  <rect x="156" y="204" width="34" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="173" y="219" text-anchor="middle" font-size="11" fill="#93c5fd">2</text>
+  <rect x="194" y="204" width="34" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="211" y="219" text-anchor="middle" font-size="11" fill="#93c5fd">1</text>
+  <rect x="232" y="204" width="34" height="22" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.2"/><text x="249" y="219" text-anchor="middle" font-size="11" fill="#93c5fd">1</text>
+  <text x="97"  y="234" text-anchor="middle" font-size="8" fill="#64748b">v=1</text>
+  <text x="135" y="234" text-anchor="middle" font-size="8" fill="#64748b">v=2</text>
+  <text x="173" y="234" text-anchor="middle" font-size="8" fill="#64748b">v=3</text>
+  <text x="211" y="234" text-anchor="middle" font-size="8" fill="#64748b">v=4</text>
+  <text x="249" y="234" text-anchor="middle" font-size="8" fill="#64748b">v=5</text>
+  <!-- 结果 -->
+  <text x="24" y="254" font-size="9" fill="#64748b">结果</text>
+  <rect x="80"  y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="97"  y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">1</text>
+  <rect x="118" y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="135" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">1</text>
+  <rect x="156" y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="173" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">2</text>
+  <rect x="194" y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="211" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">3</text>
+  <rect x="232" y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="249" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">3</text>
+  <rect x="270" y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="287" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">4</text>
+  <rect x="308" y="240" width="34" height="22" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="1.5"/><text x="325" y="255" text-anchor="middle" font-size="12" font-weight="700" fill="#fde68a">5</text>
+
+  <!-- 右侧：选择指南 -->
+  <rect x="400" y="170" width="272" height="110" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="536" y="188" text-anchor="middle" font-size="9.5" fill="#64748b">排序算法选择指南</text>
+  <text x="412" y="206" font-size="9" fill="#f59e0b">通用场景</text><text x="490" y="206" font-size="9" fill="#94a3b8">→ std::sort / Arrays.sort</text>
+  <text x="412" y="222" font-size="9" fill="#3b82f6">需要稳定</text><text x="490" y="222" font-size="9" fill="#94a3b8">→ 归并排序 / TimSort</text>
+  <text x="412" y="238" font-size="9" fill="#22c55e">整数值域小</text><text x="490" y="238" font-size="9" fill="#94a3b8">→ 计数排序 O(n+k)</text>
+  <text x="412" y="254" font-size="9" fill="#a78bfa">n 极小(&lt;50)</text><text x="490" y="254" font-size="9" fill="#94a3b8">→ 插入排序（常数小）</text>
+  <text x="412" y="270" font-size="9" fill="#64748b">外存/大文件</text><text x="490" y="270" font-size="9" fill="#94a3b8">→ 外归并排序</text>
+
+  <!-- 底部 -->
+  <rect x="8" y="268" width="384" height="16" rx="3" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="196" y="280" text-anchor="middle" font-size="8.5" fill="#475569">比较排序下界：Ω(n log n)（信息论证明），计数/基数/桶可突破</text>
+</svg>`,
+    problems: [{ id: 7701, title: '数组排序', passRate: '95.1%', difficulty: '入门' }, { id: 7702, title: '自定义排序', passRate: '81.3%', difficulty: '入门' }, { id: 7703, title: '计数排序应用', passRate: '76.8%', difficulty: '提高' }],
+  },
+
 };
 
 // 为未定义详情的算法生成默认占位数据

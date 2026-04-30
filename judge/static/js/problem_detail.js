@@ -251,6 +251,10 @@ document.addEventListener('DOMContentLoaded', function () {
         formData.append('language', language);
         formData.append('code', code);
         formData.append('csrfmiddlewaretoken', csrfToken);
+        var contestIdEl = document.getElementById('contest-id');
+        if (contestIdEl && contestIdEl.value) {
+            formData.append('contest_id', contestIdEl.value);
+        }
 
         fetch(url, { method: 'POST', body: formData })
         .then(function (r) { return r.json(); })

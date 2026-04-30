@@ -1,42 +1,160 @@
 {% extends 'judge/base.html' %}
 {% block title %}{{ contest.title }} - 排行榜{% endblock %}
+
+{% block extra_css %}
+<style>
+.ranking-wrap { overflow-x: auto; }
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+.ranking-table th, .ranking-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    white-space: nowrap;
+}
+.ranking-table th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+}
+.ranking-table td:nth-child(2),
+.ranking-table th:nth-child(2) { text-align: left; }
+
+.prob-ac {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(34,197,94,.15);
+    color: #16a34a;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    min-width: 44px;
+    line-height: 1.3;
+}
+.prob-ac small { font-size: 0.66rem; font-weight: 400; opacity: .8; }
+.prob-wa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239,68,68,.12);
+    color: #dc2626;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    min-width: 44px;
+}
+.ioi-ac {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(34,197,94,.15);
+    color: #16a34a;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    min-width: 44px;
+}
+.ioi-wa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(107,114,128,.1);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    min-width: 44px;
+}
+.tr-rank-1 td { background: rgba(251,191,36,.05); }
+.tr-rank-2 td { background: rgba(156,163,175,.05); }
+.tr-rank-3 td { background: rgba(180,83,9,.05); }
+
+.score-val { font-weight: 700; color: var(--accent); font-family: var(--font-mono, monospace); }
+.penalty-val { color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 0.85rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container" style="padding-top:32px;">
     <div class="card">
         <div class="card-header">
-            <h3 class="card-title">🏆 {{ contest.title }} — 排行榜 ({{ contest.get_rule_type_display }})</h3>
+            <h3 class="card-title">🏆 {{ contest.title }} — 排行榜
+                <span style="font-size:0.8rem;font-weight:500;color:var(--text-secondary);margin-left:6px;">{{ contest.get_rule_type_display }} 赛制</span>
+            </h3>
             <a href="{% url 'contest_detail' contest.id %}" class="btn btn-ghost btn-sm">← 返回比赛</a>
         </div>
+
+        <div class="ranking-wrap">
         <table class="ranking-table">
             <thead>
                 <tr>
-                    <th style="width:60px;">排名</th>
+                    <th style="width:56px;">排名</th>
                     <th>用户</th>
-                    <th>{{ contest.rule_type == 'ICPC' and 'AC题数' or '总分' }}</th>
+                    <th>{% if contest.rule_type == 'ICPC' %}AC 题数{% else %}总分{% endif %}</th>
                     {% if contest.rule_type == 'ICPC' %}<th>罚时</th>{% endif %}
+                    {% for cp in contest_problems %}
+                    <th style="min-width:60px;">{{ cp.label }}</th>
+                    {% endfor %}
                 </tr>
             </thead>
             <tbody>
-            {% for p in ranking %}
-            <tr class="{% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% endif %}">
+            {% for rank, data in ranked %}
+            <tr class="{% if rank == 1 %}tr-rank-1{% elif rank == 2 %}tr-rank-2{% elif rank == 3 %}tr-rank-3{% endif %}">
                 <td>
-                    <span class="rank-position {% if forloop.counter == 1 %}gold{% elif forloop.counter == 2 %}silver{% elif forloop.counter == 3 %}bronze{% endif %}">
-                        {{ forloop.counter }}
-                    </span>
+                    <span class="rank-position {% if rank == 1 %}gold{% elif rank == 2 %}silver{% elif rank == 3 %}bronze{% endif %}">{{ rank }}</span>
                 </td>
                 <td>
-                    <a href="{% url 'profile' p.user.id %}" style="color:var(--text-primary);font-weight:600;">{{ p.user.username }}</a>
+                    <a href="{% url 'profile' data.participant.user.id %}" style="color:var(--text-primary);font-weight:600;">
+                        {{ data.participant.user.username }}
+                    </a>
                 </td>
-                <td class="text-mono" style="font-weight:700;color:var(--accent);">{{ p.score }}</td>
+                <td class="score-val">{{ data.score }}</td>
                 {% if contest.rule_type == 'ICPC' %}
-                <td class="text-mono text-muted">{{ p.penalty }} min</td>
+                <td class="penalty-val">{{ data.penalty }} min</td>
                 {% endif %}
+                {% for result in data.prob_results %}
+                <td>
+                    {% if result %}
+                        {% if result.status == 'AC' %}
+                            {% if contest.rule_type == 'ICPC' %}
+                            <span class="prob-ac">
+                                {% if result.wrong %}+{{ result.wrong }}{% else %}✓{% endif %}
+                                <small>{{ result.time }}min</small>
+                            </span>
+                            {% else %}
+                            <span class="ioi-ac">100</span>
+                            {% endif %}
+                        {% else %}
+                            {% if contest.rule_type == 'ICPC' %}
+                            <span class="prob-wa">-{{ result.wrong }}</span>
+                            {% else %}
+                            <span class="ioi-wa">0</span>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                </td>
+                {% endfor %}
             </tr>
             {% empty %}
-            <tr><td colspan="4"><div class="empty-state"><p>暂无参赛记录</p></div></td></tr>
+            <tr>
+                <td colspan="100">
+                    <div class="empty-state"><div class="icon">📊</div><p>暂无参赛记录</p></div>
+                </td>
+            </tr>
             {% endfor %}
             </tbody>
         </table>
+        </div>
+
     </div>
 </div>
 {% endblock %}

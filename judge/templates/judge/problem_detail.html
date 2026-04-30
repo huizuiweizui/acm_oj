@@ -6,15 +6,26 @@
 {% block main_class %}main-fullscreen{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/problem_detail.css' %}?v=2">
+<link rel="stylesheet" href="{% static 'css/problem_detail.css' %}?v=3">
 {% endblock %}
 
 {% block content %}
+{% if contest_context %}
+<div style="background:rgba(99,102,241,.12);border-bottom:1px solid var(--accent);padding:8px 20px;display:flex;align-items:center;gap:10px;font-size:0.85rem;">
+    <span style="color:var(--accent);font-weight:700;">🏆 比赛模式</span>
+    <span style="color:var(--text-secondary);">当前提交将计入 <a href="{% url 'contest_detail' contest_context.id %}" style="color:var(--accent);font-weight:600;">{{ contest_context.title }}</a> 的排行榜</span>
+    <a href="{% url 'contest_ranking' contest_context.id %}" style="margin-left:auto;color:var(--accent);font-size:0.8rem;">查看排行榜 →</a>
+</div>
+{% endif %}
 <div class="problem-fullscreen">
     <!-- 左侧：题目信息 -->
     <div class="problem-fs-info">
         <div class="breadcrumb-fs">
+            {% if contest_context %}
+            <a href="{% url 'contest_detail' contest_context.id %}">{{ contest_context.title }}</a>
+            {% else %}
             <a href="{% url 'problem_list' %}">题库</a>
+            {% endif %}
             <span class="breadcrumb-sep">/</span>
             <span class="text-accent">#{{ problem.id }}</span>
         </div>
@@ -126,6 +137,7 @@
         {% if user.is_authenticated %}
         <form id="submit-form" method="post" class="editor-form">
             {% csrf_token %}
+            {% if contest_id %}<input type="hidden" id="contest-id" value="{{ contest_id }}">{% endif %}
             <div class="editor-toolbar-fs">
                 <div class="left">
                     <select id="language-select" name="language" class="form-select lang-select">
