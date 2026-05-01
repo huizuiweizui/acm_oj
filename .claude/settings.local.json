@@ -11,7 +11,10 @@
       "Bash(python manage.py shell -c \"from judge.models import Problem; n = Problem.objects.count\\(\\); Problem.objects.all\\(\\).delete\\(\\); print\\(f'Deleted {n} problems'\\)\")",
       "Bash(python manage.py shell -c \"from django.conf import settings; print\\('DEBUG:', settings.DEBUG\\); print\\('STATIC_URL:', settings.STATIC_URL\\); print\\('STATICFILES_DIRS:', getattr\\(settings, 'STATICFILES_DIRS', 'NOT SET'\\)\\); print\\('STATIC_ROOT:', getattr\\(settings, 'STATIC_ROOT', 'NOT SET'\\)\\)\")",
       "Bash(python -c \"import django; django.setup\\(\\); from judge import urls; print\\('URLs OK'\\)\")",
-      "Bash(DJANGO_SETTINGS_MODULE=acm_oj.settings python -c \"import django; django.setup\\(\\); from judge import urls; print\\('URLs OK'\\)\")"
+      "Bash(DJANGO_SETTINGS_MODULE=acm_oj.settings python -c \"import django; django.setup\\(\\); from judge import urls; print\\('URLs OK'\\)\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(xargs wc *)",
+      "Bash(xargs ls *)"
     ]
   }
 }

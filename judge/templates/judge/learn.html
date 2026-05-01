@@ -7416,6 +7416,579 @@ def count_sort(a, max_val):
     problems: [{ id: 7701, title: '数组排序', passRate: '95.1%', difficulty: '入门' }, { id: 7702, title: '自定义排序', passRate: '81.3%', difficulty: '入门' }, { id: 7703, title: '计数排序应用', passRate: '76.8%', difficulty: '提高' }],
   },
 
+  'search-general': {
+    description: '搜索是在状态空间中系统地寻找目标解的过程。DFS（深度优先）沿路径深入再回溯，适合路径枚举、连通性、拓扑；BFS（广度优先）逐层扩展，天然保证无权图最短步数。剪枝是提升搜索效率的核心手段。',
+    steps: ['将问题抽象为状态空间（节点）和转移（边）', '选择搜索策略：DFS 用栈/递归，BFS 用队列', 'DFS：标记已访问，递归探索，回溯时恢复', 'BFS：初始节点入队，逐层出队并扩展邻居', '剪枝：提前排除不可能到达目标的分支'],
+    complexity: [{ case: 'DFS / BFS', time: 'O(V + E)', space: 'O(V)' }, { case: '状态空间搜索', time: 'O(b^d)，b分支数，d深度', space: 'O(d)' }],
+    stable: true,
+    codes: {
+      cpp: { note: 'DFS 用递归+visited 数组，BFS 用 queue+visited，两者框架对称。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+const int N = 100;
+vector<int> g[N];   // 邻接表
+bool vis[N];
+
+// DFS：递归版
+void dfs(int u) {
+    vis[u] = true;
+    for (int v : g[u])
+        if (!vis[v]) dfs(v);
+}
+
+// BFS：队列版（返回从 s 到各点最短步数）
+vector<int> bfs(int s, int n) {
+    vector<int> dist(n + 1, -1);
+    queue<int> q;
+    dist[s] = 0; q.push(s);
+    while (!q.empty()) {
+        int u = q.front(); q.pop();
+        for (int v : g[u])
+            if (dist[v] == -1) {
+                dist[v] = dist[u] + 1;
+                q.push(v);
+            }
+    }
+    return dist;
+}` },
+      java: { note: 'Java 中 BFS 用 ArrayDeque 代替 LinkedList 效率更高。', code: `import java.util.*;
+public class SearchGeneral {
+    static List<Integer>[] g;
+    static boolean[] vis;
+
+    static void dfs(int u) {
+        vis[u] = true;
+        for (int v : g[u])
+            if (!vis[v]) dfs(v);
+    }
+
+    static int[] bfs(int s, int n) {
+        int[] dist = new int[n + 1];
+        Arrays.fill(dist, -1);
+        Deque<Integer> q = new ArrayDeque<>();
+        dist[s] = 0; q.add(s);
+        while (!q.isEmpty()) {
+            int u = q.poll();
+            for (int v : g[u])
+                if (dist[v] == -1) { dist[v] = dist[u] + 1; q.add(v); }
+        }
+        return dist;
+    }
+}` },
+      python: { note: 'Python DFS 用递归或显式栈，BFS 用 collections.deque 保证 O(1) 队头弹出。', code: `from collections import deque
+
+def dfs(graph, start, visited=None):
+    if visited is None: visited = set()
+    visited.add(start)
+    for v in graph[start]:
+        if v not in visited:
+            dfs(graph, v, visited)
+    return visited
+
+def bfs(graph, start):
+    dist = {start: 0}
+    q = deque([start])
+    while q:
+        u = q.popleft()
+        for v in graph[u]:
+            if v not in dist:
+                dist[v] = dist[u] + 1
+                q.append(v)
+    return dist` },
+    },
+    diagram: `<svg viewBox="0 0 680 290" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">搜索 · 同一张图上 DFS vs BFS 遍历顺序对比</text>
+
+  <!-- ── 图结构（共用） ── -->
+  <!-- 节点：1(340,60) 2(220,130) 3(460,130) 4(160,210) 5(280,210) 6(400,210) 7(520,210) -->
+  <defs>
+    <marker id="sa" markerWidth="5" markerHeight="5" refX="3" refY="3" orient="auto"><path d="M0,0 L0,5 L5,2.5 z" fill="#334155"/></marker>
+  </defs>
+  <!-- 边 -->
+  <line x1="340" y1="72"  x2="232" y2="120" stroke="#334155" stroke-width="1.5"/>
+  <line x1="340" y1="72"  x2="448" y2="120" stroke="#334155" stroke-width="1.5"/>
+  <line x1="220" y1="142" x2="170" y2="200" stroke="#334155" stroke-width="1.5"/>
+  <line x1="220" y1="142" x2="278" y2="200" stroke="#334155" stroke-width="1.5"/>
+  <line x1="460" y1="142" x2="402" y2="200" stroke="#334155" stroke-width="1.5"/>
+  <line x1="460" y1="142" x2="518" y2="200" stroke="#334155" stroke-width="1.5"/>
+  <!-- 节点 -->
+  <circle cx="340" cy="60"  r="18" fill="#1a3a5f" stroke="#3b82f6" stroke-width="2"/>
+  <text x="340" y="65"  text-anchor="middle" font-size="13" font-weight="700" fill="#93c5fd">1</text>
+  <circle cx="220" cy="130" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="220" y="135" text-anchor="middle" font-size="12" fill="#cbd5e1">2</text>
+  <circle cx="460" cy="130" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="460" y="135" text-anchor="middle" font-size="12" fill="#cbd5e1">3</text>
+  <circle cx="160" cy="210" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="160" y="215" text-anchor="middle" font-size="12" fill="#cbd5e1">4</text>
+  <circle cx="280" cy="210" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="280" y="215" text-anchor="middle" font-size="12" fill="#cbd5e1">5</text>
+  <circle cx="400" cy="210" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="400" y="215" text-anchor="middle" font-size="12" fill="#cbd5e1">6</text>
+  <circle cx="520" cy="210" r="16" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+  <text x="520" y="215" text-anchor="middle" font-size="12" fill="#cbd5e1">7</text>
+
+  <!-- ── 左侧：DFS 顺序 ── -->
+  <rect x="8" y="238" width="316" height="44" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="166" y="254" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">DFS 遍历顺序（沿深度优先）</text>
+  <!-- DFS路径编号 -->
+  <text x="20"  y="274" font-size="10" fill="#3b82f6" font-weight="700">① 1</text>
+  <text x="56"  y="274" font-size="10" fill="#22c55e">→ ② 2</text>
+  <text x="110" y="274" font-size="10" fill="#22c55e">→ ③ 4</text>
+  <text x="162" y="274" font-size="10" fill="#22c55e">→ ④ 5</text>
+  <text x="214" y="274" font-size="10" fill="#22c55e">→ ⑤ 3</text>
+  <text x="256" y="274" font-size="10" fill="#22c55e">→ ⑥ 6</text>
+  <text x="20"  y="278" font-size="8" fill="#475569" dy="6">→ ⑦ 7</text>
+  <text x="166" y="278" text-anchor="middle" font-size="8" fill="#475569" dy="6">先深入左子树再右子树</text>
+
+  <!-- DFS 箭头叠加在图上 -->
+  <text x="298" y="70"  font-size="8" fill="#f59e0b">①</text>
+  <text x="188" y="128" font-size="8" fill="#f59e0b">②</text>
+  <text x="130" y="210" font-size="8" fill="#f59e0b">③</text>
+  <text x="250" y="210" font-size="8" fill="#f59e0b">④</text>
+  <text x="470" y="128" font-size="8" fill="#3b82f6">⑤</text>
+  <text x="410" y="210" font-size="8" fill="#3b82f6">⑥</text>
+  <text x="530" y="210" font-size="8" fill="#3b82f6">⑦</text>
+
+  <!-- ── 右侧：BFS 顺序 ── -->
+  <rect x="356" y="238" width="316" height="44" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="514" y="254" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">BFS 遍历顺序（逐层扩展）</text>
+  <text x="368" y="270" font-size="9" fill="#3b82f6" font-weight="700">层0: ① 1</text>
+  <text x="368" y="282" font-size="9" fill="#22c55e">层1: ② 2  ③ 3</text>
+  <text x="490" y="270" font-size="9" fill="#a78bfa">层2: ④ 4  ⑤ 5  ⑥ 6  ⑦ 7</text>
+  <text x="490" y="282" font-size="9" fill="#475569">距离源点各层均等</text>
+
+  <!-- BFS 层次框 -->
+  <!-- 层0 -->
+  <rect x="322" y="42" width="36" height="36" rx="18" fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.5"/>
+  <!-- 层1 -->
+  <ellipse cx="340" cy="130" rx="148" ry="22" fill="none" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.4"/>
+  <!-- 层2 -->
+  <ellipse cx="340" cy="210" rx="210" ry="22" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="4,2" opacity="0.4"/>
+  <text x="494" y="112" font-size="8" fill="#22c55e" opacity="0.8">层1</text>
+  <text x="564" y="195" font-size="8" fill="#a78bfa" opacity="0.8">层2</text>
+</svg>`,
+    problems: [{ id: 7801, title: '图的连通性', passRate: '84.2%', difficulty: '入门' }, { id: 7802, title: '迷宫最短路（BFS）', passRate: '76.5%', difficulty: '提高' }, { id: 7803, title: '岛屿数量（DFS）', passRate: '79.1%', difficulty: '提高' }],
+  },
+
+  'greedy': {
+    description: '贪心算法每一步都做出当前看起来最优的局部选择，且不回退。当局部最优能推导出全局最优时，贪心策略成立（需严格证明）。常见证明方法：交换论证（swap argument）和归纳法。典型应用：区间调度、哈夫曼编码、Kruskal MST。',
+    steps: ['将问题抽象为一系列决策', '确定贪心策略（按什么排序或选择）', '证明贪心选择性质：局部最优 → 全局最优', '证明最优子结构：问题可分解为子问题', '按贪心顺序依次做决策，不回退'],
+    complexity: [{ case: '时间（含排序）', time: 'O(n log n)', space: '—' }, { case: '空间', time: '—', space: 'O(1) ~ O(n)' }],
+    stable: true,
+    codes: {
+      cpp: { note: '区间调度问题：按结束时间排序，每次选不冲突的最早结束区间。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 区间调度：选最多不重叠区间
+int intervalSchedule(vector<pair<int,int>>& intervals) {
+    // 贪心策略：按结束时间升序排列
+    sort(intervals.begin(), intervals.end(),
+         [](auto& a, auto& b){ return a.second < b.second; });
+    int count = 0, end = INT_MIN;
+    for (auto& [s, e] : intervals) {
+        if (s >= end) {   // 不与已选区间冲突
+            count++;
+            end = e;      // 更新最后选中区间的结束时间
+        }
+    }
+    return count;
+}` },
+      java: { note: 'Comparator.comparingInt 按结束时间排序，逻辑与 C++ 版完全相同。', code: `import java.util.*;
+public class Greedy {
+    public static int intervalSchedule(int[][] intervals) {
+        Arrays.sort(intervals, Comparator.comparingInt(a -> a[1]));
+        int count = 0, end = Integer.MIN_VALUE;
+        for (int[] iv : intervals) {
+            if (iv[0] >= end) {
+                count++;
+                end = iv[1];
+            }
+        }
+        return count;
+    }
+}` },
+      python: { note: 'sorted 的 key=lambda 按结束时间排序，贪心主体仅 4 行。', code: `def interval_schedule(intervals):
+    """区间调度：选最多不重叠区间"""
+    intervals.sort(key=lambda x: x[1])  # 按结束时间排序
+    count, end = 0, float('-inf')
+    for s, e in intervals:
+        if s >= end:        # 不冲突
+            count += 1
+            end = e
+    return count` },
+    },
+    diagram: `<svg viewBox="0 0 680 292" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">贪心 · 区间调度问题（选最多不重叠区间）</text>
+
+  <!-- ── 时间轴 ── -->
+  <text x="8" y="34" font-size="9.5" fill="#f59e0b" font-weight="700">① 原始区间（已按结束时间排序）</text>
+  <!-- 时间轴 -->
+  <line x1="40" y1="240" x2="640" y2="240" stroke="#334155" stroke-width="1.5"/>
+  <text x="40"  y="254" text-anchor="middle" font-size="8" fill="#64748b">0</text>
+  <text x="100" y="254" text-anchor="middle" font-size="8" fill="#64748b">1</text>
+  <text x="160" y="254" text-anchor="middle" font-size="8" fill="#64748b">2</text>
+  <text x="220" y="254" text-anchor="middle" font-size="8" fill="#64748b">3</text>
+  <text x="280" y="254" text-anchor="middle" font-size="8" fill="#64748b">4</text>
+  <text x="340" y="254" text-anchor="middle" font-size="8" fill="#64748b">5</text>
+  <text x="400" y="254" text-anchor="middle" font-size="8" fill="#64748b">6</text>
+  <text x="460" y="254" text-anchor="middle" font-size="8" fill="#64748b">7</text>
+  <text x="520" y="254" text-anchor="middle" font-size="8" fill="#64748b">8</text>
+  <text x="580" y="254" text-anchor="middle" font-size="8" fill="#64748b">9</text>
+  <text x="640" y="254" text-anchor="middle" font-size="8" fill="#64748b">10</text>
+  <!-- 刻度线 -->
+  <line x1="40"  y1="237" x2="40"  y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="100" y1="237" x2="100" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="160" y1="237" x2="160" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="220" y1="237" x2="220" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="280" y1="237" x2="280" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="340" y1="237" x2="340" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="400" y1="237" x2="400" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="460" y1="237" x2="460" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="520" y1="237" x2="520" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="580" y1="237" x2="580" y2="243" stroke="#475569" stroke-width="1"/>
+  <line x1="640" y1="237" x2="640" y2="243" stroke="#475569" stroke-width="1"/>
+
+  <!-- 区间 A [1,3] end=3 → 选中 -->
+  <text x="30" y="58" font-size="9" fill="#22c55e" text-anchor="end">A</text>
+  <rect x="100" y="44" width="120" height="20" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="2"/>
+  <text x="160" y="58" text-anchor="middle" font-size="9" font-weight="700" fill="#86efac">[1, 3]  ✓ 选</text>
+  <text x="220" y="38" font-size="8" fill="#22c55e" text-anchor="middle">end=3</text>
+  <line x1="220" y1="40" x2="220" y2="240" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+
+  <!-- 区间 B [0,4] end=4 → 冲突跳过（与A重叠） -->
+  <text x="30" y="84" font-size="9" fill="#ef4444" text-anchor="end">B</text>
+  <rect x="40" y="70" width="240" height="20" rx="3" fill="#3a1a1a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,2"/>
+  <text x="160" y="84" text-anchor="middle" font-size="9" fill="#fca5a5">[0, 4]  ✗ 冲突跳过</text>
+
+  <!-- 区间 C [3,5] end=5 → 选中（s=3 >= end=3） -->
+  <text x="30" y="112" font-size="9" fill="#22c55e" text-anchor="end">C</text>
+  <rect x="220" y="98" width="120" height="20" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="2"/>
+  <text x="280" y="112" text-anchor="middle" font-size="9" font-weight="700" fill="#86efac">[3, 5]  ✓ 选</text>
+  <text x="340" y="92" font-size="8" fill="#22c55e" text-anchor="middle">end=5</text>
+  <line x1="340" y1="94" x2="340" y2="240" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+
+  <!-- 区间 D [2,6] end=6 → 冲突跳过 -->
+  <text x="30" y="138" font-size="9" fill="#ef4444" text-anchor="end">D</text>
+  <rect x="160" y="124" width="240" height="20" rx="3" fill="#3a1a1a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,2"/>
+  <text x="280" y="138" text-anchor="middle" font-size="9" fill="#fca5a5">[2, 6]  ✗ 冲突跳过</text>
+
+  <!-- 区间 E [5,7] end=7 → 选中 -->
+  <text x="30" y="164" font-size="9" fill="#22c55e" text-anchor="end">E</text>
+  <rect x="340" y="150" width="120" height="20" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="2"/>
+  <text x="400" y="164" text-anchor="middle" font-size="9" font-weight="700" fill="#86efac">[5, 7]  ✓ 选</text>
+  <text x="460" y="144" font-size="8" fill="#22c55e" text-anchor="middle">end=7</text>
+  <line x1="460" y1="146" x2="460" y2="240" stroke="#22c55e" stroke-width="1" stroke-dasharray="3,2" opacity="0.5"/>
+
+  <!-- 区间 F [6,9] end=9 → 冲突跳过 -->
+  <text x="30" y="190" font-size="9" fill="#ef4444" text-anchor="end">F</text>
+  <rect x="400" y="176" width="180" height="20" rx="3" fill="#3a1a1a" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,2"/>
+  <text x="490" y="190" text-anchor="middle" font-size="9" fill="#fca5a5">[6, 9]  ✗ 冲突跳过</text>
+
+  <!-- 区间 G [8,10] end=10 → 选中 -->
+  <text x="30" y="216" font-size="9" fill="#22c55e" text-anchor="end">G</text>
+  <rect x="520" y="202" width="120" height="20" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="2"/>
+  <text x="580" y="216" text-anchor="middle" font-size="9" font-weight="700" fill="#86efac">[8,10]  ✓ 选</text>
+
+  <!-- 底部总结 -->
+  <rect x="8" y="260" width="664" height="28" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="272" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">贪心结果：选中 A[1,3] + C[3,5] + E[5,7] + G[8,10]，共 4 个区间（最优解）</text>
+  <text x="340" y="284" text-anchor="middle" font-size="9" fill="#475569">证明：若存在更优解，可用交换论证将其转化为贪心解，矛盾。∴ 按结束时间贪心最优。</text>
+</svg>`,
+    problems: [{ id: 7901, title: '区间调度', passRate: '72.4%', difficulty: '提高' }, { id: 7902, title: '跳跃游戏', passRate: '68.3%', difficulty: '提高' }, { id: 7903, title: '分糖果', passRate: '61.7%', difficulty: '提高' }],
+  },
+
+  'dp-general': {
+    description: '动态规划（DP）将大问题拆分为有重叠的子问题，用记忆化避免重复计算。两个必要条件：最优子结构（大问题的最优解由子问题最优解构成）和重叠子问题（子问题被反复求解）。实现方式：自顶向下（记忆化递归）或自底向上（递推填表）。',
+    steps: ['定义状态：dp[i] 或 dp[i][j] 表示子问题的答案', '写出状态转移方程（核心）', '确定边界条件（初始值）', '确定计算顺序（保证依赖的子问题先被计算）', '读取目标状态，必要时回溯路径'],
+    complexity: [{ case: '时间', time: 'O(状态数 × 转移代价)', space: '—' }, { case: '空间', time: '—', space: 'O(状态数)，滚动数组可优化' }],
+    stable: true,
+    codes: {
+      cpp: { note: '以"最小路径和"为例：dp[i][j] = grid[i][j] + min(dp[i-1][j], dp[i][j-1])。', code: `#include <bits/stdc++.h>
+using namespace std;
+
+// 最小路径和：从左上到右下，只能向右或向下
+int minPathSum(vector<vector<int>>& g) {
+    int m = g.size(), n = g[0].size();
+    vector<vector<int>> dp(m, vector<int>(n, 0));
+    dp[0][0] = g[0][0];
+    for (int i = 1; i < m; i++) dp[i][0] = dp[i-1][0] + g[i][0];
+    for (int j = 1; j < n; j++) dp[0][j] = dp[0][j-1] + g[0][j];
+    for (int i = 1; i < m; i++)
+        for (int j = 1; j < n; j++)
+            dp[i][j] = g[i][j] + min(dp[i-1][j], dp[i][j-1]);
+    return dp[m-1][n-1];
+}` },
+      java: { note: '原地修改 grid 可省去额外 dp 数组（前提是允许修改输入）。', code: `public class DPGeneral {
+    public static int minPathSum(int[][] g) {
+        int m = g.length, n = g[0].length;
+        int[][] dp = new int[m][n];
+        dp[0][0] = g[0][0];
+        for (int i = 1; i < m; i++) dp[i][0] = dp[i-1][0] + g[i][0];
+        for (int j = 1; j < n; j++) dp[0][j] = dp[0][j-1] + g[0][j];
+        for (int i = 1; i < m; i++)
+            for (int j = 1; j < n; j++)
+                dp[i][j] = g[i][j] + Math.min(dp[i-1][j], dp[i][j-1]);
+        return dp[m-1][n-1];
+    }
+}` },
+      python: { note: 'Python 列表推导式可以简洁初始化 dp 表，逻辑与 C++ 完全相同。', code: `def min_path_sum(grid):
+    m, n = len(grid), len(grid[0])
+    dp = [[0]*n for _ in range(m)]
+    dp[0][0] = grid[0][0]
+    for i in range(1, m): dp[i][0] = dp[i-1][0] + grid[i][0]
+    for j in range(1, n): dp[0][j] = dp[0][j-1] + grid[0][j]
+    for i in range(1, m):
+        for j in range(1, n):
+            dp[i][j] = grid[i][j] + min(dp[i-1][j], dp[i][j-1])
+    return dp[m-1][n-1]` },
+    },
+    diagram: `<svg viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">动态规划 · 最小路径和（4×4网格，从左上到右下）</text>
+
+  <!-- ── 左：原始网格 ── -->
+  <text x="8" y="34" font-size="9.5" fill="#f59e0b" font-weight="700">① 原始网格 grid[][]</text>
+  <!-- 4x4 grid，每格60x44 -->
+  <rect x="8"   y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="36"  y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">1</text>
+  <rect x="66"  y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="94"  y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">3</text>
+  <rect x="124" y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="152" y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">1</text>
+  <rect x="182" y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="210" y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">5</text>
+  <rect x="8"   y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="36"  y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">2</text>
+  <rect x="66"  y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="94"  y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">1</text>
+  <rect x="124" y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="152" y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">4</text>
+  <rect x="182" y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="210" y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">2</text>
+  <rect x="8"   y="124" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="36"  y="149" text-anchor="middle" font-size="16" fill="#cbd5e1">3</text>
+  <rect x="66"  y="124" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="94"  y="149" text-anchor="middle" font-size="16" fill="#cbd5e1">2</text>
+  <rect x="124" y="124" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="152" y="149" text-anchor="middle" font-size="16" fill="#cbd5e1">1</text>
+  <rect x="182" y="124" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="210" y="149" text-anchor="middle" font-size="16" fill="#cbd5e1">3</text>
+  <rect x="8"   y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="36"  y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">4</text>
+  <rect x="66"  y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="94"  y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">1</text>
+  <rect x="124" y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="152" y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">2</text>
+  <rect x="182" y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#334155" stroke-width="1"/><text x="210" y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">1</text>
+
+  <!-- ── 中：dp 填表结果 ── -->
+  <text x="260" y="34" font-size="9.5" fill="#f59e0b" font-weight="700">② dp[][] 填表（逐行计算）</text>
+  <rect x="260" y="40" width="56" height="40" rx="3" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="288" y="65" text-anchor="middle" font-size="16" font-weight="700" fill="#93c5fd">1</text>
+  <rect x="318" y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="346" y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">4</text>
+  <rect x="376" y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="404" y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">5</text>
+  <rect x="434" y="40" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="462" y="65" text-anchor="middle" font-size="16" fill="#cbd5e1">10</text>
+  <rect x="260" y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="288" y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">3</text>
+  <rect x="318" y="82" width="56" height="40" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.8"/><text x="346" y="107" text-anchor="middle" font-size="16" font-weight="700" fill="#86efac">4</text>
+  <rect x="376" y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="404" y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">8</text>
+  <rect x="434" y="82" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="462" y="107" text-anchor="middle" font-size="16" fill="#cbd5e1">10</text>
+  <rect x="260" y="124" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="288" y="149" text-anchor="middle" font-size="16" fill="#cbd5e1">6</text>
+  <rect x="318" y="124" width="56" height="40" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.8"/><text x="346" y="149" text-anchor="middle" font-size="16" font-weight="700" fill="#86efac">6</text>
+  <rect x="376" y="124" width="56" height="40" rx="3" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.8"/><text x="404" y="149" text-anchor="middle" font-size="16" font-weight="700" fill="#86efac">7</text>
+  <rect x="434" y="124" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="462" y="149" text-anchor="middle" font-size="16" fill="#cbd5e1">10</text>
+  <rect x="260" y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="288" y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">10</text>
+  <rect x="318" y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="346" y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">7</text>
+  <rect x="376" y="166" width="56" height="40" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.2"/><text x="404" y="191" text-anchor="middle" font-size="16" fill="#cbd5e1">9</text>
+  <rect x="434" y="166" width="56" height="40" rx="3" fill="#312e00" stroke="#f59e0b" stroke-width="2.5"/><text x="462" y="191" text-anchor="middle" font-size="16" font-weight="700" fill="#fde68a">8</text>
+
+  <!-- 最优路径箭头 -->
+  <polyline points="288,60 346,107 346,149 404,149 462,191" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-dasharray="6,3" marker-end="url(#dp1)"/>
+  <defs><marker id="dp1" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#22c55e"/></marker></defs>
+
+  <!-- ── 右：转移方程说明 ── -->
+  <rect x="508" y="28" width="164" height="178" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="590" y="46" text-anchor="middle" font-size="9.5" fill="#64748b">状态转移方程</text>
+  <line x1="512" y1="50" x2="668" y2="50" stroke="#1e293b" stroke-width="1"/>
+  <text x="520" y="66" font-size="9" fill="#f59e0b">边界条件：</text>
+  <text x="520" y="80" font-size="8.5" fill="#94a3b8">dp[0][0]=grid[0][0]</text>
+  <text x="520" y="94" font-size="8.5" fill="#94a3b8">第0行：只能从左来</text>
+  <text x="520" y="108" font-size="8.5" fill="#94a3b8">第0列：只能从上来</text>
+  <line x1="512" y1="114" x2="668" y2="114" stroke="#1e293b" stroke-width="1"/>
+  <text x="520" y="128" font-size="9" fill="#f59e0b">一般情况：</text>
+  <text x="520" y="144" font-size="8.5" fill="#3b82f6">dp[i][j] =</text>
+  <text x="520" y="158" font-size="8.5" fill="#94a3b8">grid[i][j] +</text>
+  <text x="520" y="172" font-size="8.5" fill="#94a3b8">min(dp[i-1][j],</text>
+  <text x="520" y="186" font-size="8.5" fill="#94a3b8">    dp[i][j-1])</text>
+  <line x1="512" y1="192" x2="668" y2="192" stroke="#1e293b" stroke-width="1"/>
+  <text x="590" y="204" text-anchor="middle" font-size="8.5" fill="#22c55e">答案：dp[3][3]=8</text>
+
+  <!-- 底部说明 -->
+  <rect x="8" y="216" width="664" height="40" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="232" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">最优路径：(0,0)→(1,1)→(2,1)→(2,2)→(3,3)，代价 1+1+2+1+1+2+... = 8</text>
+  <text x="340" y="248" text-anchor="middle" font-size="9" fill="#64748b">DP 四步法：① 定义状态　② 写转移方程　③ 确定边界　④ 确定计算顺序</text>
+
+  <!-- 图例 -->
+  <rect x="8" y="260" width="664" height="32" rx="5" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <rect x="20" y="270" width="14" height="14" rx="2" fill="#1a3a5f" stroke="#3b82f6" stroke-width="1.5"/><text x="38" y="281" font-size="8.5" fill="#64748b">起点</text>
+  <rect x="80" y="270" width="14" height="14" rx="2" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/><text x="98" y="281" font-size="8.5" fill="#64748b">最优路径节点</text>
+  <rect x="188" y="270" width="14" height="14" rx="2" fill="#312e00" stroke="#f59e0b" stroke-width="2"/><text x="206" y="281" font-size="8.5" fill="#64748b">终点（答案）</text>
+  <line x1="296" y1="277" x2="326" y2="277" stroke="#22c55e" stroke-width="2" stroke-dasharray="5,2"/><text x="332" y="281" font-size="8.5" fill="#64748b">最优路径</text>
+  <text x="420" y="281" font-size="8.5" fill="#475569">时间 O(mn)　空间 O(mn)，可滚动数组优化为 O(n)</text>
+</svg>`,
+    problems: [{ id: 8001, title: '最小路径和', passRate: '74.3%', difficulty: '提高' }, { id: 8002, title: '爬楼梯', passRate: '91.2%', difficulty: '入门' }, { id: 8003, title: '打家劫舍', passRate: '68.5%', difficulty: '提高' }],
+  },
+
+  'bitmask-dp': {
+    description: '状压DP（位压缩动态规划）用一个整数的二进制位来表示集合的状态，第 i 位为 1 表示第 i 个元素"已被选取/已访问"。核心价值：将原本需要用数组记录的集合状态压缩为一个整数，使得集合状态可以作为 DP 的下标。\n\n典型场景：元素数量 n≤20，需要枚举所有子集的问题。最经典的是"旅行商问题（TSP）"：从起点出发访问所有城市恰好一次再回起点，求最短总路程。状压DP将其从 O(n!) 暴力降至 O(2ⁿ·n²)。\n\n位运算技巧：\n• (mask >> i) & 1：判断第 i 位是否为 1（城市 i 是否已访问）\n• mask | (1 << i)：将第 i 位置 1（标记城市 i 已访问）\n• mask & ~(1 << i)：将第 i 位清 0\n• mask == (1<<n)-1：判断所有 n 个城市是否全部访问',
+    steps: [
+      '确认元素数 n≤20，状态可用 2ⁿ 个整数表示',
+      '定义 dp[mask][i]：已访问城市集合为 mask，当前在城市 i 时的最小代价',
+      '初始化：dp[1<<0][0] = 0（从城市0出发，只访问了城市0）',
+      '枚举所有状态 mask（0 到 2ⁿ-1），对每个 mask 枚举当前城市 i',
+      '若城市 i 在 mask 中（(mask>>i)&1==1），枚举下一个未访问城市 j',
+      '转移：dp[mask|(1<<j)][j] = min(..., dp[mask][i] + dist[i][j])',
+      '答案：枚举所有终点 i，取 dp[(1<<n)-1][i] + dist[i][0] 的最小值',
+    ],
+    complexity: [
+      { case: '时间', time: 'O(2ⁿ · n²)', space: '—' },
+      { case: '空间', time: '—', space: 'O(2ⁿ · n)' },
+      { case: '对比暴力枚举全排列', time: 'O(n!)', space: '— （n=15时：32768×225 vs 1.3万亿）' },
+    ],
+    stable: true,
+    codes: {
+      cpp: { note: 'TSP 模板：dp[mask][i] 表示已访问城市集合 mask、当前在 i 的最短路。', code: `#include <bits/stdc++.h>
+using namespace std;
+const int INF = 1e9;
+
+// TSP：n 座城市，dist[i][j] 为城市 i→j 的距离
+int tsp(int n, vector<vector<int>>& dist) {
+    int FULL = (1 << n) - 1;
+    // dp[mask][i]：访问了 mask 中城市、当前在 i 的最小代价
+    vector<vector<int>> dp(1 << n, vector<int>(n, INF));
+    dp[1][0] = 0;  // 从城市 0 出发，mask=0001
+
+    for (int mask = 1; mask <= FULL; mask++) {
+        for (int i = 0; i < n; i++) {
+            if (!((mask >> i) & 1)) continue;  // i 不在 mask 中，跳过
+            if (dp[mask][i] == INF) continue;
+            // 枚举下一个未访问城市 j
+            for (int j = 0; j < n; j++) {
+                if ((mask >> j) & 1) continue;  // j 已访问，跳过
+                int newMask = mask | (1 << j);
+                dp[newMask][j] = min(dp[newMask][j],
+                                     dp[mask][i] + dist[i][j]);
+            }
+        }
+    }
+    // 所有城市都访问完，回到城市 0
+    int ans = INF;
+    for (int i = 1; i < n; i++)
+        if (dist[i][0] != INF)
+            ans = min(ans, dp[FULL][i] + dist[i][0]);
+    return ans;
+}` },
+      java: { note: '用二维数组 dp[1<<n][n] 存状态，内存约 2²⁰×20×4 ≈ 80MB，n≤20 可行。', code: `public class BitmaskDP {
+    static final int INF = (int)1e9;
+
+    public static int tsp(int n, int[][] dist) {
+        int FULL = (1 << n) - 1;
+        int[][] dp = new int[1 << n][n];
+        for (int[] row : dp) java.util.Arrays.fill(row, INF);
+        dp[1][0] = 0;  // 从城市 0 出发
+
+        for (int mask = 1; mask <= FULL; mask++) {
+            for (int i = 0; i < n; i++) {
+                if (((mask >> i) & 1) == 0 || dp[mask][i] == INF) continue;
+                for (int j = 0; j < n; j++) {
+                    if (((mask >> j) & 1) == 1) continue;
+                    int nm = mask | (1 << j);
+                    dp[nm][j] = Math.min(dp[nm][j], dp[mask][i] + dist[i][j]);
+                }
+            }
+        }
+        int ans = INF;
+        for (int i = 1; i < n; i++)
+            ans = Math.min(ans, dp[FULL][i] + dist[i][0]);
+        return ans;
+    }
+}` },
+      python: { note: 'Python 字典或列表均可存 dp，n≤18 时运行时间在秒级以内。', code: `def tsp(n, dist):
+    INF = float('inf')
+    FULL = (1 << n) - 1
+    # dp[mask][i]：访问集合 mask、当前在城市 i 的最小代价
+    dp = [[INF] * n for _ in range(1 << n)]
+    dp[1][0] = 0  # mask=0001，从城市 0 出发
+
+    for mask in range(1, 1 << n):
+        for i in range(n):
+            if not (mask >> i & 1) or dp[mask][i] == INF:
+                continue
+            for j in range(n):
+                if mask >> j & 1:  # j 已访问
+                    continue
+                nm = mask | (1 << j)
+                if dp[mask][i] + dist[i][j] < dp[nm][j]:
+                    dp[nm][j] = dp[mask][i] + dist[i][j]
+
+    return min(dp[FULL][i] + dist[i][0]
+               for i in range(1, n) if dist[i][0] < INF)` },
+    },
+    diagram: `<svg viewBox="0 0 680 318" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:monospace">
+  <text x="340" y="16" text-anchor="middle" font-size="11" font-family="ui-monospace,monospace" fill="#475569">状压DP · TSP旅行商（4城市 A/B/C/D）从A出发访问全部城市回A</text>
+
+  <!-- ── 左：城市地图与距离 ── -->
+  <rect x="8" y="24" width="200" height="180" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="108" y="40" text-anchor="middle" font-size="9.5" fill="#64748b">城市地图与边权</text>
+  <!-- 城市节点：A(60,80) B(156,80) C(60,168) D(156,168) -->
+  <line x1="72"  y1="80"  x2="144" y2="80"  stroke="#334155" stroke-width="1.2"/><text x="108" y="76"  text-anchor="middle" font-size="9" fill="#94a3b8">2</text>
+  <line x1="60"  y1="92"  x2="60"  y2="156" stroke="#334155" stroke-width="1.2"/><text x="48"  y="128" text-anchor="middle" font-size="9" fill="#94a3b8">9</text>
+  <line x1="72"  y1="80"  x2="144" y2="168" stroke="#334155" stroke-width="1.2"/><text x="114" y="118" text-anchor="middle" font-size="9" fill="#94a3b8">6</text>
+  <line x1="144" y1="92"  x2="72"  y2="168" stroke="#334155" stroke-width="1.2"/><text x="100" y="132" text-anchor="middle" font-size="9" fill="#94a3b8">4</text>
+  <line x1="156" y1="92"  x2="156" y2="156" stroke="#334155" stroke-width="1.2"/><text x="168" y="128" text-anchor="middle" font-size="9" fill="#94a3b8">3</text>
+  <line x1="72"  y1="168" x2="144" y2="168" stroke="#334155" stroke-width="1.2"/><text x="108" y="182" text-anchor="middle" font-size="9" fill="#94a3b8">7</text>
+  <circle cx="60"  cy="80"  r="14" fill="#1a3a5f" stroke="#3b82f6" stroke-width="2"/><text x="60"  y="85"  text-anchor="middle" font-size="12" font-weight="700" fill="#93c5fd">A</text>
+  <circle cx="156" cy="80"  r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/><text x="156" y="85"  text-anchor="middle" font-size="12" fill="#cbd5e1">B</text>
+  <circle cx="60"  cy="168" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/><text x="60"  y="173" text-anchor="middle" font-size="12" fill="#cbd5e1">C</text>
+  <circle cx="156" cy="168" r="14" fill="#1e293b" stroke="#475569" stroke-width="1.5"/><text x="156" y="173" text-anchor="middle" font-size="12" fill="#cbd5e1">D</text>
+  <text x="108" y="200" text-anchor="middle" font-size="8.5" fill="#475569">A=0, B=1, C=2, D=3</text>
+
+  <!-- ── 中：mask 含义解释 ── -->
+  <rect x="218" y="24" width="240" height="180" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="338" y="40" text-anchor="middle" font-size="9.5" fill="#64748b">二进制mask含义（4位，位3210对应DCBA）</text>
+  <line x1="222" y1="44" x2="454" y2="44" stroke="#1e293b" stroke-width="1"/>
+  <!-- mask示例 -->
+  <text x="230" y="60" font-size="9" fill="#94a3b8">mask</text>
+  <text x="286" y="60" font-size="9" fill="#94a3b8">二进制</text>
+  <text x="352" y="60" font-size="9" fill="#94a3b8">含义（已访问）</text>
+  <text x="230" y="76" font-size="9.5" fill="#3b82f6">0001</text><text x="286" y="76" font-size="9" fill="#64748b">0001</text><text x="352" y="76" font-size="9" fill="#94a3b8">只有A</text>
+  <text x="230" y="92" font-size="9.5" fill="#22c55e">0011</text><text x="286" y="92" font-size="9" fill="#64748b">0011</text><text x="352" y="92" font-size="9" fill="#94a3b8">A和B</text>
+  <text x="230" y="108" font-size="9.5" fill="#22c55e">0111</text><text x="286" y="108" font-size="9" fill="#64748b">0111</text><text x="352" y="108" font-size="9" fill="#94a3b8">A、B和C</text>
+  <text x="230" y="124" font-size="9.5" fill="#f59e0b">1111</text><text x="286" y="124" font-size="9" fill="#64748b">1111</text><text x="352" y="124" font-size="9" fill="#94a3b8">全部城市 FULL</text>
+  <line x1="222" y1="130" x2="454" y2="130" stroke="#1e293b" stroke-width="1"/>
+  <text x="338" y="146" text-anchor="middle" font-size="9" fill="#f59e0b">位运算技巧</text>
+  <text x="228" y="161" font-size="8.5" fill="#94a3b8">(mask&gt;&gt;i)&amp;1==1 → 城市i已访问</text>
+  <text x="228" y="175" font-size="8.5" fill="#94a3b8">mask|(1&lt;&lt;j)   → 标记城市j已访问</text>
+  <text x="228" y="189" font-size="8.5" fill="#94a3b8">mask==(1&lt;&lt;n)-1 → 全部访问完毕</text>
+
+  <!-- ── 右：DP状态转移示例 ── -->
+  <rect x="468" y="24" width="204" height="180" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="570" y="40" text-anchor="middle" font-size="9.5" fill="#64748b">关键状态转移示例</text>
+  <line x1="472" y1="44" x2="668" y2="44" stroke="#1e293b" stroke-width="1"/>
+  <text x="480" y="60" font-size="8.5" fill="#94a3b8">初始：dp[0001][A]=0</text>
+  <text x="480" y="76" font-size="8.5" fill="#3b82f6">从A出发→B：</text>
+  <text x="480" y="90" font-size="8.5" fill="#64748b">dp[0011][B]=0+2=2</text>
+  <text x="480" y="106" font-size="8.5" fill="#3b82f6">从A出发→C：</text>
+  <text x="480" y="120" font-size="8.5" fill="#64748b">dp[0101][C]=0+9=9</text>
+  <text x="480" y="136" font-size="8.5" fill="#22c55e">在B，再去C：</text>
+  <text x="480" y="150" font-size="8.5" fill="#64748b">dp[0111][C]=2+4=6</text>
+  <text x="480" y="166" font-size="8.5" fill="#22c55e">在B，再去D：</text>
+  <text x="480" y="180" font-size="8.5" fill="#64748b">dp[1011][D]=2+3=5</text>
+  <text x="570" y="196" text-anchor="middle" font-size="8.5" fill="#475569">⋯ 共枚举 2⁴×4=64 个状态</text>
+
+  <!-- ── 下：最优路径展开 ── -->
+  <rect x="8" y="212" width="664" height="100" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="340" y="230" text-anchor="middle" font-size="9.5" fill="#f59e0b" font-weight="700">最优路径推导（枚举所有终点 i，取 dp[1111][i]+dist[i][A] 最小值）</text>
+  <!-- 路径候选 -->
+  <text x="30"  y="250" font-size="9" fill="#64748b" text-anchor="middle">终点B</text>
+  <text x="30"  y="264" font-size="9" fill="#94a3b8" text-anchor="middle">dp[1111][B]+2</text>
+  <text x="170" y="250" font-size="9" fill="#64748b" text-anchor="middle">终点C</text>
+  <text x="170" y="264" font-size="9" fill="#94a3b8" text-anchor="middle">dp[1111][C]+9</text>
+  <text x="310" y="250" font-size="9" fill="#22c55e" text-anchor="middle" font-weight="700">终点D ★最优</text>
+  <text x="310" y="264" font-size="9" fill="#22c55e" text-anchor="middle">dp[1111][D]+dist[D][A]</text>
+  <!-- 最优路径 -->
+  <rect x="400" y="236" width="264" height="40" rx="5" fill="#1a3a1a" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="532" y="252" text-anchor="middle" font-size="9.5" font-weight="700" fill="#86efac">最优路径：A→B→D→C→A</text>
+  <text x="532" y="268" text-anchor="middle" font-size="9" fill="#86efac">代价：2+3+7+9=21</text>
+  <!-- 说明 -->
+  <text x="340" y="294" text-anchor="middle" font-size="9" fill="#475569">n=4 时：暴力全排列 4!=24 条路，状压DP 枚举 2⁴×4²=256 次操作 → n=20 时差距达 10¹⁵ 倍</text>
+  <text x="340" y="308" text-anchor="middle" font-size="9" fill="#64748b">适用范围：n≤20（内存 2²⁰×20×4≈80MB）；n≤15 时游刃有余</text>
+</svg>`,
+    problems: [{ id: 8101, title: '旅行商问题TSP', passRate: '48.7%', difficulty: '进阶' }, { id: 8102, title: '最短哈密顿路径', passRate: '43.2%', difficulty: '进阶' }, { id: 8103, title: '状压DP：集合覆盖', passRate: '39.6%', difficulty: '进阶' }],
+  },
+
 };
 
 // 为未定义详情的算法生成默认占位数据
