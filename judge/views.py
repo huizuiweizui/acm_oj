@@ -151,12 +151,34 @@ def problem_list(request):
 
     paginator = Paginator(problems, 20)
     page_obj = paginator.get_page(request.GET.get('page', 1))
-    all_tags = Tag.objects.annotate(cnt=Count('problems')).order_by('-cnt')[:20]
+    all_tags = list(Tag.objects.annotate(cnt=Count('problems')).order_by('-cnt'))
+
+    # 按算法类别分组（供弹窗展示）
+    CATEGORIES = [
+        ('基础算法', ['模拟', '贪心', '暴力', '枚举', '搜索', '递归', '递推', '分治', '排序', '二分', '前缀和', '差分', '位运算', '思维', '入门', '高精度']),
+        ('数据结构', ['数据结构', '并查集', '堆', '线段树', '树状数组', '树形结构', '树', '优先队列', '栈', '队列', '哈希']),
+        ('图论',    ['图论', '广搜BFS', '深搜DFS', '拓扑排序', '最短路', '最小生成树', '二分图', '网络流']),
+        ('动态规划', ['动态规划', '区间DP', '树形DP', '背包', '棋盘DP', '数位DP', '状压DP']),
+        ('字符串',  ['字符串', 'AC自动机', 'KMP', '后缀数组', '哈希']),
+        ('数学',    ['数学', '数论', '矩阵', '几何', '组合数学', '快速幂']),
+    ]
+    tag_map = {t.name: t for t in all_tags}
+    used = set()
+    tag_groups = []
+    for cat_name, names in CATEGORIES:
+        group = [tag_map[n] for n in names if n in tag_map]
+        if group:
+            tag_groups.append({'name': cat_name, 'tags': group})
+            used.update(t.name for t in group)
+    rest = [t for t in all_tags if t.name not in used]
+    if rest:
+        tag_groups.append({'name': '其他', 'tags': rest})
 
     context = {
         'form': form,
         'page_obj': page_obj,
         'all_tags': all_tags,
+        'tag_groups': tag_groups,
         'current_tag': tag,
         'keyword': keyword,
         'difficulty': difficulty,
