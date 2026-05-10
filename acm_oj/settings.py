@@ -103,5 +103,5 @@ JUDGE_TIMEOUT = 10  # 默认超时（秒）
 
 # ===== AI 评测（可选，与 algo_judge 兼容） =====
 LLM_API_KEY = '9cc337ef-4792-4375-b26e-87bb14c41e30'
-LLM_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
-LLM_MODEL = 'deepseek-ai/DeepSeek-V3.2'
+LLM_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
+LLM_MODEL = 'ep-20260214163310-gt8r9'

@@ -420,9 +420,10 @@ def judge_submission(submission, problem):
 
     # 运行阶段：逐测试点执行
     time_limit_sec = problem.time_limit / 1000.0 + 1  # 多给 1 秒容差
-    max_time = 0
+    max_time = 0.0
 
     import sys as _sys
+    import time as _time
     _win = _sys.platform == 'win32'
     _exe = 'main.exe' if _win else 'main'
     _py = _sys.executable  # 当前 Python 解释器路径，跨平台兼容
@@ -435,13 +436,21 @@ def judge_submission(submission, problem):
     }
     run_cmd = RUN_CMD[lang]
 
+    def _normalize(s):
+        """统一行尾为 \n，去掉每行尾部空格，去掉末尾空行。"""
+        return '\n'.join(line.rstrip() for line in s.replace('\r\n', '\n').replace('\r', '\n').rstrip().split('\n'))
+
     for tc in test_cases:
         try:
+            t0 = _time.monotonic()
             proc = subprocess.run(
                 run_cmd,
                 shell=True, input=tc.input_data, capture_output=True,
                 text=True, timeout=time_limit_sec, cwd=tmp_dir,
             )
+            elapsed = _time.monotonic() - t0
+            if elapsed > max_time:
+                max_time = elapsed
         except subprocess.TimeoutExpired:
             submission.status = 'TLE'
             submission.save(update_fields=['status'])
@@ -461,9 +470,9 @@ def judge_submission(submission, problem):
                 submission.save(update_fields=['ai_feedback'])
             return {'status': 'RE', 'error_info': proc.stderr[:500], 'ai_feedback': fb}
 
-        # 比较输出（忽略行尾空格和末尾空行）
-        actual = proc.stdout.rstrip()
-        expected = tc.expected_output.rstrip()
+        # 比较输出（规范化行尾、行尾空格、末尾空行）
+        actual = _normalize(proc.stdout)
+        expected = _normalize(tc.expected_output)
         if actual != expected:
             submission.status = 'WA'
             submission.save(update_fields=['status'])

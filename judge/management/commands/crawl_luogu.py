@@ -16,23 +16,28 @@
 数据库模型字段保持不变,与原版完全兼容。
 """
 import json
+import re
+import sys
 import time
 import random
 import logging
 import os
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from datetime import datetime
 import requests
 from django.core.management.base import BaseCommand
-from judge.models import Problem, Tag
+from judge.models import Problem, Tag, TestCase
 
 
 # ===================== 配置区域 =====================
 LUOGU_COOKIE = {
-    '_uid': os.getenv('LUOGU_UID', '1689901'),
+    '_uid': os.getenv('LUOGU_UID', '1750610'),
     '__client_id': os.getenv(
         'LUOGU_CLIENT_ID',
-        'dabe4401c9937c8c4c6fa9de3153f9318a0f2cad',
+        'ykhyhbmzwkn7jypxd2y6lqna53evk5qluqsszviwg6s74gng',
     ),
 }
 
@@ -115,6 +120,10 @@ class Command(BaseCommand):
                             help='最高难度 0~7')
         parser.add_argument('--retry-failed', action='store_true',
                             help='只重试上次进度文件中失败的 PID')
+        parser.add_argument('--no-gen-tests', action='store_false', dest='gen_tests',
+                            help='禁用 LLM 测试点生成（默认开启）')
+        parser.add_argument('--tests-count', type=int, default=5,
+                            help='每道题测试点总数目标（默认 5，样例不足时由 LLM 补齐）')
 
     # ---------- 入口 ----------
     def handle(self, *args, **options):
@@ -125,6 +134,8 @@ class Command(BaseCommand):
         min_diff = options['min_difficulty']
         max_diff = options['max_difficulty']
         retry_failed = options['retry_failed']
+        gen_tests = options['gen_tests']
+        tests_count = options['tests_count']
 
         self._setup_logger()
 
@@ -144,6 +155,7 @@ class Command(BaseCommand):
 
         started_at = time.time()
         self._tag_cache = {}
+        self._session = session
 
         # 累积的失败 PID(无论哪种模式都跨次保留)
         failed_pids = list(progress.get('failed_pids', []))
@@ -185,7 +197,12 @@ class Command(BaseCommand):
             try:
                 detail = self._fetch_problem_detail(session, pid)
                 if detail:
-                    self._save_problem(detail)
+                    problem = self._save_problem(detail)
+                    if gen_tests:
+                        n = self._generate_test_cases(
+                            problem, detail.get('raw_samples', []), tests_count, pid
+                        )
+                        self._info(f'    → 生成测试点 {n} 个')
                     success += 1
                     processed_pids.add(pid)
                     self._success(
@@ -396,6 +413,7 @@ class Command(BaseCommand):
             'tags': tag_names,
             'time_limit': time_limit,
             'memory_limit': memory_limit,
+            'raw_samples': problem.get('samples') or [],
         }
 
     def _format_samples(self, samples):
@@ -467,7 +485,254 @@ class Command(BaseCommand):
                 self._tag_cache[name] = tag
             problem.tags.add(tag)
 
+        # 把爬到的样例直接存为测试点（可靠，直接来源于题目页面）
+        for i, s in enumerate(data.get('raw_samples', [])):
+            if not (isinstance(s, (list, tuple)) and len(s) >= 2):
+                continue
+            inp, out = str(s[0]).strip(), str(s[1]).strip()
+            if inp and out:
+                TestCase.objects.update_or_create(
+                    problem=problem,
+                    sort_order=i,
+                    defaults={'input_data': inp, 'expected_output': out, 'is_sample': True},
+                )
+
         return problem
+
+    # ===================== LLM 测试点生成 =====================
+
+    def _generate_test_cases(self, problem, raw_samples, tests_count, pid):
+        """
+        让 LLM 写一个 Python 参考解 + 若干测试输入，
+        本地执行参考解得到输出，先用样例验证正确性，
+        通过后保存为 TestCase（is_sample=False）。
+        参考洛谷点赞最高的题解作为算法提示。
+        """
+        from django.conf import settings as _cfg
+
+        key = getattr(_cfg, 'LLM_API_KEY', '').strip()
+        url = getattr(_cfg, 'LLM_API_URL', '').strip()
+        model = getattr(_cfg, 'LLM_MODEL', '').strip()
+        if not key or not url:
+            self._warn('    跳过测试点生成：未配置 LLM_API_KEY / LLM_API_URL')
+            return 0
+
+        # ── 计算需要 LLM 生成的数量（目标总数 - 已有样例，至少 2 个）──
+        sample_count = sum(
+            1 for s in raw_samples
+            if isinstance(s, (list, tuple)) and len(s) >= 2
+            and str(s[0]).strip() and str(s[1]).strip()
+        )
+        ai_count = max(tests_count - sample_count, 2)
+        self._info(f'    已有样例 {sample_count} 个，将生成 {ai_count} 个（目标总数 {max(tests_count, sample_count + 2)}）')
+
+        # ── 爬取洛谷题解作为算法参考 ──────────────────────────
+        editorial = self._fetch_editorial(pid)
+        if editorial:
+            self._info('    获取到洛谷题解，将作为参考')
+        else:
+            self._info('    未获取到题解，仅凭题面生成')
+
+        # ── 调用 LLM ──────────────────────────────────────────
+        try:
+            r = requests.post(
+                url,
+                headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
+                json={
+                    'model': model,
+                    'messages': [{'role': 'user', 'content': self._build_gen_prompt(problem, ai_count, editorial)}],
+                    'max_tokens': 3000,
+                    'temperature': 0.1,
+                },
+                timeout=90,
+            )
+            r.raise_for_status()
+            content = r.json()['choices'][0]['message']['content'].strip()
+        except Exception as e:
+            self._warn(f'    LLM 调用失败: {e}')
+            return 0
+
+        # ── 提取参考解（SOLUTION 块 → fallback 第一个代码块）──
+        sol_match = (
+            re.search(r'SOLUTION[^\n]*\n+```(?:python)?\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
+            or re.search(r'```(?:python)?\n(.*?)```', content, re.DOTALL)
+        )
+        if not sol_match:
+            self._warn('    未提取到参考解，跳过')
+            return 0
+        solution_code = sol_match.group(1).strip()
+
+        # ── 提取测试输入列表（INPUTS 块 → fallback 最后一个 JSON 数组）──
+        inp_match = (
+            re.search(r'INPUTS[^\n]*\n+```(?:json)?\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
+            or re.search(r'(\[.*\])', content, re.DOTALL)
+        )
+        if not inp_match:
+            self._warn('    未提取到测试输入，跳过')
+            return 0
+        try:
+            gen_inputs = json.loads(self._repair_json(inp_match.group(1)))
+            if not isinstance(gen_inputs, list):
+                raise ValueError
+        except (json.JSONDecodeError, ValueError):
+            raw = inp_match.group(1)[:300] if inp_match else '(无匹配)'
+            self._warn(f'    测试输入 JSON 解析失败，原始片段：\n{raw}')
+            return 0
+
+        # ── 写参考解到临时文件 ────────────────────────────────
+        tmp_dir = tempfile.mkdtemp(prefix='judge_gen_')
+        sol_file = os.path.join(tmp_dir, 'solution.py')
+        with open(sol_file, 'w', encoding='utf-8') as f:
+            f.write(solution_code)
+
+        def _normalize(s):
+            return '\n'.join(
+                line.rstrip()
+                for line in s.replace('\r\n', '\n').replace('\r', '\n').rstrip().split('\n')
+            )
+
+        def _run(inp_str):
+            try:
+                proc = subprocess.run(
+                    [sys.executable, sol_file],
+                    input=inp_str, capture_output=True, text=True, timeout=5,
+                )
+                return proc.stdout if proc.returncode == 0 else None
+            except subprocess.TimeoutExpired:
+                return None
+            except Exception:
+                return None
+
+        # ── 用样例验证参考解 ──────────────────────────────────
+        valid_samples = [
+            s for s in raw_samples
+            if isinstance(s, (list, tuple)) and len(s) >= 2
+            and str(s[0]).strip() and str(s[1]).strip()
+        ]
+        for s in valid_samples:
+            actual = _run(str(s[0]).strip())
+            if actual is None or _normalize(actual) != _normalize(str(s[1]).strip()):
+                self._warn('    参考解样例验证不通过，放弃生成')
+                shutil.rmtree(tmp_dir, ignore_errors=True)
+                return 0
+        if valid_samples:
+            self._info(f'    参考解验证通过（{len(valid_samples)} 个样例）')
+
+        # ── 逐组执行，保存结果 ────────────────────────────────
+        start_order = len(raw_samples)
+        saved = 0
+        for i, raw_inp in enumerate(gen_inputs):
+            inp = str(raw_inp).replace('\\n', '\n').strip()
+            if not inp:
+                continue
+            out = _run(inp)
+            if out is None:
+                self._warn(f'    第 {i + 1} 组运行失败，跳过')
+                continue
+            out = _normalize(out)
+            if not out:
+                continue
+            TestCase.objects.update_or_create(
+                problem=problem,
+                sort_order=start_order + i,
+                defaults={'input_data': inp, 'expected_output': out, 'is_sample': False},
+            )
+            saved += 1
+
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return saved
+
+    def _build_gen_prompt(self, problem, tests_count, editorial=''):
+        hint = (problem.hint or '')[:600]
+        editorial_section = (
+            f"\n参考题解（来自洛谷社区，仅供理解算法思路）：\n{editorial[:1500]}\n"
+            if editorial else ''
+        )
+        return (
+            f"你是算法竞赛出题人，需要为以下题目完成两件事：\n"
+            f"1. 写一个正确的 Python 3 参考解（从 stdin 读取，向 stdout 输出）\n"
+            f"2. 生成 {tests_count} 组仅含输入的测试数据（不需要输出，程序执行后自动得到）\n\n"
+            f"题目：{problem.title}\n"
+            f"描述：{problem.description[:600]}\n"
+            f"输入格式：{problem.input_desc[:400]}\n"
+            f"输出格式：{problem.output_desc[:400]}\n"
+            f"提示/数据范围：{hint}\n"
+            f"样例输入：\n{problem.sample_input[:300]}\n"
+            f"样例输出：\n{problem.sample_output[:300]}\n"
+            f"{editorial_section}\n"
+            f"请严格按以下格式输出，不要多余文字：\n\n"
+            f"SOLUTION:\n"
+            f"```python\n"
+            f"（完整的 Python 3 代码）\n"
+            f"```\n\n"
+            f"INPUTS:\n"
+            f"```json\n"
+            f'["第1组输入（多行用\\n分隔）", "第2组输入", ...]\n'
+            f"```\n\n"
+            f"要求：\n"
+            f"- 参考解必须能正确通过所有样例\n"
+            f"- 测试数据必须包含边界值：n=1、n 取最大约束、全相同元素、极值等\n"
+            f"- inputs 中每组是纯字符串，多行之间用 \\n 分隔\n"
+            f"- 只输出上面格式，不要任何其他内容"
+        )
+
+    @staticmethod
+    def _repair_json(text):
+        """修复 LLM 常见错误：JSON 字符串内含裸换行/回车，转义后再解析。"""
+        result = []
+        in_string = False
+        i = 0
+        while i < len(text):
+            ch = text[i]
+            if ch == '\\' and in_string and i + 1 < len(text):
+                result.append(ch)
+                result.append(text[i + 1])
+                i += 2
+                continue
+            if ch == '"':
+                in_string = not in_string
+            elif in_string and ch == '\n':
+                ch = '\\n'
+            elif in_string and ch == '\r':
+                i += 1
+                continue
+            result.append(ch)
+            i += 1
+        return ''.join(result)
+
+    def _fetch_editorial(self, pid):
+        """爬取洛谷题解列表，返回点赞最高的前 2 条题解内容拼接（最多 1500 字）。"""
+        url = f'https://www.luogu.com.cn/problem/solution/{pid}'
+        try:
+            resp = self._request_with_retry(self._session, url, timeout=15)
+            if resp is None or resp.status_code != 200:
+                return ''
+            data = resp.json()
+        except Exception:
+            return ''
+
+        solutions = []
+        for key in ('currentData', 'data'):
+            obj = data.get(key)
+            if isinstance(obj, dict):
+                sol_obj = obj.get('solutions', {})
+                if isinstance(sol_obj, dict):
+                    solutions = sol_obj.get('result', [])
+                    if solutions:
+                        break
+
+        if not solutions:
+            return ''
+
+        # 按点赞数降序，取前 2 条
+        top = sorted(solutions, key=lambda s: s.get('voteCount', 0), reverse=True)[:2]
+        parts = []
+        for sol in top:
+            content = (sol.get('content') or '').strip()
+            if content:
+                parts.append(content[:800])
+
+        return '\n\n---\n\n'.join(parts)[:1500]
 
     # ===================== 网络重试 =====================
 
