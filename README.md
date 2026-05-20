@@ -280,8 +280,7 @@ python manage.py crawl_luogu
 # 指定爬取数量
 python manage.py crawl_luogu --count 100
 
-# 只爬取入门和普及- 难度（洛谷难度 1~2）
-python manage.py crawl_luogu --count 100 --min-difficulty 1 --max-difficulty 2
+# 只爬取入门和普及- 难度（洛谷难度 1~2
 
 # 强制更新已存在的题目
 python manage.py crawl_luogu --update

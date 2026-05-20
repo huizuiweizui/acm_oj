@@ -185,10 +185,26 @@ class Command(BaseCommand):
         success = skip = fail = 0
 
         for i, pid in enumerate(problem_ids, 1):
-            # 已存在直接跳过(--update 时强制覆盖)
             source_key = f'{SOURCE_PREFIX}{pid}'
-            if not force_update and Problem.objects.filter(source=source_key).exists():
-                self._info(f'  [{i}/{len(problem_ids)}] {pid} - 已存在, 跳过')
+            existing = Problem.objects.filter(source=source_key).first()
+
+            # 题目已存在且不强制更新：检查测试点是否够，不够则补生成
+            if not force_update and existing:
+                tc_count = TestCase.objects.filter(problem=existing).count()
+                if not gen_tests or tc_count >= tests_count:
+                    self._info(f'  [{i}/{len(problem_ids)}] {pid} - 已存在({tc_count} 个测试点), 跳过')
+                    skip += 1
+                    if pid in failed_pids:
+                        failed_pids.remove(pid)
+                    continue
+                # 测试点不足，补生成
+                self._info(f'  [{i}/{len(problem_ids)}] {pid} - 已存在但测试点不足({tc_count}/{tests_count})，补生成...')
+                raw_samples = list(
+                    TestCase.objects.filter(problem=existing, is_sample=True)
+                    .values_list('input_data', 'expected_output')
+                )
+                n = self._generate_test_cases(existing, raw_samples, tests_count, pid)
+                self._info(f'    → 补生成测试点 {n} 个')
                 skip += 1
                 if pid in failed_pids:
                     failed_pids.remove(pid)
@@ -526,64 +542,19 @@ class Command(BaseCommand):
         ai_count = max(tests_count - sample_count, 2)
         self._info(f'    已有样例 {sample_count} 个，将生成 {ai_count} 个（目标总数 {max(tests_count, sample_count + 2)}）')
 
-        # ── 爬取洛谷题解作为算法参考 ──────────────────────────
-        editorial = self._fetch_editorial(pid)
-        if editorial:
-            self._info('    获取到洛谷题解，将作为参考')
-        else:
+        # ── 爬取洛谷题解列表（最多 5 条，按点赞降序）──────────
+        editorials = self._fetch_editorials(pid)
+        # 末尾追加一个空字符串，作为「无题解」的兜底轮次
+        if not editorials:
+            editorials = ['']
             self._info('    未获取到题解，仅凭题面生成')
+        else:
+            self._info(f'    获取到 {len(editorials)} 条洛谷题解')
+            editorials.append('')  # 所有题解都失败后再无题解兜底一次
 
-        # ── 调用 LLM ──────────────────────────────────────────
-        try:
-            r = requests.post(
-                url,
-                headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
-                json={
-                    'model': model,
-                    'messages': [{'role': 'user', 'content': self._build_gen_prompt(problem, ai_count, editorial)}],
-                    'max_tokens': 3000,
-                    'temperature': 0.1,
-                },
-                timeout=90,
-            )
-            r.raise_for_status()
-            content = r.json()['choices'][0]['message']['content'].strip()
-        except Exception as e:
-            self._warn(f'    LLM 调用失败: {e}')
-            return 0
-
-        # ── 提取参考解（SOLUTION 块 → fallback 第一个代码块）──
-        sol_match = (
-            re.search(r'SOLUTION[^\n]*\n+```(?:python)?\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
-            or re.search(r'```(?:python)?\n(.*?)```', content, re.DOTALL)
-        )
-        if not sol_match:
-            self._warn('    未提取到参考解，跳过')
-            return 0
-        solution_code = sol_match.group(1).strip()
-
-        # ── 提取测试输入列表（INPUTS 块 → fallback 最后一个 JSON 数组）──
-        inp_match = (
-            re.search(r'INPUTS[^\n]*\n+```(?:json)?\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
-            or re.search(r'(\[.*\])', content, re.DOTALL)
-        )
-        if not inp_match:
-            self._warn('    未提取到测试输入，跳过')
-            return 0
-        try:
-            gen_inputs = json.loads(self._repair_json(inp_match.group(1)))
-            if not isinstance(gen_inputs, list):
-                raise ValueError
-        except (json.JSONDecodeError, ValueError):
-            raw = inp_match.group(1)[:300] if inp_match else '(无匹配)'
-            self._warn(f'    测试输入 JSON 解析失败，原始片段：\n{raw}')
-            return 0
-
-        # ── 写参考解到临时文件 ────────────────────────────────
+        # ── 临时文件 ──────────────────────────────────────────
         tmp_dir = tempfile.mkdtemp(prefix='judge_gen_')
         sol_file = os.path.join(tmp_dir, 'solution.py')
-        with open(sol_file, 'w', encoding='utf-8') as f:
-            f.write(solution_code)
 
         def _normalize(s):
             return '\n'.join(
@@ -603,23 +574,123 @@ class Command(BaseCommand):
             except Exception:
                 return None
 
-        # ── 用样例验证参考解 ──────────────────────────────────
         valid_samples = [
             s for s in raw_samples
             if isinstance(s, (list, tuple)) and len(s) >= 2
             and str(s[0]).strip() and str(s[1]).strip()
         ]
-        for s in valid_samples:
-            actual = _run(str(s[0]).strip())
-            if actual is None or _normalize(actual) != _normalize(str(s[1]).strip()):
-                self._warn('    参考解样例验证不通过，放弃生成')
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-                return 0
+
+        def _validate_solution():
+            for s in valid_samples:
+                sin, sout = str(s[0]).strip(), str(s[1]).strip()
+                actual = _run(sin)
+                if actual is None or _normalize(actual) != _normalize(sout):
+                    return False, (sin, sout, actual or '(崩溃或超时)')
+            return True, None
+
+        def _llm_call(messages, max_tokens=3000):
+            r = requests.post(
+                url,
+                headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
+                json={'model': model, 'messages': messages,
+                      'max_tokens': max_tokens, 'temperature': 0.1},
+                timeout=90,
+            )
+            r.raise_for_status()
+            return r.json()['choices'][0]['message']['content'].strip()
+
+        solution_code = None
+        gen_inputs = None
+        passed = False
+
+        # ── 按题解轮流尝试，每条题解内允许修正 2 次 ─────────────
+        for ed_idx, editorial in enumerate(editorials):
+            label = f'第{ed_idx + 1}条题解' if editorial else '无题解兜底'
+            self._info(f'    尝试 {label}...')
+
+            # 生成参考解 + 测试输入
+            try:
+                content = _llm_call([
+                    {'role': 'user', 'content': self._build_gen_prompt(problem, ai_count, editorial)}
+                ])
+            except Exception as e:
+                self._warn(f'    LLM 调用失败: {e}')
+                continue
+
+            sol_match = (
+                re.search(r'SOLUTION[^\n]*\n+```(?:python)?\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
+                or re.search(r'```(?:python)?\n(.*?)```', content, re.DOTALL)
+            )
+            if not sol_match:
+                self._warn('    未提取到参考解，换下一条题解')
+                continue
+            solution_code = sol_match.group(1).strip()
+
+            inp_match = (
+                re.search(r'INPUTS[^\n]*\n+```(?:json)?\n(.*?)```', content, re.DOTALL | re.IGNORECASE)
+                or re.search(r'(\[.*\])', content, re.DOTALL)
+            )
+            if not inp_match:
+                self._warn('    未提取到测试输入，换下一条题解')
+                continue
+            try:
+                gen_inputs = json.loads(self._repair_json(inp_match.group(1)))
+                if not isinstance(gen_inputs, list):
+                    raise ValueError
+            except (json.JSONDecodeError, ValueError):
+                self._warn(f'    JSON 解析失败，换下一条题解')
+                continue
+
+            with open(sol_file, 'w', encoding='utf-8') as f:
+                f.write(solution_code)
+
+            # 验证，失败时原地修正最多 2 次
+            passed, fail_info = _validate_solution()
+            for fix_round in range(2):
+                if passed:
+                    break
+                sin, sout, actual_out = fail_info
+                self._warn(
+                    f'    验证失败（修正第{fix_round + 1}次）'
+                    f' 实际={repr(actual_out[:60])} 期望={repr(sout[:60])}'
+                )
+                fix_prompt = (
+                    f"你的 Python 解输出错误，请修正。\n\n"
+                    f"题目：{problem.title}\n"
+                    f"输入：\n{sin}\n期望输出：\n{sout}\n实际输出：\n{actual_out}\n\n"
+                    f"原代码：\n```python\n{solution_code}\n```\n\n"
+                    f"只返回修正后完整 Python 代码：\n```python\n(代码)\n```"
+                )
+                try:
+                    fix_content = _llm_call(
+                        [{'role': 'user', 'content': fix_prompt}], max_tokens=2000
+                    )
+                    fix_match = re.search(r'```(?:python)?\n(.*?)```', fix_content, re.DOTALL)
+                    if fix_match:
+                        solution_code = fix_match.group(1).strip()
+                        with open(sol_file, 'w', encoding='utf-8') as f:
+                            f.write(solution_code)
+                except Exception as e:
+                    self._warn(f'    修正调用失败: {e}')
+                    break
+                passed, fail_info = _validate_solution()
+
+            if passed:
+                break
+            self._warn(f'    {label} 修正后仍不通过，换下一条题解')
+
+        if not passed:
+            self._warn('    所有题解均尝试失败，放弃生成')
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return 0
         if valid_samples:
             self._info(f'    参考解验证通过（{len(valid_samples)} 个样例）')
 
         # ── 逐组执行，保存结果 ────────────────────────────────
-        start_order = len(raw_samples)
+        # 续排在所有已有测试点之后，避免覆盖已有数据
+        from django.db.models import Max
+        existing_max = TestCase.objects.filter(problem=problem).aggregate(m=Max('sort_order'))['m']
+        start_order = (existing_max + 1) if existing_max is not None else len(raw_samples)
         saved = 0
         for i, raw_inp in enumerate(gen_inputs):
             inp = str(raw_inp).replace('\\n', '\n').strip()
@@ -700,16 +771,16 @@ class Command(BaseCommand):
             i += 1
         return ''.join(result)
 
-    def _fetch_editorial(self, pid):
-        """爬取洛谷题解列表，返回点赞最高的前 2 条题解内容拼接（最多 1500 字）。"""
+    def _fetch_editorials(self, pid):
+        """爬取洛谷题解列表，按点赞数降序返回每条题解内容的列表（最多取 5 条）。"""
         url = f'https://www.luogu.com.cn/problem/solution/{pid}'
         try:
             resp = self._request_with_retry(self._session, url, timeout=15)
             if resp is None or resp.status_code != 200:
-                return ''
+                return []
             data = resp.json()
         except Exception:
-            return ''
+            return []
 
         solutions = []
         for key in ('currentData', 'data'):
@@ -722,17 +793,14 @@ class Command(BaseCommand):
                         break
 
         if not solutions:
-            return ''
+            return []
 
-        # 按点赞数降序，取前 2 条
-        top = sorted(solutions, key=lambda s: s.get('voteCount', 0), reverse=True)[:2]
-        parts = []
-        for sol in top:
-            content = (sol.get('content') or '').strip()
-            if content:
-                parts.append(content[:800])
-
-        return '\n\n---\n\n'.join(parts)[:1500]
+        top = sorted(solutions, key=lambda s: s.get('voteCount', 0), reverse=True)[:5]
+        return [
+            (sol.get('content') or '').strip()[:1200]
+            for sol in top
+            if (sol.get('content') or '').strip()
+        ]
 
     # ===================== 网络重试 =====================
 
