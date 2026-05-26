@@ -14,7 +14,15 @@
       "Bash(DJANGO_SETTINGS_MODULE=acm_oj.settings python -c \"import django; django.setup\\(\\); from judge import urls; print\\('URLs OK'\\)\")",
       "Bash(awk '{print $NF}')",
       "Bash(xargs wc *)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(pip install *)",
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "Bash(ls e:/MyCode/)",
+      "Read(//e/MyCode/**)",
+      "PowerShell(cd e:\\\\MyCode\\\\acm_oj_frontend; npm run build 2>&1 | Where-Object { $_ -match \"XAxisComponent|YAxisComponent|echarts|Cannot find\" } | Select-Object -First 10)",
+      "PowerShell(Move-Item \"e:\\\\MyCode\\\\acm_oj_frontend\" \"e:\\\\MyCode\\\\acm_oj\\\\acm_oj_frontend\")",
+      "PowerShell(Rename-Item \"e:\\\\MyCode\\\\acm_oj\\\\acm_oj_frontend\" \"frontend\")"
     ]
   }
 }

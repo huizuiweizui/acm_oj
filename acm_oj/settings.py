@@ -2,12 +2,21 @@
 ACM 算法竞赛平台 - Django 配置
 """
 import os
+import environ
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = 'django-insecure-change-this-in-production-acm-oj-2026'
-DEBUG = True
-ALLOWED_HOSTS = ['*']
+
+env = environ.Env(
+    DEBUG=(bool, True),
+    ALLOWED_HOSTS=(list, ['*']),
+    CORS_ORIGINS=(list, ['http://localhost:5173']),
+)
+environ.Env.read_env(BASE_DIR / '.env')
+
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
+DEBUG = env('DEBUG')
+ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -16,10 +25,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'corsheaders',
     'judge',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -31,10 +43,12 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'acm_oj.urls'
 
+_FRONTEND_DIST = BASE_DIR / 'frontend' / 'dist'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [_FRONTEND_DIST] if _FRONTEND_DIST.exists() else [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -53,28 +67,17 @@ WSGI_APPLICATION = 'acm_oj.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'acm_oj',
-        'USER': 'root',
-        'PASSWORD': '20060408',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': env('DB_NAME', default='acm_oj'),
+        'USER': env('DB_USER', default='root'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST', default='127.0.0.1'),
+        'PORT': env('DB_PORT', default='3306'),
         'OPTIONS': {
             'charset': 'utf8mb4',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
     }
 }
-
-# ===================== Redis 缓存（可选） =====================
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django_redis.cache.RedisCache',
-#         'LOCATION': 'redis://127.0.0.1:6379/0',
-#         'OPTIONS': {
-#             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-#         }
-#     }
-# }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -93,15 +96,27 @@ STATICFILES_DIRS = []
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ===================== REST Framework + JWT =====================
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ],
+}
+
+CORS_ALLOWED_ORIGINS = env('CORS_ORIGINS')
+
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 
 # ===== 评测配置 =====
 JUDGE_TEMP_DIR = os.path.join(BASE_DIR, 'judge_tmp')
-JUDGE_TIMEOUT = 10  # 默认超时（秒）
+JUDGE_TIMEOUT = 10
 
-# ===== AI 评测（可选，与 algo_judge 兼容） =====
-LLM_API_KEY = '9cc337ef-4792-4375-b26e-87bb14c41e30'
-LLM_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions'
-LLM_MODEL = 'ep-20260214163310-gt8r9'
+# ===== AI 评测（可选，留空则禁用） =====
+LLM_API_KEY = env('LLM_API_KEY', default='')
+LLM_API_URL = env('LLM_API_URL', default='')
+LLM_MODEL = env('LLM_MODEL', default='')

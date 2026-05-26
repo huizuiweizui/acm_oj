@@ -1,0 +1,51 @@
+import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
+import { login as apiLogin, register as apiRegister, getMe } from '@/api/auth'
+
+export const useUserStore = defineStore('user', () => {
+  const user = ref(null)
+  const accessToken = ref(localStorage.getItem('access_token') || '')
+  const refreshToken = ref(localStorage.getItem('refresh_token') || '')
+
+  const isLoggedIn = computed(() => !!accessToken.value)
+  const isAdmin = computed(() => user.value?.role === 'admin')
+
+  function _saveTokens(access, refresh) {
+    accessToken.value = access
+    refreshToken.value = refresh
+    localStorage.setItem('access_token', access)
+    localStorage.setItem('refresh_token', refresh)
+  }
+
+  async function login(username, password) {
+    const { data } = await apiLogin(username, password)
+    _saveTokens(data.access, data.refresh)
+    user.value = data.user
+  }
+
+  async function register(username, password, password2) {
+    const { data } = await apiRegister(username, password, password2)
+    _saveTokens(data.access, data.refresh)
+    user.value = data.user
+  }
+
+  async function fetchMe() {
+    if (!accessToken.value) return
+    try {
+      const { data } = await getMe()
+      user.value = data
+    } catch {
+      logout()
+    }
+  }
+
+  function logout() {
+    user.value = null
+    accessToken.value = ''
+    refreshToken.value = ''
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
+  }
+
+  return { user, accessToken, isLoggedIn, isAdmin, login, register, fetchMe, logout }
+})

@@ -1,0 +1,247 @@
+<script setup>
+import { ref, watch, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getProblems } from '@/api/problems'
+import { getRank } from '@/api/users'
+import DifficultyBadge from '@/components/DifficultyBadge.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+const problems = ref([])
+const total = ref(0)
+const loading = ref(false)
+
+const keyword = ref(route.query.keyword || '')
+const difficulty = ref(route.query.difficulty || '')
+const tag = ref(route.query.tag || '')
+const page = ref(Number(route.query.page) || 1)
+const pageSize = 20
+
+const difficulties = [
+  '入门', '普及-', '普及/提高-', '普及+/提高',
+  '提高+/省选-', '省选/NOI-', 'NOI/NOI+/CTSC', '暂无评定',
+]
+
+// 用于「已 AC / 尝试过」图标
+const statusIcon = { ac: '✓', tried: '?', todo: '' }
+const statusColor = { ac: '#2ecc71', tried: '#f39c12', todo: 'transparent' }
+
+async function fetchProblems() {
+  loading.value = true
+  try {
+    const params = { page: page.value, page_size: pageSize }
+    if (keyword.value) params.keyword = keyword.value
+    if (difficulty.value) params.difficulty = difficulty.value
+    if (tag.value) params.tag = tag.value
+
+    const { data } = await getProblems(params)
+    problems.value = data.results
+    total.value = data.count
+  } finally {
+    loading.value = false
+  }
+}
+
+function syncQuery() {
+  const q = {}
+  if (keyword.value) q.keyword = keyword.value
+  if (difficulty.value) q.difficulty = difficulty.value
+  if (tag.value) q.tag = tag.value
+  if (page.value > 1) q.page = page.value
+  router.replace({ query: q })
+}
+
+function search() {
+  page.value = 1
+  syncQuery()
+  fetchProblems()
+}
+
+function setDifficulty(d) {
+  difficulty.value = difficulty.value === d ? '' : d
+  search()
+}
+
+function setTag(t) {
+  tag.value = tag.value === t ? '' : t
+  search()
+}
+
+function goPage(p) {
+  page.value = p
+  syncQuery()
+  fetchProblems()
+  window.scrollTo(0, 0)
+}
+
+const totalPages = () => Math.ceil(total.value / pageSize)
+
+onMounted(fetchProblems)
+</script>
+
+<template>
+  <div class="problem-list">
+    <div class="page-title">题库</div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <input
+        v-model="keyword"
+        class="search-input"
+        placeholder="搜索题号或题目名"
+        @keyup.enter="search"
+      />
+      <button class="btn-search" @click="search">搜索</button>
+      <button v-if="keyword || difficulty || tag" class="btn-clear" @click="keyword=''; difficulty=''; tag=''; search()">
+        清除筛选
+      </button>
+    </div>
+
+    <!-- 难度筛选 -->
+    <div class="filter-row">
+      <span class="filter-label">难度：</span>
+      <button
+        v-for="d in difficulties" :key="d"
+        class="filter-chip"
+        :class="{ active: difficulty === d }"
+        @click="setDifficulty(d)"
+      >{{ d }}</button>
+    </div>
+
+    <!-- 题目表格 -->
+    <div class="table-wrap">
+      <div v-if="loading" class="loading">加载中...</div>
+      <table v-else class="problem-table">
+        <thead>
+          <tr>
+            <th width="48"></th>
+            <th width="72">#</th>
+            <th>题目名称</th>
+            <th width="160">难度</th>
+            <th width="90">通过率</th>
+            <th>标签</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="p in problems" :key="p.id">
+            <td class="status-cell">
+              <span
+                class="status-dot"
+                :style="{ background: statusColor[p.user_status] }"
+                :title="p.user_status === 'ac' ? '已通过' : p.user_status === 'tried' ? '已尝试' : ''"
+              >{{ statusIcon[p.user_status] }}</span>
+            </td>
+            <td class="id-cell">{{ p.id }}</td>
+            <td>
+              <RouterLink :to="`/problems/${p.id}`" class="problem-link">
+                {{ p.title }}
+              </RouterLink>
+            </td>
+            <td><DifficultyBadge :difficulty="p.difficulty" /></td>
+            <td class="rate-cell">
+              {{ p.submit_count ? (p.ac_rate + '%') : '-' }}
+            </td>
+            <td>
+              <span
+                v-for="t in p.tags" :key="t.id"
+                class="tag-chip"
+                :class="{ active: tag === t.name }"
+                @click="setTag(t.name)"
+              >{{ t.name }}</span>
+            </td>
+          </tr>
+          <tr v-if="!loading && problems.length === 0">
+            <td colspan="6" class="empty">没有找到符合条件的题目</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 分页 -->
+    <div class="pagination" v-if="totalPages() > 1">
+      <button :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>
+      <span class="page-info">第 {{ page }} / {{ totalPages() }} 页，共 {{ total }} 题</span>
+      <button :disabled="page >= totalPages()" @click="goPage(page + 1)">下一页 ›</button>
+    </div>
+    <div class="total-tip" v-else-if="total > 0">共 {{ total }} 题</div>
+  </div>
+</template>
+
+<style scoped>
+.problem-list { padding: 0.5rem 0; }
+.page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; color: #e0e0f0; }
+
+.search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.search-input {
+  flex: 1; max-width: 360px;
+  padding: 0.45rem 0.8rem;
+  background: #1e1e38; border: 1px solid #3d3d5c; border-radius: 6px;
+  color: #e0e0f0; font-size: 0.9rem;
+}
+.search-input:focus { outline: none; border-color: #7c6af7; }
+.btn-search {
+  padding: 0.45rem 1.2rem; background: #7c6af7; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+}
+.btn-search:hover { background: #6c5ae7; }
+.btn-clear {
+  padding: 0.45rem 1rem; background: transparent; color: #aaa;
+  border: 1px solid #3d3d5c; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+}
+.btn-clear:hover { border-color: #7c6af7; color: #e0e0f0; }
+
+.filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.2rem; }
+.filter-label { color: #888; font-size: 0.85rem; }
+.filter-chip {
+  padding: 0.2rem 0.7rem; border-radius: 999px;
+  background: #1e1e38; border: 1px solid #3d3d5c;
+  color: #c0c0d8; font-size: 0.8rem; cursor: pointer;
+}
+.filter-chip:hover { border-color: #7c6af7; color: #fff; }
+.filter-chip.active { background: #7c6af7; border-color: #7c6af7; color: #fff; }
+
+.table-wrap { background: #16162a; border-radius: 8px; border: 1px solid #2d2d4e; overflow: hidden; }
+.loading { padding: 3rem; text-align: center; color: #888; }
+
+.problem-table { width: 100%; border-collapse: collapse; }
+.problem-table th {
+  padding: 0.75rem 1rem; text-align: left;
+  font-size: 0.8rem; color: #888; font-weight: 500;
+  background: #1a1a30; border-bottom: 1px solid #2d2d4e;
+}
+.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #1e1e38; }
+.problem-table tr:last-child td { border-bottom: none; }
+.problem-table tr:hover td { background: #1c1c35; }
+
+.status-cell { text-align: center; }
+.status-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  font-size: 0.7rem; font-weight: 700; color: #fff;
+}
+.id-cell { color: #888; font-size: 0.85rem; }
+.problem-link { color: #a0c4ff; text-decoration: none; font-size: 0.95rem; }
+.problem-link:hover { color: #7c6af7; text-decoration: underline; }
+.rate-cell { color: #888; font-size: 0.85rem; }
+.empty { text-align: center; padding: 3rem; color: #666; }
+
+.tag-chip {
+  display: inline-block; margin: 0.1rem 0.2rem;
+  padding: 0.1rem 0.5rem; border-radius: 4px;
+  background: #1e1e38; border: 1px solid #3d3d5c;
+  color: #a0a0c0; font-size: 0.75rem; cursor: pointer;
+}
+.tag-chip:hover { border-color: #7c6af7; color: #e0e0f0; }
+.tag-chip.active { background: #2d2050; border-color: #7c6af7; color: #c4b5fd; }
+
+.pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
+.pagination button {
+  padding: 0.4rem 1rem; background: #1e1e38; border: 1px solid #3d3d5c;
+  color: #c0c0d8; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+}
+.pagination button:hover:not(:disabled) { border-color: #7c6af7; color: #fff; }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-info { color: #888; font-size: 0.85rem; }
+.total-tip { text-align: center; color: #666; font-size: 0.85rem; margin-top: 1rem; }
+</style>
