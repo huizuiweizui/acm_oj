@@ -22,7 +22,14 @@
       "Read(//e/MyCode/**)",
       "PowerShell(cd e:\\\\MyCode\\\\acm_oj_frontend; npm run build 2>&1 | Where-Object { $_ -match \"XAxisComponent|YAxisComponent|echarts|Cannot find\" } | Select-Object -First 10)",
       "PowerShell(Move-Item \"e:\\\\MyCode\\\\acm_oj_frontend\" \"e:\\\\MyCode\\\\acm_oj\\\\acm_oj_frontend\")",
-      "PowerShell(Rename-Item \"e:\\\\MyCode\\\\acm_oj\\\\acm_oj_frontend\" \"frontend\")"
+      "PowerShell(Rename-Item \"e:\\\\MyCode\\\\acm_oj\\\\acm_oj_frontend\" \"frontend\")",
+      "Bash(python manage.py shell -c \"from judge.models import Problem; probs = Problem.objects.filter\\(title=''\\).values\\('id','title'\\) | Problem.objects.filter\\(title__isnull=True\\).values\\('id','title'\\); print\\(list\\(probs[:20]\\)\\)\")",
+      "Bash(python manage.py shell -c \"from judge.models import Problem; probs = Problem.objects.filter\\(title=''\\); [print\\(f'id={p.id}, source={p.source}, difficulty={p.difficulty}, tags={list\\(p.tags.values_list\\(\\\\\"name\\\\\",flat=True\\)\\)}'\\) for p in probs]\")",
+      "Bash(python manage.py shell -c \"from judge.models import Problem; p = Problem.objects.get\\(id=5\\); print\\(repr\\(p.title\\)\\); print\\(repr\\(p.source\\)\\); print\\(repr\\(p.content[:100] if p.content else 'no content'\\)\\)\")",
+      "Bash(python manage.py shell -c \"from judge.models import Problem; p = Problem.objects.get\\(id=5\\); print\\(repr\\(p.title\\)\\); print\\(repr\\(p.source\\)\\); print\\([f.name for f in p._meta.get_fields\\(\\)]\\)\")",
+      "Bash(python manage.py shell -c \"from judge.models import Problem; p = Problem.objects.get\\(id=5\\); print\\('source:', p.source.encode\\('utf-8'\\)\\)\")",
+      "Bash(python manage.py shell -c ' *)",
+      "Bash(python -c ' *)"
     ]
   }
 }
