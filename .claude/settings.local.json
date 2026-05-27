@@ -29,7 +29,9 @@
       "Bash(python manage.py shell -c \"from judge.models import Problem; p = Problem.objects.get\\(id=5\\); print\\(repr\\(p.title\\)\\); print\\(repr\\(p.source\\)\\); print\\([f.name for f in p._meta.get_fields\\(\\)]\\)\")",
       "Bash(python manage.py shell -c \"from judge.models import Problem; p = Problem.objects.get\\(id=5\\); print\\('source:', p.source.encode\\('utf-8'\\)\\)\")",
       "Bash(python manage.py shell -c ' *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"e:\\\\MyCode\\\\acm_oj\\\\judge\\\\services\", \"e:\\\\MyCode\\\\acm_oj\\\\judge\\\\views_pkg\")",
+      "Bash(Out-Null)"
     ]
   }
 }
