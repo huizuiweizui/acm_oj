@@ -142,6 +142,7 @@ class Submission(models.Model):
         ('MLE', 'Memory Limit Exceeded'),
         ('RE', 'Runtime Error'),
         ('CE', 'Compilation Error'),
+        ('NT', '无测试点'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='提交者', related_name='submissions')

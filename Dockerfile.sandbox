@@ -1,0 +1,19 @@
+# Judge sandbox image — contains all supported language runtimes.
+# Build: docker build -f Dockerfile.sandbox -t acm-oj-sandbox:latest .
+# The image is used by judge/services/sandbox.py when USE_DOCKER_SANDBOX=True.
+#
+# Security layers applied at runtime (see sandbox.py):
+#   --network=none   --memory=Xm   --cpus=1   --pids-limit=64
+#   -v tmp:/sandbox:ro   --tmpfs /tmp:exec,size=128m
+
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        g++ \
+        default-jdk-headless \
+        python3 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /sandbox

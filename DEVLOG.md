@@ -284,6 +284,120 @@ judge/
 
 ---
 
+## 阶段四：安全加固
+
+### Fix 1 — Docker 沙箱（消除用户代码直接在主机执行的漏洞）
+
+**问题**：`judge_submission()` 用 `subprocess.Popen` / `subprocess.run(shell=True)` 直接在主机上编译和运行用户提交的代码，恶意代码可任意访问主机文件系统和网络。
+
+**方案**：新增 `judge/services/sandbox.py` 作为执行隔离抽象层，同时新增 `Dockerfile.sandbox`。
+
+**新文件结构**：
+
+```
+judge/services/sandbox.py   # 执行隔离抽象（Docker / 直接两种后端）
+Dockerfile.sandbox          # 沙箱镜像：gcc/g++/OpenJDK headless/python3
+```
+
+`sandbox.py` 对外只暴露三个函数：
+
+```python
+source_path(lang, tmp_dir)                              # 源文件路径（统一命名规范）
+compile_code(lang, tmp_dir) -> (bool, str)              # 编译
+run_code(lang, tmp_dir, input, timeout, memory_mb)      # 运行
+  -> (returncode, stdout, stderr, timed_out)
+```
+
+Docker 模式（`USE_DOCKER_SANDBOX=True`）每测试点启动独立容器，强制：
+
+```
+--network=none          无网络访问
+--memory=Xm             硬内存上限，超出 OOM-kill → exit 137 → MLE
+--cpus=1                单核
+--pids-limit=64         防 fork bomb
+-v tmp_dir:/sandbox:ro  源码/二进制只读挂载
+--tmpfs /tmp:exec,128m  JVM/Python 需要的可写 scratch（不落盘到宿主）
+```
+
+`judger.py` 同步改造：
+
+- 编译 / 运行调用改为 `compile_code()` / `run_code()`
+- 移除 Linux-only `/proc/<pid>/status` 内存监控线程（Docker 的 OOM-kill 替代）
+- 新增 `returncode == 137` → `MLE` 判断
+
+直接后端（`USE_DOCKER_SANDBOX=False`，默认）保留原有 subprocess 行为，供 Windows 本地开发。
+
+构建命令：
+
+```bash
+docker build -f Dockerfile.sandbox -t acm-oj-sandbox:latest .
+```
+
+---
+
+### Fix 2 — 无测试点默认 AC 漏洞
+
+**问题**：题目无测试点时，系统让 AI 判定 AC/WA。AI 调用失败时兜底值是 `'AC'`，且判为 AC 后直接加 rating。题目刚发布、测试数据未上传时提交，几乎必得 AC 和 rating 提升。
+
+**根因代码**（修复前）：
+
+```python
+verdict = first_line if first_line in ('AC', 'WA') else 'AC'  # AI 返回乱码时兜底 AC
+verdict, ai_text = 'AC', ''                                    # AI 调用失败时兜底 AC
+if verdict == 'AC':
+    _update_rating(...)                                        # 直接加分
+```
+
+**修复**：无测试点时立即返回 `'NT'`（No Testcase），不计 AC、不更新 rating，AI 以建议模式异步运行。
+
+```python
+if not test_cases.exists():
+    submission.status = 'NT'
+    submission.save(update_fields=['status'])
+    _async_ai_feedback(submission.id, problem.id)  # 给建议，不判裁决
+    return {'status': 'NT', 'ai_feedback': ''}
+```
+
+**配套改动**：
+
+- `judge/models.py`：`STATUS_CHOICES` 新增 `('NT', '无测试点')`
+- `judge/migrations/0004_add_nt_status.py`：自动生成
+- `frontend/src/components/StatusBadge.vue`：新增 `NT: { label: '无测试点', color: '#7f8c8d' }`，前端 polling 在收到 `'NT'` 时立即停止
+
+---
+
+### Fix 3 — 配置安全默认值硬化
+
+**问题**：`settings.py` 在 `.env` 缺失时静默回落到不安全默认值：`DEBUG=True`、`ALLOWED_HOSTS=['*']`、`SECRET_KEY='django-insecure-...'`，部署到公网即为高危状态。
+
+**修复**（`acm_oj/settings.py`）：
+
+```python
+# 修复前
+env = environ.Env(
+    DEBUG=(bool, True),
+    ALLOWED_HOSTS=(list, ['*']),
+    ...
+)
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
+
+# 修复后
+env = environ.Env(
+    DEBUG=(bool, False),      # 安全默认
+    ALLOWED_HOSTS=(list, []), # 缺失时拒绝所有 Host
+    ...
+)
+SECRET_KEY = env('SECRET_KEY')  # 无默认，缺失时启动即报 ImproperlyConfigured
+```
+
+`.env.example` 同步重写，标注必填项、两套环境（开发/生产）该填的值，以及 `SECRET_KEY` 生成命令：
+
+```bash
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+```
+
+---
+
 ## 当前状态
 
 | 模块 | 状态 |
@@ -291,13 +405,15 @@ judge/
 | Django 模板版 | 完整，已作为评测引擎底座保留 |
 | REST API 层 | 完整（22 个端点） |
 | Vue 3 SPA | 完整（12 个页面，3 个 ECharts 图表） |
-| 评测引擎 | 已修复 time_used、memory_used，AI 异步化 |
+| 评测引擎 | 已修复 time_used、memory_used，AI 异步化，Docker 沙箱 |
 | 比赛计分 | 已消除 N+1 |
 | 代码结构 | views.py 已拆分为 services/ + views/ |
+| 安全 | Docker 沙箱、NT 状态、配置默认值硬化 |
 
 ## 待做（上生产前）
 
-- [ ] Docker 沙箱：隔离评测进程，防止恶意代码
-- [ ] 切换内存测量为 cgroups v2 `memory.peak`（比轮询 `/proc` 更精确）
-- [ ] 将 `_async_ai_feedback` 升级为 Celery 任务（需搭 Redis broker）
+- [ ] 生产部署：`.env` 设 `DEBUG=False`、`ALLOWED_HOSTS=your-domain.com`、`USE_DOCKER_SANDBOX=True`，并 build 沙箱镜像
+- [ ] `rejudge_nt` management command：管理员补充测试点后批量重判所有 `status='NT'` 的提交
+- [ ] 切换内存测量为 cgroups v2 `memory.peak`（比 Docker OOM-kill 更精确，可获取峰值值而非只有 exit 137）
+- [ ] 将 `_async_ai_feedback` 升级为 Celery 任务（需搭 Redis broker，比 daemon thread 更可靠）
 - [ ] 测试数据批量生成工具（`judge/management/commands/gen_testcases.py` 已创建）

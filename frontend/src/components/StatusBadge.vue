@@ -10,6 +10,7 @@ const cfg = {
   CE:      { label: 'CE',      color: '#e74c3c' },
   Pending: { label: '等待中',  color: '#95a5a6' },
   Judging: { label: '评测中',  color: '#3498db' },
+  NT:      { label: '无测试点', color: '#7f8c8d' },
 }
 </script>
 

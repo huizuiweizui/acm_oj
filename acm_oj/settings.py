@@ -8,13 +8,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env(
-    DEBUG=(bool, True),
-    ALLOWED_HOSTS=(list, ['*']),
+    DEBUG=(bool, False),           # 安全默认：生产关闭调试
+    ALLOWED_HOSTS=(list, []),      # 安全默认：无 .env 时拒绝所有 Host
     CORS_ORIGINS=(list, ['http://localhost:5173']),
 )
 environ.Env.read_env(BASE_DIR / '.env')
 
-SECRET_KEY = env('SECRET_KEY', default='django-insecure-change-this-in-production')
+# SECRET_KEY 无默认值 — .env 缺失或未设置时 Django 启动即报 ImproperlyConfigured
+SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 
@@ -115,6 +116,12 @@ LOGOUT_REDIRECT_URL = '/'
 # ===== 评测配置 =====
 JUDGE_TEMP_DIR = os.path.join(BASE_DIR, 'judge_tmp')
 JUDGE_TIMEOUT = 10
+
+# 沙箱隔离 — 生产环境必须设为 True，开发/Windows 可保持 False
+# True  → 每次评测启动 Docker 容器隔离执行（需提前 build Dockerfile.sandbox）
+# False → 直接在主机进程执行（无隔离，仅限本地开发）
+USE_DOCKER_SANDBOX = env.bool('USE_DOCKER_SANDBOX', default=False)
+JUDGE_DOCKER_IMAGE = env('JUDGE_DOCKER_IMAGE', default='acm-oj-sandbox:latest')
 
 # ===== AI 评测（可选，留空则禁用） =====
 LLM_API_KEY = env('LLM_API_KEY', default='')
