@@ -164,13 +164,12 @@
             <textarea id="code-editor" name="code" class="code-textarea-hidden"></textarea>
         </form>
 
-        <!-- 自定义测试面板（可折叠 + 可拖拽调高） -->
-        <div class="test-panel" id="test-panel">
+        <!-- 自定义测试面板（固定展开 + 可拖拽调高） -->
+        <div class="test-panel expanded" id="test-panel" style="height:200px;">
             <div class="test-panel-resizer" id="test-panel-resizer" title="拖动调整高度"></div>
 
-            <div class="test-panel-header" id="test-panel-toggle">
+            <div class="test-panel-header">
                 <span class="test-panel-title">
-                    <span class="arrow">▸</span>
                     <span>自定义测试</span>
                 </span>
                 <div class="test-panel-actions">
@@ -202,11 +201,6 @@
             </div>
         </div>
 
-        <!-- 评测结果区 -->
-        <div class="result-section">
-            <div id="result-panel" class="result-panel" style="display:none;"></div>
-        </div>
-
         {% else %}
         <!-- 未登录提示 -->
         <div class="login-prompt">
@@ -230,6 +224,7 @@
 {% block footer %}{% endblock %}
 
 {% block extra_js %}
+<script>var SUBMISSION_DETAIL_BASE = "{% url 'submission_detail' 0 %}";</script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.min.js"></script>
 <script src="{% static 'js/problem_detail.js' %}"></script>
 {% endblock %}

@@ -112,7 +112,17 @@ def problem_detail(request, problem_id):
     contest_context = None
 
     if contest_id:
-        contest_context = Contest.objects.filter(id=contest_id).first()
+        now = timezone.now()
+        c = Contest.objects.filter(id=contest_id).first()
+        if c:
+            is_active = c.start_time <= now <= c.end_time
+            is_registered = (
+                request.user.is_authenticated
+                and ContestParticipant.objects.filter(contest=c, user=request.user).exists()
+            )
+            # 只有"比赛进行中 + 已报名"才显示比赛模式横幅；
+            # 未报名或比赛已结束时仍保留 contest_id，让链接可以回溯，但不显示"将计入"提示。
+            contest_context = c if (is_active and is_registered) else None
 
     if request.user.is_authenticated:
         user_submissions = (

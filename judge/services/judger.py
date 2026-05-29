@@ -21,14 +21,15 @@ def _normalize(s):
 def judge_submission(submission, problem):
     """
     评测引擎 — 对应技术方案书 §8.2
-    编译 → 逐测试点运行 → 对比输出
+    编译 → 逐测试点运行 → 对比输出 → 收集每个测试点结果
     代码执行通过 sandbox 模块隔离（生产需开启 USE_DOCKER_SANDBOX=True）。
     """
     test_cases = problem.test_cases.all().order_by('sort_order')
     if not test_cases.exists():
         # 无测试点：不评判，不计入 AC/Rating，等管理员补充测试数据后重测
         submission.status = 'NT'
-        submission.save(update_fields=['status'])
+        submission.test_results = []
+        submission.save(update_fields=['status', 'test_results'])
         _async_ai_feedback(submission.id, problem.id)
         return {'status': 'NT', 'ai_feedback': ''}
 
@@ -43,71 +44,70 @@ def judge_submission(submission, problem):
     if not ok:
         submission.status = 'CE'
         submission.error_info = err_msg[:2000]
-        submission.save(update_fields=['status', 'error_info'])
+        submission.test_results = []
+        submission.save(update_fields=['status', 'error_info', 'test_results'])
         _async_ai_feedback(submission.id, problem.id)
         return {'status': 'CE', 'error_info': err_msg[:2000], 'ai_feedback': ''}
 
-    # ── 运行阶段：逐测试点 ─────────────────────────────────────────────────
+    # ── 运行阶段：逐测试点（全部跑完，收集每个测试点结果） ────────────────
     time_limit_sec = problem.time_limit / 1000.0
     memory_mb = problem.memory_limit
     max_time_ms = 0
+    overall_status = 'AC'
+    last_re_error = ''
+    case_results = []
 
-    for tc in test_cases:
+    for idx, tc in enumerate(test_cases, 1):
         t0 = _time.monotonic()
         returncode, stdout_data, stderr_data, timed_out = run_code(
             lang, tmp_dir, tc.input_data, time_limit_sec, memory_mb,
         )
         elapsed_ms = int((_time.monotonic() - t0) * 1000)
-        if elapsed_ms > max_time_ms:
-            max_time_ms = elapsed_ms
 
         if timed_out:
-            submission.status = 'TLE'
-            submission.save(update_fields=['status'])
-            _async_ai_feedback(submission.id, problem.id)
-            return {'status': 'TLE', 'ai_feedback': ''}
+            case_status = 'TLE'
+        elif returncode == 137:
+            case_status = 'MLE'
+        elif returncode != 0:
+            case_status = 'RE'
+            last_re_error = stderr_data[:1000]
+        else:
+            actual = _normalize(stdout_data)
+            expected = _normalize(tc.expected_output)
+            case_status = 'AC' if actual == expected else 'WA'
 
-        # exit 137 = SIGKILL by Docker OOM killer → MLE
-        if returncode == 137:
-            submission.status = 'MLE'
-            submission.save(update_fields=['status'])
-            _async_ai_feedback(submission.id, problem.id)
-            return {'status': 'MLE', 'ai_feedback': ''}
+        if case_status == 'AC':
+            max_time_ms = max(max_time_ms, elapsed_ms)
 
-        if returncode != 0:
-            submission.status = 'RE'
-            submission.error_info = stderr_data[:1000]
-            submission.save(update_fields=['status', 'error_info'])
-            _async_ai_feedback(submission.id, problem.id)
-            return {'status': 'RE', 'error_info': stderr_data[:500], 'ai_feedback': ''}
+        case_results.append({'idx': idx, 'status': case_status, 'time_ms': elapsed_ms})
 
-        actual = _normalize(stdout_data)
-        expected = _normalize(tc.expected_output)
-        if actual != expected:
-            submission.status = 'WA'
-            submission.save(update_fields=['status'])
-            _async_ai_feedback(submission.id, problem.id)
-            return {'status': 'WA', 'ai_feedback': ''}
+        if overall_status == 'AC' and case_status != 'AC':
+            overall_status = case_status
 
-    # ── 全部通过 ──────────────────────────────────────────────────────────
-    submission.status = 'AC'
-    submission.time_used = max_time_ms
-    submission.save(update_fields=['status', 'time_used'])
+    # ── 保存结果 ──────────────────────────────────────────────────────────
+    submission.status = overall_status
+    submission.test_results = case_results
+    if overall_status == 'AC':
+        submission.time_used = max_time_ms
+    elif overall_status == 'RE':
+        submission.error_info = last_re_error
+    submission.save(update_fields=['status', 'time_used', 'error_info', 'test_results'])
 
-    already_ac = Submission.objects.filter(
-        user=submission.user, problem=problem, status='AC'
-    ).exclude(id=submission.id).exists()
+    if overall_status == 'AC':
+        already_ac = Submission.objects.filter(
+            user=submission.user, problem=problem, status='AC'
+        ).exclude(id=submission.id).exists()
 
-    if not already_ac:
-        Problem.objects.filter(id=problem.id).update(ac_count=F('ac_count') + 1)
-        UserProfile.objects.filter(user=submission.user).update(ac_count=F('ac_count') + 1)
-        _update_rating(submission.user, problem)
+        if not already_ac:
+            Problem.objects.filter(id=problem.id).update(ac_count=F('ac_count') + 1)
+            UserProfile.objects.filter(user=submission.user).update(ac_count=F('ac_count') + 1)
+            _update_rating(submission.user, problem)
 
     if submission.contest:
         update_contest_score(submission)
 
     _async_ai_feedback(submission.id, problem.id)
-    return {'status': 'AC', 'time_used': max_time_ms, 'ai_feedback': ''}
+    return {'status': overall_status, 'time_used': max_time_ms, 'ai_feedback': ''}
 
 
 def update_contest_score(submission):

@@ -155,6 +155,7 @@ class Submission(models.Model):
     error_info = models.TextField('错误信息', blank=True, default='')
     contest = models.ForeignKey('Contest', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='所属比赛', related_name='submissions')
     ai_feedback = models.TextField('AI评测反馈', blank=True, default='')
+    test_results = models.JSONField('测试点结果', default=list, blank=True)
     submitted_at = models.DateTimeField('提交时间', auto_now_add=True)
 
     class Meta:

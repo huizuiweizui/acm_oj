@@ -155,6 +155,32 @@
         </table>
         </div>
 
+        {% if contest_is_active %}
+        <div style="text-align:right;padding:8px 0 0;font-size:0.78rem;color:var(--text-secondary);">
+            比赛进行中，排行榜每 30 秒自动刷新
+            <span id="refresh-countdown" style="margin-left:4px;font-family:monospace;"></span>
+        </div>
+        {% endif %}
+
     </div>
 </div>
+
+{% if contest_is_active %}
+{% block extra_js %}
+<script>
+(function () {
+    var remaining = 30;
+    var el = document.getElementById('refresh-countdown');
+    function tick() {
+        if (!el) return;
+        el.textContent = '(' + remaining + 's)';
+        if (remaining <= 0) { location.reload(); return; }
+        remaining--;
+        setTimeout(tick, 1000);
+    }
+    tick();
+})();
+</script>
+{% endblock %}
+{% endif %}
 {% endblock %}

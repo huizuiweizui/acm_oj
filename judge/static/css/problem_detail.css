@@ -270,13 +270,11 @@ html, body {
     justify-content: space-between;
     padding: 10px 16px;
     background: var(--bg-tertiary);
-    cursor: pointer;
     user-select: none;
-    transition: background var(--transition);
     flex-shrink: 0;
 }
 .test-panel-header:hover {
-    background: var(--bg-hover);
+    background: var(--bg-tertiary);
 }
 
 .test-panel-title {
@@ -302,13 +300,8 @@ html, body {
     gap: 8px;
 }
 
-/* 折叠状态：body 隐藏 */
+/* 测试面板 body 始终显示 */
 .test-panel .test-panel-body {
-    display: none;
-}
-
-/* 展开状态：body 占满剩余空间 */
-.test-panel.expanded .test-panel-body {
     display: flex;
     flex: 1;
     min-height: 0;
@@ -430,22 +423,6 @@ body.resizing-test-panel {
 body.resizing-test-panel * {
     pointer-events: none !important;
 }
-
-
-/* ---------- 评测结果区 ---------- */
-.result-section {
-    flex-shrink: 0;
-    max-height: 40vh;
-    overflow-y: auto;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-card);
-}
-.result-section .result-panel {
-    margin: 0;
-    border: none;
-    border-radius: 0;
-}
-.result-section:empty { display: none; }
 
 
 /* ---------- 历史记录 ---------- */

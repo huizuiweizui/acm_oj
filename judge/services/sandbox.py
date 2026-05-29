@@ -132,10 +132,13 @@ def _docker_run(lang: str, tmp_dir: str, input_data: str,
 def _direct_compile(lang: str, tmp_dir: str) -> tuple:
     src = source_path(lang, tmp_dir)
     out = os.path.join(tmp_dir, 'main')
-    # 路径加双引号，防止目录名含空格时 shell 解析出错
+    # 路径加双引号防止空格问题；Windows 子进程无控制台时 MinGW DLL 可能崩溃，
+    # 用 -static-libgcc/-static-libstdc++ 静态链接运行时，消除 DLL 依赖。
+    _win = sys.platform == 'win32'
+    _static = '-static-libgcc -static-libstdc++' if _win else ''
     _COMPILE_CMD = {
-        'C':    f'gcc -O2 -o "{out}" "{src}"',
-        'C++':  f'g++ -O2 -std=c++17 -o "{out}" "{src}"',
+        'C':    f'gcc -O2 {_static} -o "{out}" "{src}"',
+        'C++':  f'g++ -O2 -std=c++17 {_static} -o "{out}" "{src}"',
         'Java': f'javac "{src}"',
     }
     cmd = _COMPILE_CMD[lang]

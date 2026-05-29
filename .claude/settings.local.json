@@ -35,7 +35,9 @@
       "Bash(python manage.py shell -c \"from judge.models import Problem; print\\('Total:', Problem.objects.count\\(\\)\\); print\\('Published:', Problem.objects.filter\\(is_published=True\\).count\\(\\)\\); print\\('Sample:'\\); [print\\(f'  #{p.id} {p.title[:30]} source={p.source} published={p.is_published}'\\) for p in Problem.objects.all\\(\\)[:5]]\")",
       "Bash(python manage.py shell -c \"from judge.models import Problem; p = Problem.objects.first\\(\\); print\\('id:', p.id\\); print\\('title:', repr\\(p.title\\)\\); print\\('source:', repr\\(p.source\\)\\); print\\('is_published:', p.is_published\\); print\\('description[:100]:', repr\\(p.description[:100]\\)\\)\")",
       "Bash(python manage.py crawl_luogu --count 1 --update --no-gen-tests)",
-      "Bash(python manage.py crawl_luogu --count 3 --update --no-gen-tests)"
+      "Bash(python manage.py crawl_luogu --count 3 --update --no-gen-tests)",
+      "Bash(python manage.py makemigrations judge --name add_submission_test_results)",
+      "Bash(python manage.py check)"
     ]
   }
 }

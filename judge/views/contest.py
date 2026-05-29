@@ -189,10 +189,12 @@ def contest_ranking(request, contest_id):
             prev_key = key
         ranked.append((rank, data))
 
+    now2 = timezone.now()
     context = {
         'contest': contest,
         'ranked': ranked,
         'contest_problems': contest_problems,
+        'contest_is_active': contest.start_time <= now2 <= contest.end_time,
     }
     return render(request, 'judge/contest_ranking.html', context)
 

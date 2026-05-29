@@ -238,14 +238,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var language = document.getElementById('language-select').value;
         var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        var resultPanel = document.getElementById('result-panel');
 
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="loading-spinner" style="width:14px;height:14px;border-width:2px;"></span> 评测中…';
-
-        resultPanel.style.display = 'flex';
-        resultPanel.className = 'result-panel result-judging';
-        resultPanel.innerHTML = '<div class="loading-spinner"></div><span>正在评测，请稍候…</span>';
 
         var formData = new FormData();
         formData.append('language', language);
@@ -259,26 +254,15 @@ document.addEventListener('DOMContentLoaded', function () {
         fetch(url, { method: 'POST', body: formData })
         .then(function (r) { return r.json(); })
         .then(function (data) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '▶ 提交评测';
-
             if (data.success) {
-                var st = data.result.status;
-                var isAC = st === 'AC';
-                var aiFeedback = data.result.ai_feedback || '';
-                resultPanel.className = 'result-panel ' + (isAC ? 'result-ac' : 'result-fail');
-                resultPanel.innerHTML =
-                    '<div class="result-status">' + st + '</div>' +
-                    '<div class="result-detail">' +
-                    (data.result.time_used ? '耗时: ' + data.result.time_used + 'ms' : '') +
-                    (data.result.error_info ? '<pre class="error-info">' + escapeHtmlLocal(data.result.error_info) + '</pre>' : '') +
-                    '</div>' +
-                    (aiFeedback
-                        ? '<div class="ai-feedback-panel"><div class="ai-feedback-title">🤖 AI 分析</div><div class="ai-feedback-body">' + escapeHtmlLocal(aiFeedback) + '</div></div>'
-                        : '');
+                var base = (typeof SUBMISSION_DETAIL_BASE !== 'undefined')
+                    ? SUBMISSION_DETAIL_BASE
+                    : '/submissions/0/';
+                window.location.href = base.replace('/0/', '/' + data.submission_id + '/');
             } else {
-                resultPanel.className = 'result-panel result-fail';
-                resultPanel.innerHTML = '<div class="result-status">提交失败</div><div class="result-detail">' + JSON.stringify(data.errors) + '</div>';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '▶ 提交评测';
+                showToastLocal('提交失败：' + JSON.stringify(data.errors), 'error');
             }
         })
         .catch(function (err) {
@@ -293,7 +277,6 @@ document.addEventListener('DOMContentLoaded', function () {
 // ==================== 自定义测试面板 ====================
 document.addEventListener('DOMContentLoaded', function () {
     var panel = document.getElementById('test-panel');
-    var toggle = document.getElementById('test-panel-toggle');
     var testBtn = document.getElementById('test-btn');
     var useSampleBtn = document.getElementById('use-sample-btn');
     var inputEl = document.getElementById('test-input');
@@ -302,42 +285,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!panel) return;
 
-    // ---------- 折叠 / 展开 ----------
-    if (toggle) {
-        toggle.addEventListener('click', function (e) {
-            if (e.target.closest('#test-btn') || e.target.closest('#use-sample-btn')) return;
-
-            var isExpanded = panel.classList.toggle('expanded');
-            if (isExpanded && !panel.style.height) {
-                panel.style.height = '240px';
-            } else if (!isExpanded) {
-                panel.style.height = '';
-            }
-        });
-    }
-
     // ---------- 使用样例输入 ----------
     if (useSampleBtn) {
-        useSampleBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var sample = this.dataset.sample || '';
-            inputEl.value = sample;
-            if (!panel.classList.contains('expanded')) {
-                panel.classList.add('expanded');
-                panel.style.height = '240px';
-            }
+        useSampleBtn.addEventListener('click', function () {
+            inputEl.value = this.dataset.sample || '';
             inputEl.focus();
         });
     }
 
     // ---------- 测试运行 ----------
     if (testBtn) {
-        testBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (!panel.classList.contains('expanded')) {
-                panel.classList.add('expanded');
-                panel.style.height = '240px';
-            }
+        testBtn.addEventListener('click', function () {
             runTest();
         });
     }
