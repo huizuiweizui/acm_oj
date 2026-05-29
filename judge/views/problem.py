@@ -1,4 +1,6 @@
 import json
+import shutil
+import tempfile
 from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
@@ -12,6 +14,7 @@ from django.views.decorators.http import require_POST
 from ..models import Contest, ContestParticipant, Problem, Submission, Tag, UserProfile
 from ..forms import ProblemFilterForm, SubmissionForm
 from ..services.judger import judge_submission
+from ..services.sandbox import compile_code, run_code, source_path
 
 
 def problem_list(request):
@@ -179,6 +182,64 @@ def submit_code(request, problem_id):
             'ai_feedback': result.get('ai_feedback', ''),
         }
     })
+
+
+@login_required
+@require_POST
+def custom_run(request, problem_id):
+    """自定义测试：编译并运行用户代码，输出结果，不保存提交记录。"""
+    get_object_or_404(Problem, id=problem_id, is_published=True)
+
+    code = request.POST.get('code', '').strip()
+    language = request.POST.get('language', 'C++')
+    custom_input = request.POST.get('input', '')
+
+    if not code:
+        return JsonResponse({'success': False, 'error': '代码不能为空'})
+    if language not in ('C', 'C++', 'Java', 'Python'):
+        return JsonResponse({'success': False, 'error': '不支持的语言'})
+
+    tmp_dir = tempfile.mkdtemp(prefix='custom_run_')
+    try:
+        src_file = source_path(language, tmp_dir)
+        with open(src_file, 'w', encoding='utf-8') as f:
+            f.write(code)
+
+        ok, err_msg = compile_code(language, tmp_dir)
+        if not ok:
+            return JsonResponse({
+                'success': True,
+                'result': {'status': 'CE', 'output': '', 'error_info': err_msg[:2000]},
+            })
+
+        returncode, stdout_data, stderr_data, timed_out = run_code(
+            language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
+        )
+
+        if timed_out:
+            status = 'TLE'
+        elif returncode == 137:
+            status = 'MLE'
+        elif returncode != 0:
+            status = 'RE'
+        else:
+            status = 'ok'
+
+        if status != 'ok':
+            error_info = stderr_data[:1024] or f'程序异常退出（退出码 {returncode}）'
+        else:
+            error_info = ''
+
+        return JsonResponse({
+            'success': True,
+            'result': {
+                'status': status,
+                'output': stdout_data[:4096],
+                'error_info': error_info,
+            },
+        })
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def api_problems(request):

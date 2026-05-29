@@ -130,40 +130,60 @@ def _docker_run(lang: str, tmp_dir: str, input_data: str,
 
 
 def _direct_compile(lang: str, tmp_dir: str) -> tuple:
-    _COMPILE_CMD = {
-        'C':    'gcc -O2 -o {out} {src}',
-        'C++':  'g++ -O2 -std=c++17 -o {out} {src}',
-        'Java': 'javac {src}',
-    }
     src = source_path(lang, tmp_dir)
     out = os.path.join(tmp_dir, 'main')
-    cmd = _COMPILE_CMD[lang].format(src=src, out=out)
+    # 路径加双引号，防止目录名含空格时 shell 解析出错
+    _COMPILE_CMD = {
+        'C':    f'gcc -O2 -o "{out}" "{src}"',
+        'C++':  f'g++ -O2 -std=c++17 -o "{out}" "{src}"',
+        'Java': f'javac "{src}"',
+    }
+    cmd = _COMPILE_CMD[lang]
     try:
         proc = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=30, cwd=tmp_dir,
+            cmd, shell=True, capture_output=True,
+            encoding='utf-8', errors='replace',
+            timeout=30, cwd=tmp_dir,
         )
-        return proc.returncode == 0, proc.stderr[:2000]
+        err = (proc.stdout + proc.stderr).strip()
+        return proc.returncode == 0, err[:2000]
     except subprocess.TimeoutExpired:
         return False, '编译超时'
 
 
 def _direct_run(lang: str, tmp_dir: str, input_data: str, timeout_sec: float) -> tuple:
     _win = sys.platform == 'win32'
-    exe = os.path.join(tmp_dir, 'main.exe' if _win else 'main')
+
+    # MinGW 通常自动加 .exe；部分工具链不加，两种都尝试
+    if lang in ('C', 'C++'):
+        if _win:
+            exe = os.path.join(tmp_dir, 'main.exe')
+            if not os.path.exists(exe):
+                exe = os.path.join(tmp_dir, 'main')
+            if not os.path.exists(exe):
+                return -1, '', '找不到编译产物（main.exe / main），请确认 g++ 正常安装', False
+        else:
+            exe = os.path.join(tmp_dir, 'main')
+    else:
+        exe = ''   # Java/Python 不需要 exe 路径
+
     _RUN_CMD = {
         'C':      [exe],
         'C++':    [exe],
         'Java':   ['java', '-cp', tmp_dir, 'Main'],
         'Python': [sys.executable, os.path.join(tmp_dir, 'main.py')],
     }
+    # Windows 上启动子进程有 200-500ms 系统开销，加缓冲避免误判 TLE。
+    startup_buffer = 3.0 if _win else 1.0
     try:
         proc = subprocess.Popen(
             _RUN_CMD[lang],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, cwd=tmp_dir,
+            encoding='utf-8', errors='replace',
+            cwd=tmp_dir,
         )
         try:
-            stdout, stderr = proc.communicate(input=input_data, timeout=timeout_sec)
+            stdout, stderr = proc.communicate(input=input_data, timeout=timeout_sec + startup_buffer)
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.communicate()

@@ -5,14 +5,14 @@ from .contest import (
 from .discussion import (
     create_discussion, create_discussion_general, discussion_detail, discussion_list,
 )
-from .problem import api_problems, learn_tag_problems, learn_view, problem_detail, problem_list, submit_code
+from .problem import api_problems, custom_run, learn_tag_problems, learn_view, problem_detail, problem_list, submit_code
 from .submission import submission_detail, submission_list
 from .user import leaderboard, my_profile, profile_view
 from ..services.judger import judge_submission
 
 __all__ = [
     'index', 'register_view', 'login_view', 'logout_view',
-    'problem_list', 'problem_detail', 'submit_code', 'api_problems',
+    'problem_list', 'problem_detail', 'submit_code', 'custom_run', 'api_problems',
     'learn_view', 'learn_tag_problems',
     'submission_list', 'submission_detail',
     'contest_list', 'contest_detail', 'contest_register', 'contest_ranking', 'contest_create',

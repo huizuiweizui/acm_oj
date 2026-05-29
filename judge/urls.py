@@ -17,6 +17,8 @@ urlpatterns = [
 
     # 代码提交（AJAX）
     path('problems/<int:problem_id>/submit/', views.submit_code, name='submit_code'),
+    # 自定义测试（不保存记录）
+    path('problems/<int:problem_id>/run/', views.custom_run, name='custom_run'),
 
     # 提交记录
     path('submissions/', views.submission_list, name='submission_list'),
@@ -29,8 +31,8 @@ urlpatterns = [
     path('contests/<int:contest_id>/register/', views.contest_register, name='contest_register'),
     path('contests/<int:contest_id>/ranking/', views.contest_ranking, name='contest_ranking'),
 
-    # API
-    path('api/problems/', views.api_problems, name='api_problems'),
+    # API（比赛创建用题目选择器，避免与 DRF /api/problems/ 冲突）
+    path('api/problem-pool/', views.api_problems, name='api_problems'),
 
     # 排行榜
     path('rank/', views.leaderboard, name='leaderboard'),

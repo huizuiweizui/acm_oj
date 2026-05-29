@@ -145,11 +145,12 @@ class Command(BaseCommand):
         progress = self._load_progress()
         if resume and progress.get('last_page'):
             start_page = progress['last_page']
-            self._info(f'📌 从进度文件恢复, 起始页 = {start_page}')
+            self._info(f'[resume] 从进度文件恢复, 起始页 = {start_page}')
 
         self._banner(target, start_page, force_update, min_diff, max_diff)
 
         session = requests.Session()
+        session.trust_env = False  # 不读取系统代理（防止本地代理未启动时报错）
         session.headers.update(HEADERS)
         session.cookies.update(LUOGU_COOKIE)
 
@@ -160,7 +161,30 @@ class Command(BaseCommand):
         # 累积的失败 PID(无论哪种模式都跨次保留)
         failed_pids = list(progress.get('failed_pids', []))
         # 已成功爬取的 PID 集合(--resume 时跳过重复爬取)
-        processed_pids = set(progress.get('processed_pids', []))
+        # 与数据库对比，去掉已不存在的记录（防止数据库重置后进度文件仍跳过）
+        raw_processed = set(progress.get('processed_pids', []))
+        if raw_processed:
+            existing_sources = set(
+                Problem.objects.filter(
+                    source__in=[f'{SOURCE_PREFIX}{pid}' for pid in raw_processed]
+                ).values_list('source', flat=True)
+            )
+            processed_pids = {
+                pid for pid in raw_processed
+                if f'{SOURCE_PREFIX}{pid}' in existing_sources
+            }
+            removed = len(raw_processed) - len(processed_pids)
+            if removed:
+                self._warn(f'  [!] 进度文件中 {removed} 个 PID 在数据库中已不存在，将重新爬取')
+                # 立即把清理后的状态写回进度文件，避免每次启动都触发此检查
+                self._save_progress({
+                    'last_page': progress.get('last_page', start_page),
+                    'failed_pids': failed_pids,
+                    'processed_pids': list(processed_pids),
+                    'updated_at': datetime.now().isoformat(timespec='seconds'),
+                })
+        else:
+            processed_pids = raw_processed
 
         # === 模式选择: 重试失败 vs 正常分页 ===
         if retry_failed:
@@ -168,9 +192,9 @@ class Command(BaseCommand):
             if not problem_ids:
                 self._info('没有可以重试的失败 PID')
                 return
-            self._info(f'🔁 重试模式: 共 {len(problem_ids)} 个失败 PID')
+            self._info(f'[retry] 重试模式: 共 {len(problem_ids)} 个失败 PID')
         else:
-            self._info('\n📋 第一步: 获取题目列表...')
+            self._info('\n[1/2] 获取题目列表...')
             problem_ids = self._fetch_problem_list(
                 session, target, start_page, min_diff, max_diff, progress,
                 processed_pids,
@@ -181,7 +205,7 @@ class Command(BaseCommand):
             self._info(f'  获取到 {len(problem_ids)} 个题目编号')
 
         # === 抓详情 ===
-        self._info('\n📝 第二步: 爬取题目详情...')
+        self._info('\n[2/2] 爬取题目详情...')
         success = skip = fail = 0
 
         for i, pid in enumerate(problem_ids, 1):
@@ -222,7 +246,7 @@ class Command(BaseCommand):
                     success += 1
                     processed_pids.add(pid)
                     self._success(
-                        f'  [{i}/{len(problem_ids)}] ✓ {pid} - {detail.get("title", "")}'
+                        f'  [{i}/{len(problem_ids)}] OK {pid} - {detail.get("title", "")}'
                     )
                     if pid in failed_pids:
                         failed_pids.remove(pid)
@@ -230,12 +254,12 @@ class Command(BaseCommand):
                     fail += 1
                     if pid not in failed_pids:
                         failed_pids.append(pid)
-                    self._error(f'  [{i}/{len(problem_ids)}] ✗ {pid} - 获取失败')
+                    self._error(f'  [{i}/{len(problem_ids)}] FAIL {pid} - 获取失败')
             except Exception as e:
                 fail += 1
                 if pid not in failed_pids:
                     failed_pids.append(pid)
-                self._error(f'  [{i}/{len(problem_ids)}] ✗ {pid} - 异常: {e}')
+                self._error(f'  [{i}/{len(problem_ids)}] FAIL {pid} - 异常: {e}')
 
             # 每题随机延迟
             time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
@@ -243,7 +267,7 @@ class Command(BaseCommand):
             # 每 N 题额外休息
             if i % REST_EVERY == 0 and i < len(problem_ids):
                 extra = random.uniform(*REST_DURATION)
-                self._info(f'\n  ☕ 已爬取 {i} 道, 休息 {extra:.1f} 秒...\n')
+                self._info(f'\n  [rest] 已爬取 {i} 道, 休息 {extra:.1f} 秒...\n')
                 time.sleep(extra)
 
             # 每 10 题持久化进度,确保中断不丢
@@ -375,6 +399,9 @@ class Command(BaseCommand):
         if not isinstance(content, dict):
             content = {}
 
+        # 标题优先取 content['name']，fallback 到 problem['title']
+        title = (content.get('name') or problem.get('title') or '').strip()
+
         description = (content.get('description') or '').strip()
         background = (content.get('background') or '').strip()
         format_i = (content.get('formatI') or '').strip()
@@ -418,7 +445,7 @@ class Command(BaseCommand):
 
         return {
             'pid': pid,
-            'title': problem.get('title', ''),
+            'title': title,
             'difficulty': problem.get('difficulty', 0),
             'description': full_description,
             'input_format': format_i,
@@ -519,10 +546,11 @@ class Command(BaseCommand):
 
     def _generate_test_cases(self, problem, raw_samples, tests_count, pid):
         """
-        让 LLM 写一个 Python 参考解 + 若干测试输入，
-        本地执行参考解得到输出，先用样例验证正确性，
-        通过后保存为 TestCase（is_sample=False）。
-        参考洛谷点赞最高的题解作为算法提示。
+        双解交叉验证生成测试点：
+          解 A（主解）：原有流程，按题解轮流尝试，样例验证通过后使用。
+          解 B（验证解）：要求用完全不同的算法独立实现，同样需通过所有样例。
+          入库条件：对每组 AI 生成输入，A 与 B 输出完全一致才保存。
+          退化：若 B 获取失败或样例不通过，自动退化为单解模式（原行为）。
         """
         from django.conf import settings as _cfg
 
@@ -544,17 +572,17 @@ class Command(BaseCommand):
 
         # ── 爬取洛谷题解列表（最多 5 条，按点赞降序）──────────
         editorials = self._fetch_editorials(pid)
-        # 末尾追加一个空字符串，作为「无题解」的兜底轮次
         if not editorials:
             editorials = ['']
             self._info('    未获取到题解，仅凭题面生成')
         else:
             self._info(f'    获取到 {len(editorials)} 条洛谷题解')
-            editorials.append('')  # 所有题解都失败后再无题解兜底一次
+            editorials.append('')
 
         # ── 临时文件 ──────────────────────────────────────────
         tmp_dir = tempfile.mkdtemp(prefix='judge_gen_')
-        sol_file = os.path.join(tmp_dir, 'solution.py')
+        sol_file  = os.path.join(tmp_dir, 'solution.py')
+        sol2_file = os.path.join(tmp_dir, 'solution2.py')
 
         def _normalize(s):
             return '\n'.join(
@@ -562,10 +590,10 @@ class Command(BaseCommand):
                 for line in s.replace('\r\n', '\n').replace('\r', '\n').rstrip().split('\n')
             )
 
-        def _run(inp_str):
+        def _run_file(path, inp_str):
             try:
                 proc = subprocess.run(
-                    [sys.executable, sol_file],
+                    [sys.executable, path],
                     input=inp_str, capture_output=True, text=True, timeout=5,
                 )
                 return proc.stdout if proc.returncode == 0 else None
@@ -580,10 +608,11 @@ class Command(BaseCommand):
             and str(s[0]).strip() and str(s[1]).strip()
         ]
 
-        def _validate_solution():
+        def _validate_file(path):
+            """在所有样例上运行 path 指向的脚本，返回 (passed, fail_info)。"""
             for s in valid_samples:
                 sin, sout = str(s[0]).strip(), str(s[1]).strip()
-                actual = _run(sin)
+                actual = _run_file(path, sin)
                 if actual is None or _normalize(actual) != _normalize(sout):
                     return False, (sin, sout, actual or '(崩溃或超时)')
             return True, None
@@ -600,15 +629,14 @@ class Command(BaseCommand):
             return r.json()['choices'][0]['message']['content'].strip()
 
         solution_code = None
-        gen_inputs = None
-        passed = False
+        gen_inputs    = None
+        passed        = False
 
-        # ── 按题解轮流尝试，每条题解内允许修正 2 次 ─────────────
+        # ── 阶段一：生成主解 A + 测试输入（原有逻辑不变）─────────
         for ed_idx, editorial in enumerate(editorials):
             label = f'第{ed_idx + 1}条题解' if editorial else '无题解兜底'
             self._info(f'    尝试 {label}...')
 
-            # 生成参考解 + 测试输入
             try:
                 content = _llm_call([
                     {'role': 'user', 'content': self._build_gen_prompt(problem, ai_count, editorial)}
@@ -638,14 +666,13 @@ class Command(BaseCommand):
                 if not isinstance(gen_inputs, list):
                     raise ValueError
             except (json.JSONDecodeError, ValueError):
-                self._warn(f'    JSON 解析失败，换下一条题解')
+                self._warn('    JSON 解析失败，换下一条题解')
                 continue
 
             with open(sol_file, 'w', encoding='utf-8') as f:
                 f.write(solution_code)
 
-            # 验证，失败时原地修正最多 2 次
-            passed, fail_info = _validate_solution()
+            passed, fail_info = _validate_file(sol_file)
             for fix_round in range(2):
                 if passed:
                     break
@@ -673,7 +700,7 @@ class Command(BaseCommand):
                 except Exception as e:
                     self._warn(f'    修正调用失败: {e}')
                     break
-                passed, fail_info = _validate_solution()
+                passed, fail_info = _validate_file(sol_file)
 
             if passed:
                 break
@@ -684,31 +711,80 @@ class Command(BaseCommand):
             shutil.rmtree(tmp_dir, ignore_errors=True)
             return 0
         if valid_samples:
-            self._info(f'    参考解验证通过（{len(valid_samples)} 个样例）')
+            self._info(f'    解 A 验证通过（{len(valid_samples)} 个样例）')
 
-        # ── 逐组执行，保存结果 ────────────────────────────────
-        # 续排在所有已有测试点之后，避免覆盖已有数据
+        # ── 阶段二：生成独立验证解 B ───────────────────────────
+        use_cross = False
+        try:
+            v_content = _llm_call([
+                {'role': 'user', 'content': self._build_verify_prompt(problem, solution_code)}
+            ])
+            v_match = re.search(r'```(?:python)?\n(.*?)```', v_content, re.DOTALL)
+            if v_match:
+                sol2_code = v_match.group(1).strip()
+                with open(sol2_file, 'w', encoding='utf-8') as f:
+                    f.write(sol2_code)
+                b_ok, _ = _validate_file(sol2_file)
+                if b_ok:
+                    use_cross = True
+                    self._info('    解 B 验证通过，启用双解交叉验证 ✓')
+                else:
+                    self._warn('    解 B 未通过样例，退化为单解模式')
+            else:
+                self._warn('    未从响应中提取到解 B，退化为单解模式')
+        except Exception as e:
+            self._warn(f'    获取解 B 失败: {e}，退化为单解模式')
+
+        # ── 阶段三：逐组执行，交叉验证后入库 ──────────────────
         from django.db.models import Max
         existing_max = TestCase.objects.filter(problem=problem).aggregate(m=Max('sort_order'))['m']
-        start_order = (existing_max + 1) if existing_max is not None else len(raw_samples)
-        saved = 0
+        start_order  = (existing_max + 1) if existing_max is not None else len(raw_samples)
+
+        saved = skipped_run = skipped_mismatch = 0
         for i, raw_inp in enumerate(gen_inputs):
             inp = str(raw_inp).replace('\\n', '\n').strip()
             if not inp:
                 continue
-            out = _run(inp)
-            if out is None:
-                self._warn(f'    第 {i + 1} 组运行失败，跳过')
+
+            out_a = _run_file(sol_file, inp)
+            if out_a is None:
+                self._warn(f'    第 {i + 1} 组解 A 运行失败，跳过')
+                skipped_run += 1
                 continue
-            out = _normalize(out)
-            if not out:
+            out_a = _normalize(out_a)
+            if not out_a:
                 continue
+
+            if use_cross:
+                out_b = _run_file(sol2_file, inp)
+                if out_b is None:
+                    self._warn(f'    第 {i + 1} 组解 B 运行失败，跳过')
+                    skipped_run += 1
+                    continue
+                out_b = _normalize(out_b)
+                if out_a != out_b:
+                    self._warn(
+                        f'    第 {i + 1} 组 A/B 不一致，丢弃'
+                        f'（A={repr(out_a[:50])}  B={repr(out_b[:50])}）'
+                    )
+                    skipped_mismatch += 1
+                    continue
+
             TestCase.objects.update_or_create(
                 problem=problem,
                 sort_order=start_order + i,
-                defaults={'input_data': inp, 'expected_output': out, 'is_sample': False},
+                defaults={'input_data': inp, 'expected_output': out_a, 'is_sample': False},
             )
             saved += 1
+
+        if use_cross and skipped_mismatch:
+            mismatch_rate = skipped_mismatch / max(saved + skipped_mismatch, 1) * 100
+            self._info(
+                f'    交叉验证：入库 {saved} 组，A/B 不一致丢弃 {skipped_mismatch} 组'
+                f'（不一致率 {mismatch_rate:.0f}%）'
+            )
+            if mismatch_rate > 50:
+                self._warn('    不一致率 > 50%，该题参考解可能不可靠，建议人工复核')
 
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return saved
@@ -745,6 +821,27 @@ class Command(BaseCommand):
             f"- 测试数据必须包含边界值：n=1、n 取最大约束、全相同元素、极值等\n"
             f"- inputs 中每组是纯字符串，多行之间用 \\n 分隔\n"
             f"- 只输出上面格式，不要任何其他内容"
+        )
+
+    def _build_verify_prompt(self, problem, primary_code):
+        """生成解 B 的 prompt：要求用不同算法独立实现，不能复用解 A 的代码结构。"""
+        return (
+            f"以下是一道竞赛题，已有一份 Python 解（解A）。\n"
+            f"请用**完全不同的算法或实现思路**写解 B，用于交叉验证解 A 的正确性。\n"
+            f"要求：\n"
+            f"- 解 B 不得参考解 A 的代码结构，必须独立实现\n"
+            f"- 若解 A 用递推/DP，解 B 可用搜索或数学公式，反之亦然\n"
+            f"- 从 stdin 读取输入，向 stdout 输出结果\n"
+            f"- 只返回代码块，不要任何解释\n\n"
+            f"题目：{problem.title}\n"
+            f"描述：{problem.description[:500]}\n"
+            f"输入格式：{problem.input_desc[:300]}\n"
+            f"输出格式：{problem.output_desc[:300]}\n"
+            f"提示/数据范围：{(problem.hint or '')[:300]}\n"
+            f"样例输入：\n{problem.sample_input[:200]}\n"
+            f"样例输出：\n{problem.sample_output[:200]}\n\n"
+            f"解 A（仅供参考算法方向，禁止复用代码）：\n```python\n{primary_code[:600]}\n```\n\n"
+            f"只返回解 B 完整代码：\n```python\n(代码)\n```"
         )
 
     @staticmethod
@@ -852,7 +949,7 @@ class Command(BaseCommand):
 
         if user is None:
             self._warn(
-                '  ⚠ 数据库中没有任何用户, created_by 将留空。\n'
+                '  [!] 数据库中没有任何用户, created_by 将留空。\n'
                 '    若 Problem.created_by 为 NOT NULL 会写入失败,\n'
                 '    请先执行: python manage.py createsuperuser'
             )
