@@ -109,6 +109,7 @@
 ### 用户账户
 - JWT 认证，Token 过期自动静默刷新；退出登录服务端 Token 黑名单
 - 个人资料编辑（bio / 头像颜色）；修改密码
+- **互动登录页**：全屏左右分栏，左侧 4 个 SVG 卡通角色（橙色半圆、紫色矩形、黑色竖形、黄色圆角矩形），眼睛实时跟随鼠标转动；聚焦用户名时角色好奇探头、眼睛放大；聚焦密码框时全部闭眼遮挡；按住密码眼睛图标时橙色偷看、其余三个保持闭眼；登录成功时全体跳起并绽开笑容，失败时一起摇头沮丧；"记住我"勾选后将用户名持久化到 localStorage，下次自动预填
 
 ### 其他
 - Django Admin 后台：题目 / 测试数据（StackedInline + 可视化）/ 比赛 / 用户管理
@@ -172,8 +173,8 @@ acm_oj/
     │   │   ├── ProblemListView.vue     难度/标签/关键词筛选
     │   │   ├── ProblemDetailView.vue   ★ Monaco + 异步提交 + AI 反馈
     │   │   ├── SubmissionsView.vue     评测记录列表
-    │   │   ├── LoginView.vue
-    │   │   ├── RegisterView.vue
+    │   │   ├── LoginView.vue           ★ 卡通角色互动登录页（SVG + 鼠标追踪眼睛）
+    │   │   ├── RegisterView.vue        ★ 同款卡通角色注册页
     │   │   ├── ContestListView.vue     卡片网格布局
     │   │   ├── ContestDetailView.vue
     │   │   ├── ContestRankingView.vue  ★ ICPC 榜单，30s 自动刷新

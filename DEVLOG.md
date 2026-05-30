@@ -806,3 +806,160 @@ Markdown 渲染的题目描述中图片宽度溢出容器（洛谷导入的题�
   border-radius: 6px;
 }
 ```
+
+---
+
+## 阶段八：前端体验全面提升
+
+本阶段集中完善前端体验，包含三个独立改动：登录 / 注册页卡通角色互动、暗色 / 亮色主题切换、算法学习页。
+
+---
+
+### Feature 1 — 登录 / 注册页卡通角色互动
+
+**背景**：原登录页为暗色卡片表单，观感平淡，与整体风格也略有脱节。本阶段将登录 / 注册页重新设计为具有趣味交互的全屏角色动画页面。
+
+### 整体布局
+
+全屏左右分栏（无 navbar / footer）：
+
+- **左侧**（52%）：浅灰背景（`#e8e8e8`），底部停靠 4 个 SVG 卡通角色
+- **右侧**（48%）：纯白，极简下划线输入框表单，黑色登录按钮
+
+`App.vue` 新增 `isAuthPage` computed（检测路由名是否为 `login` / `register`），在认证页隐藏 navbar 和 footer，主容器切换为 `.auth-content`（无内边距），使角色页面能铺满整个视口。
+
+### 卡通角色（SVG inline）
+
+4 个角色，全部在单张 `viewBox="0 0 420 320"` SVG 中用 `<g>` 分组绘制，底部对齐停靠：
+
+| 角色 | 形状 | 配色 | 性格定位 |
+|------|------|------|---------|
+| 橙色半圆 | 半弧 + 扁平底边 | `#F97316` | 活泼开朗，常带笑容 |
+| 紫色矩形 | 圆角矩形（底部更深） | `#7C3AED` | 略带傲娇，表情丰富 |
+| 黑色竖形 | 细长矩形 | `#1a1a1a` | 冷静呆萌，圆眼睛 |
+| 黄色圆角 | 胶囊形矩形 | `#FBBF24` | 温和内敛，嘴角平直 |
+
+每个角色含：椭圆眼白 + 圆形瞳孔（可偏移）+ 嘴型路径（可切换 `smile / big-smile / sad / flat / sneak / o`）。
+
+### 鼠标眼球追踪
+
+```
+onMouseMove → getSvgScreenPos(charCenter) → 计算角色到鼠标向量
+→ eyeOffset.x/y = (dx/dist) × min(2.8, dist/50)
+→ 绑定到各瞳孔 <circle :cx> :cy>
+```
+
+每帧实时更新，最大偏移 2.8px，距离越近偏移越小，产生自然"聚焦"感。
+
+### 表情状态机
+
+由 `focusState`（`none / email / password`）和 `loginState`（`idle / success / failure`）驱动 `expr` computed：
+
+| 状态 | 橙色 | 紫/黑/黄 |
+|------|------|---------|
+| 聚焦用户名 | `eyeOpen: 1.3`，好奇探头 | 同样放大眼睛，向输入框倾斜 |
+| 聚焦密码框 | `eyeOpen: 0`（闭眼） | `eyeOpen: 0`（集体遮挡） |
+| 按住眼睛图标 | `eyeOpen: 1.2`（偷看） | 保持 `eyeOpen: 0`（遵守约定） |
+| 登录成功 | `mouthType: big-smile` + bounce 动画 | 同上，全体弹跳 |
+| 登录失败 | `mouthType: sad` + shake 动画 | 同上，全体摇头 |
+
+CSS 动画：
+
+```css
+@keyframes bounce { 0%,100%{ translateY(0) }  30%{ translateY(-16px) }  60%{ translateY(-6px) } }
+@keyframes shake  { 各帧 translateX ± 6px + rotate ± 3deg }
+```
+
+`<g>` 上绑定 `:class="{ bounce, shake }"` 和 `:transform`（body tilt），通过 `transition: transform 0.35s cubic-bezier(.34,1.56,.64,1)` 让姿态变化弹性过渡。
+
+### 记住我
+
+```
+勾选 + 登录成功 → localStorage.setItem('remembered_user', username)
+取消勾选 + 登录成功 → localStorage.removeItem('remembered_user')
+页面加载时 → username.value = localStorage.getItem('remembered_user') || ''
+              rememberMe.value = !!savedUsername
+```
+
+### Bug 修复记录
+
+| 问题 | 原因 | 修复 |
+|------|------|------|
+| 页面切换跳闪 | `position: fixed; inset: 56px` 与 navbar sticky 冲突 | App.vue 隐藏 navbar/footer，改为 `height: 100vh` |
+| 密码框不闭眼 | 旧逻辑：密码框聚焦时角色仍睁眼（改为"好奇探头"）| 重新定义：`inPw → eyeOpen: 0`，仅 peek 时橙色例外 |
+| 记住我无效 | `rememberMe` 只是本地 ref，未连接任何存储 | 登录回调中读写 `localStorage` |
+
+---
+
+### Feature 2 — 暗色 / 亮色主题切换
+
+**动机**：Vue SPA 使用硬编码暗色值（`#16162a`、`#1a1a2e` 等），无法响应用户的浅色偏好，且旧版 Django 模板已有完整亮色主题，需同步还原。
+
+**实现方案**：
+
+1. **CSS 变量层**（`frontend/src/assets/main.css`）：新增 `:root`（默认暗色）和 `[data-theme="light"]` 两套变量：
+
+   | 变量 | 暗色值 | 亮色值 |
+   |------|--------|--------|
+   | `--bg-primary` | `#0f0f1e` | `#f2f2fb` |
+   | `--bg-card` | `#16162a` | `#ffffff` |
+   | `--border` | `#2d2d4e` | `#d8d8ee` |
+   | `--text-primary` | `#e0e0f0` | `#1a1a2e` |
+   | `--accent` | `#7c6af7` | `#6c5ae7` |
+   | `--navbar-bg` | `#1a1a2e` | `#ffffff` |
+
+2. **全局覆盖规则**（`main.css`）：用 `[data-theme="light"] .card`、`.table-wrap`、`.problem-table th` 等选择器覆盖各组件的硬编码暗色背景，无需逐一改组件文件。
+
+3. **App.vue 逻辑**：
+   - `isDark` ref，`onMounted` 时读取 `localStorage.getItem('theme')`（默认暗色）
+   - `applyTheme(dark)` → `document.documentElement.setAttribute('data-theme', ...)`  + 写回 localStorage
+   - `toggleTheme()` 切换并应用
+
+4. **导航栏颜色变量化**（`App.vue scoped styles`）：将原来所有 `#1a1a2e`、`#c8c8d4`、`#3d3d5c` 等硬编码值全部替换为对应 CSS 变量，使导航栏在两种主题下都能正确渲染。
+
+5. **切换按钮**：月亮 SVG（暗色时显示）/ 太阳 SVG（亮色时显示），置于导航栏用户区左侧。`v-if` 控制图标切换，transition 0.25s 过渡背景色。
+
+---
+
+### Feature 3 — 算法学习页（`/learn`）
+
+对齐旧版 `learn.html` 全部设计，新建 `LearnView.vue`。
+
+**页面结构：**
+
+```
+Hero（视差背景）
+  ├── 六边形 SVG 网格（紫色 + 青色，opacity 0.07）
+  ├── 浮动代码片段（O(n log n) / dp[i][j] / BFS/DFS 等，不同动画延迟）
+  └── 渐变标题 + 副标题
+
+吸附控制区（sticky top: 56px）
+  ├── 搜索框（含搜索图标，focus 紫色边框）
+  └── 分类标签栏（全部 / 基础算法 / 排序 / 搜索 / 贪心 / 动态规划 / 图论 / 数据结构 / 字符串 / 数学）
+
+算法卡片网格（4 列，响应式）
+
+详情视图（点击卡片切换，面包屑导航）
+  ├── 算法简介段落
+  ├── 执行步骤（渐变圆形序号列表）
+  ├── 时空复杂度表
+  └── 代码 Tab（C++ / Java / Python）
+```
+
+**数据层（纯前端，无 API）：**
+
+`ALGORITHMS` 数组：62 个算法条目，字段 `{ id, name, nameEn, category, difficulty, desc }`
+
+`DETAIL` 对象：目前收录有完整内容的算法（冒泡排序、二分查找、并查集），含 `description`、`steps[]`、`complexity[]`、`stable`、`codes { 'C++', Java, Python }`。其余算法点击后显示"整理中"占位页。
+
+**卡片交互细节：**
+
+- `::before` 伪元素：顶部 2px 紫→青渐变线，hover 时 `scaleX(0 → 1)`（从左展开）
+- hover：`border-color: accent` + `translateY(-3px)` + `box-shadow`
+- 难度徽章：入门（绿）/ 提高（黄）/ 进阶（红）三档配色
+
+**视差效果：**
+
+`onMounted` 监听 `window.scroll`，将 `.hero-parallax-bg` 的 `translateY` 设为 `scrollY * 0.3`，`onUnmounted` 清除监听，避免内存泄漏。
+
+**导航栏新增"算法学习"链接**，路由 `/learn`，对应 `router/index.js` 第 15 条路由。
