@@ -42,7 +42,9 @@
       "Bash(.venv/Scripts/python.exe manage.py check)",
       "Bash(cd /d e:\\\\MyCode\\\\acm_oj)",
       "Bash(python -c \"import judge.api_views; import judge.serializers; print\\('OK'\\)\")",
-      "Bash(python -m py_compile judge/api_views.py judge/serializers.py)"
+      "Bash(python -m py_compile judge/api_views.py judge/serializers.py)",
+      "Bash(npx vue-tsc *)",
+      "Bash(node -e ' *)"
     ]
   }
 }

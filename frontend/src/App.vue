@@ -1,11 +1,13 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { RouterLink, RouterView, useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
 const router = useRouter()
+const route = useRoute()
 
+const isAuthPage = computed(() => route.name === 'login' || route.name === 'register')
 const isDark = ref(true)
 
 function applyTheme(dark) {
@@ -32,7 +34,7 @@ function logout() {
 
 <template>
   <div id="app">
-    <nav class="navbar">
+    <nav v-if="!isAuthPage" class="navbar">
       <div class="nav-inner">
         <RouterLink to="/" class="brand">
           <span class="brand-icon">&lt;/&gt;</span>
@@ -73,11 +75,11 @@ function logout() {
       </div>
     </nav>
 
-    <main class="main-content">
+    <main :class="isAuthPage ? 'auth-content' : 'main-content'">
       <RouterView />
     </main>
 
-    <footer class="footer">
+    <footer v-if="!isAuthPage" class="footer">
       <div class="footer-inner">
         <p>ACM OJ 算法竞赛在线评测平台</p>
       </div>
@@ -207,6 +209,10 @@ function logout() {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem;
+}
+.auth-content {
+  padding: 0;
+  margin: 0;
 }
 
 /* Footer */
