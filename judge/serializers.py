@@ -74,12 +74,13 @@ class SubmissionSerializer(serializers.ModelSerializer):
 class ContestSerializer(serializers.ModelSerializer):
     status = serializers.CharField(read_only=True)
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    problem_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Contest
         fields = [
             'id', 'title', 'description', 'start_time', 'end_time',
-            'rule_type', 'is_public', 'status', 'created_by_username',
+            'rule_type', 'is_public', 'status', 'created_by_username', 'problem_count',
         ]
 
 

@@ -15,6 +15,8 @@ const userStore = useUserStore()
 const profile = ref(null)
 const recentSubs = ref([])
 const stats = ref(null)
+const acProblems = ref([])
+const contestHistory = ref([])
 const loading = ref(true)
 
 function timeAgo(iso) {
@@ -39,6 +41,8 @@ onMounted(async () => {
     ])
     profile.value = profileRes.data.user
     recentSubs.value = profileRes.data.recent_submissions
+    acProblems.value = profileRes.data.ac_problems || []
+    contestHistory.value = profileRes.data.contest_history || []
     stats.value = statsRes.data
   } finally {
     loading.value = false
@@ -101,6 +105,19 @@ onMounted(async () => {
           </div>
         </div>
 
+        <!-- AC 题目列表 -->
+        <div class="chart-card">
+          <div class="card-title">✅ AC 题目 ({{ acProblems.length }})</div>
+          <div v-if="acProblems.length === 0" class="empty">还没有 AC 过题目</div>
+          <div v-else class="ac-chips">
+            <span
+              v-for="p in acProblems" :key="p.id"
+              class="ac-chip"
+              @click="router.push(`/problems/${p.id}`)"
+            >#{{ p.id }} {{ p.title }}</span>
+          </div>
+        </div>
+
         <!-- 近期提交 -->
         <div class="chart-card">
           <div class="card-title">近期提交</div>
@@ -151,6 +168,22 @@ onMounted(async () => {
           v-if="totalSubs(stats?.language_dist) === 0 && Object.keys(stats?.ac_by_difficulty ?? {}).length === 0"
           class="empty-charts"
         >提交后这里会显示数据统计图表</div>
+
+        <!-- 比赛历史 -->
+        <div class="chart-card" v-if="contestHistory.length > 0">
+          <div class="card-title">🏆 比赛历史</div>
+          <div
+            v-for="cp in contestHistory" :key="cp.contest_id"
+            class="contest-hist-row"
+            @click="router.push(`/contests/${cp.contest_id}`)"
+          >
+            <div class="ch-info">
+              <div class="ch-title">{{ cp.contest_title }}</div>
+              <div class="ch-meta">{{ cp.rule_type }} · 得分: {{ cp.score }} · 罚时: {{ cp.penalty }}min</div>
+            </div>
+            <span class="ch-date">{{ cp.date }}</span>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -212,6 +245,27 @@ onMounted(async () => {
   background: #16162a; border: 1px solid #2d2d4e; border-radius: 10px;
   padding: 2rem; text-align: center; color: #555; font-size: 0.88rem;
 }
+
+/* AC 题目 chips */
+.ac-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.3rem 0; }
+.ac-chip {
+  padding: 0.25rem 0.7rem; border-radius: 6px; font-size: 0.78rem;
+  background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3);
+  color: #22c55e; cursor: pointer; transition: background 0.12s;
+}
+.ac-chip:hover { background: rgba(34,197,94,0.18); }
+
+/* 比赛历史 */
+.contest-hist-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.65rem 0; border-bottom: 1px solid #1e1e38;
+  cursor: pointer; gap: 0.5rem;
+}
+.contest-hist-row:last-child { border-bottom: none; }
+.contest-hist-row:hover .ch-title { color: #a78bfa; }
+.ch-title { font-size: 0.88rem; color: #e0e0f0; font-weight: 500; }
+.ch-meta  { font-size: 0.75rem; color: #666; margin-top: 0.15rem; }
+.ch-date  { font-size: 0.78rem; color: #555; white-space: nowrap; flex-shrink: 0; }
 
 @media (max-width: 900px) {
   .content-grid { grid-template-columns: 1fr; }

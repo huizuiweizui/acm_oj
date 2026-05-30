@@ -39,7 +39,10 @@
       "Bash(python manage.py makemigrations judge --name add_submission_test_results)",
       "Bash(python manage.py check)",
       "Bash(.venv/Scripts/python.exe -c \"import judge.api_views, judge.api_urls; print\\('OK'\\)\")",
-      "Bash(.venv/Scripts/python.exe manage.py check)"
+      "Bash(.venv/Scripts/python.exe manage.py check)",
+      "Bash(cd /d e:\\\\MyCode\\\\acm_oj)",
+      "Bash(python -c \"import judge.api_views; import judge.serializers; print\\('OK'\\)\")",
+      "Bash(python -m py_compile judge/api_views.py judge/serializers.py)"
     ]
   }
 }

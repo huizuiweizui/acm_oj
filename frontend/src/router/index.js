@@ -44,6 +44,11 @@ const router = createRouter({
       component: () => import('@/views/ContestRankingView.vue'),
     },
     {
+      path: '/submissions',
+      name: 'submissions',
+      component: () => import('@/views/SubmissionsView.vue'),
+    },
+    {
       path: '/rank',
       name: 'rank',
       component: () => import('@/views/LeaderboardView.vue'),

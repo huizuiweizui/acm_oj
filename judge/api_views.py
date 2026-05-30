@@ -309,11 +309,35 @@ class UserProfileAPIView(APIView):
             .values_list('problem_id', flat=True).distinct()
         )
 
+        # AC 题目列表（用于个人主页展示）
+        ac_problems = list(
+            Problem.objects.filter(id__in=ac_problem_ids)
+            .order_by('id')
+            .values('id', 'title')
+        )
+
+        # 比赛历史
+        contest_history = [
+            {
+                'contest_id': cp.contest.id,
+                'contest_title': cp.contest.title,
+                'rule_type': cp.contest.rule_type,
+                'score': cp.score,
+                'penalty': cp.penalty,
+                'date': cp.contest.start_time.strftime('%Y-%m-%d'),
+            }
+            for cp in ContestParticipant.objects.filter(user=target)
+            .select_related('contest')
+            .order_by('-contest__start_time')[:10]
+        ]
+
         return Response({
             'user': UserSerializer(target).data,
             'recent_submissions': SubmissionSerializer(recent_subs, many=True).data,
             'language_dist': {item['language']: item['count'] for item in lang_stats},
             'ac_problem_count': ac_problem_ids.count(),
+            'ac_problems': ac_problems,
+            'contest_history': contest_history,
         })
 
 
@@ -853,6 +877,51 @@ class PlatformStatsAPIView(APIView):
             if key in daily_map:
                 daily_map[key] = row['cnt']
 
+        # 近期比赛（进行中 + 即将开始）
+        now = timezone.now()
+        active_contests = list(
+            Contest.objects.filter(end_time__gt=now)
+            .order_by('start_time')[:5]
+            .values('id', 'title', 'start_time', 'end_time', 'rule_type', 'is_public')
+        )
+        for c in active_contests:
+            if c['start_time'] > now:
+                c['status'] = 'upcoming'
+            else:
+                c['status'] = 'running'
+            c['start_time'] = c['start_time'].strftime('%Y-%m-%d %H:%M')
+            c['end_time'] = c['end_time'].strftime('%Y-%m-%d %H:%M')
+
+        # 最新题目
+        recent_problems = list(
+            Problem.objects.filter(is_published=True)
+            .order_by('-id')[:5]
+            .values('id', 'title', 'difficulty')
+        )
+        for p in recent_problems:
+            total = Submission.objects.filter(problem_id=p['id']).count()
+            ac = Submission.objects.filter(problem_id=p['id'], status='AC').count()
+            p['ac_rate'] = round(ac / total * 100, 1) if total else 0
+
+        # 实时评测（全站最近 8 条）
+        recent_subs_qs = (
+            Submission.objects
+            .select_related('user', 'user__profile', 'problem')
+            .order_by('-submitted_at')[:8]
+        )
+        recent_submissions = [
+            {
+                'id': s.id,
+                'username': s.user.username,
+                'avatar_color': getattr(s.user, 'profile', None) and s.user.profile.avatar_color or '#4F46E5',
+                'problem_id': s.problem.id,
+                'problem_title': s.problem.title,
+                'status': s.status,
+                'submitted_at': s.submitted_at.isoformat(),
+            }
+            for s in recent_subs_qs
+        ]
+
         return Response({
             'total_problems': total_problems,
             'total_submissions': total_submissions,
@@ -861,6 +930,9 @@ class PlatformStatsAPIView(APIView):
             'daily_submissions': [
                 {'date': d, 'count': c} for d, c in daily_map.items()
             ],
+            'active_contests': active_contests,
+            'recent_problems': recent_problems,
+            'recent_submissions': recent_submissions,
         })
 
 

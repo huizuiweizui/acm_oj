@@ -54,4 +54,11 @@ const html = computed(() => marked.parse(props.content || ''))
 }
 .md-body th { background: #1a1a30; color: #e0e0f0; }
 .md-body hr { border: none; border-top: 1px solid #2d2d4e; margin: 1em 0; }
+.md-body img {
+  max-width: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  display: block;
+  border-radius: 6px;
+}
 </style>
