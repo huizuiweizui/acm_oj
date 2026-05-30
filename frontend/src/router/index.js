@@ -69,6 +69,11 @@ const router = createRouter({
       component: () => import('@/views/DiscussionDetailView.vue'),
     },
     {
+      path: '/learn',
+      name: 'learn',
+      component: () => import('@/views/LearnView.vue'),
+    },
+    {
       path: '/users/:id',
       name: 'user-profile',
       component: () => import('@/views/ProfileView.vue'),
