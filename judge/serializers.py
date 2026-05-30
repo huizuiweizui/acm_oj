@@ -63,11 +63,11 @@ class SubmissionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'username', 'problem_id', 'problem_title',
             'language', 'status', 'time_used', 'memory_used',
-            'error_info', 'ai_feedback', 'submitted_at',
+            'error_info', 'ai_feedback', 'test_results', 'code', 'submitted_at',
         ]
         read_only_fields = [
             'status', 'time_used', 'memory_used',
-            'error_info', 'ai_feedback', 'submitted_at',
+            'error_info', 'ai_feedback', 'test_results', 'submitted_at',
         ]
 
 

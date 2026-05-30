@@ -2,11 +2,12 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .api_views import (
+    ChangePasswordAPIView,
     ContestDetailAPIView, ContestListAPIView, ContestRankingAPIView, ContestRegisterAPIView,
     DiscussionCreateAPIView, DiscussionDetailAPIView,
-    DiscussionListAPIView, DiscussionReplyCreateAPIView,
+    DiscussionListAPIView, DiscussionReplyCreateAPIView, DiscussionReplyDeleteAPIView,
     LeaderboardAPIView,
-    LoginAPIView, MeAPIView, PlatformStatsAPIView, ProblemDetailAPIView,
+    LoginAPIView, LogoutAPIView, MeAPIView, PlatformStatsAPIView, ProblemDetailAPIView,
     ProblemListAPIView, RegisterAPIView,
     SubmissionListAPIView, SubmissionDetailAPIView,
     SubmitCodeAPIView, UserProfileAPIView, UserStatsAPIView,
@@ -18,6 +19,8 @@ urlpatterns = [
     path('auth/login/', LoginAPIView.as_view(), name='api-login'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='api-token-refresh'),
     path('auth/me/', MeAPIView.as_view(), name='api-me'),
+    path('auth/logout/', LogoutAPIView.as_view(), name='api-logout'),
+    path('auth/password/', ChangePasswordAPIView.as_view(), name='api-change-password'),
 
     # 题目
     path('problems/', ProblemListAPIView.as_view(), name='api-problem-list'),
@@ -49,4 +52,5 @@ urlpatterns = [
     path('discussions/create/', DiscussionCreateAPIView.as_view(), name='api-discussion-create'),
     path('discussions/<int:pk>/', DiscussionDetailAPIView.as_view(), name='api-discussion-detail'),
     path('discussions/<int:pk>/replies/', DiscussionReplyCreateAPIView.as_view(), name='api-discussion-reply'),
+    path('discussions/<int:pk>/replies/<int:reply_id>/', DiscussionReplyDeleteAPIView.as_view(), name='api-discussion-reply-delete'),
 ]

@@ -37,7 +37,9 @@
       "Bash(python manage.py crawl_luogu --count 1 --update --no-gen-tests)",
       "Bash(python manage.py crawl_luogu --count 3 --update --no-gen-tests)",
       "Bash(python manage.py makemigrations judge --name add_submission_test_results)",
-      "Bash(python manage.py check)"
+      "Bash(python manage.py check)",
+      "Bash(.venv/Scripts/python.exe -c \"import judge.api_views, judge.api_urls; print\\('OK'\\)\")",
+      "Bash(.venv/Scripts/python.exe manage.py check)"
     ]
   }
 }

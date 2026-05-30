@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 from .models import (
     Contest, ContestParticipant, ContestProblem,
@@ -83,11 +84,60 @@ class LoginAPIView(APIView):
 
 
 class MeAPIView(APIView):
-    """GET /api/auth/me/  —  获取当前登录用户信息"""
+    """GET /api/auth/me/  PATCH /api/auth/me/"""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         return Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        profile = request.user.profile
+        allowed = {'bio', 'avatar_color', 'avatar_url'}
+        for field in allowed & set(request.data.keys()):
+            setattr(profile, field, request.data[field])
+        profile.save(update_fields=list(allowed & set(request.data.keys())))
+
+        email = request.data.get('email', '').strip()
+        if email:
+            request.user.email = email
+            request.user.save(update_fields=['email'])
+
+        return Response(UserSerializer(request.user).data)
+
+
+class LogoutAPIView(APIView):
+    """POST /api/auth/logout/"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if not refresh_token:
+            return Response({'detail': '需要提供 refresh token'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            RefreshToken(refresh_token).blacklist()
+        except TokenError:
+            return Response({'detail': 'token 无效或已过期'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': '已退出登录'})
+
+
+class ChangePasswordAPIView(APIView):
+    """POST /api/auth/password/"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get('old_password', '')
+        new_password = request.data.get('new_password', '')
+
+        if not request.user.check_password(old_password):
+            return Response({'detail': '原密码错误'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(new_password) < 6:
+            return Response({'detail': '新密码至少 6 位'}, status=status.HTTP_400_BAD_REQUEST)
+        if old_password == new_password:
+            return Response({'detail': '新密码不能与原密码相同'}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.set_password(new_password)
+        request.user.save(update_fields=['password'])
+        return Response({'detail': '密码修改成功'})
 
 
 # ==================== 题目 ====================
@@ -631,7 +681,7 @@ class DiscussionCreateAPIView(APIView):
 
 
 class DiscussionDetailAPIView(APIView):
-    """GET /api/discussions/<id>/"""
+    """GET /api/discussions/<id>/  DELETE /api/discussions/<id>/"""
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
@@ -649,6 +699,17 @@ class DiscussionDetailAPIView(APIView):
             'discussion': DiscussionSerializer(disc).data,
             'replies': DiscussionReplySerializer(replies, many=True).data,
         })
+
+    def delete(self, request, pk):
+        if not request.user.is_authenticated:
+            return Response({'detail': '请先登录'}, status=status.HTTP_401_UNAUTHORIZED)
+        disc = Discussion.objects.filter(id=pk).first()
+        if disc is None:
+            raise NotFound('帖子不存在')
+        if disc.user_id != request.user.id:
+            return Response({'detail': '无权删除他人帖子'}, status=status.HTTP_403_FORBIDDEN)
+        disc.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ==================== 比赛排行榜 ====================
@@ -822,3 +883,17 @@ class DiscussionReplyCreateAPIView(APIView):
             content=content,
         )
         return Response(DiscussionReplySerializer(reply).data, status=status.HTTP_201_CREATED)
+
+
+class DiscussionReplyDeleteAPIView(APIView):
+    """DELETE /api/discussions/<id>/replies/<reply_id>/"""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk, reply_id):
+        reply = DiscussionReply.objects.filter(id=reply_id, discussion_id=pk).first()
+        if reply is None:
+            raise NotFound('回复不存在')
+        if reply.user_id != request.user.id:
+            return Response({'detail': '无权删除他人回复'}, status=status.HTTP_403_FORBIDDEN)
+        reply.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

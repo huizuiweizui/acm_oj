@@ -8,7 +8,7 @@
 
 毕业论文项目。目标是实现一个具备完整功能的算法竞赛 OJ 平台，技术亮点为数据可视化（ECharts 图表）和 AI 代码反馈。
 
-- **作者**：计算机/数据科学方向在读生
+- **作者**：数据科学方向在读生
 - **论文创新点**：个人主页数据可视化（AC 热力图、难度分布、语言分布）
 
 ---
@@ -546,9 +546,39 @@ if not os.path.exists(exe):
 
 ---
 
+### Fix 6 — 比赛模式横幅误导 + 排行榜不自动刷新
+
+**问题 A：比赛模式横幅"提交将计入排行榜"与实际不符**
+
+`problem_detail` 视图中 `contest_context = Contest.objects.filter(id=contest_id).first()`，不检查比赛是否已结束、用户是否已报名。横幅对所有人、所有状态都显示"当前提交将计入 a 的排行榜"。
+
+而 `submit_code` 有严格检查：`Contest.objects.filter(id=..., start_time__lte=now, end_time__gte=now)` + `ContestParticipant.objects.filter(...).exists()`。两者不一致导致用户以为提交在计分，实际 `submission.contest = None`，排行榜没有任何变化。
+
+**修复**（`judge/views/problem.py`）：
+
+```python
+is_active = c.start_time <= now <= c.end_time
+is_registered = (request.user.is_authenticated
+                 and ContestParticipant.objects.filter(contest=c, user=request.user).exists())
+contest_context = c if (is_active and is_registered) else None
+```
+
+`contest_context` 现在只在"比赛进行中 + 当前用户已报名"时才设置，与 `submit_code` 的分配逻辑完全一致。
+
+**问题 B：比赛排行榜无自动刷新**
+
+比赛排行榜是 Django 模板静态渲染，提交后需手动刷新才能看到变化。
+
+**修复**（`judge/views/contest.py` + `contest_ranking.html`）：
+
+视图向模板传入 `contest_is_active` 布尔值。模板在比赛进行中时注入一段 JS，每 30 秒执行 `location.reload()`，右下角显示倒计时提示"比赛进行中，排行榜每 30 秒自动刷新（Xs）"。比赛结束后不再注入此脚本。
+
+---
+
 ### Fix 7 — 测试点逐条展示 + 提交跳转评测详情页
 
 **需求**：
+
 1. 题目页右侧"自定义测试"输入输出区域默认折叠，用户每次都要点击展开，体验差。
 2. 提交后只在题目页内联显示一个总状态（AC / WA / …），无法看到哪个测试点过了、哪个没过，与洛谷"每个测试点一个绿/红格子"的体验差距明显。
 
@@ -613,29 +643,74 @@ CE 时测试点卡片区域显示"编译错误，未运行任何测试点"。
 
 ---
 
-### Fix 6 — 比赛模式横幅误导 + 排行榜不自动刷新
+## 阶段六：REST API 人性化补全
 
-**问题 A：比赛模式横幅"提交将计入排行榜"与实际不符**
+针对已上线的 REST API 层补全了 5 个缺失功能，均在 `judge/api_views.py` 和 `judge/api_urls.py` 中实现。
 
-`problem_detail` 视图中 `contest_context = Contest.objects.filter(id=contest_id).first()`，不检查比赛是否已结束、用户是否已报名。横幅对所有人、所有状态都显示"当前提交将计入 a 的排行榜"。
+### Fix 1 — 提交详情补全 `code` 与 `test_results` 字段
 
-而 `submit_code` 有严格检查：`Contest.objects.filter(id=..., start_time__lte=now, end_time__gte=now)` + `ContestParticipant.objects.filter(...).exists()`。两者不一致导致用户以为提交在计分，实际 `submission.contest = None`，排行榜没有任何变化。
+**问题**：`SubmissionSerializer` 未暴露 `code` 和 `test_results` 字段，`GET /api/submissions/<id>/` 拿不到源代码和逐测试点结果，用户无法复盘自己的提交。
 
-**修复**（`judge/views/problem.py`）：
+**修复**（`judge/serializers.py`）：在 `SubmissionSerializer.Meta.fields` 中加入 `code`、`test_results`，并将 `test_results` 纳入 `read_only_fields`。
 
 ```python
-is_active = c.start_time <= now <= c.end_time
-is_registered = (request.user.is_authenticated
-                 and ContestParticipant.objects.filter(contest=c, user=request.user).exists())
-contest_context = c if (is_active and is_registered) else None
+fields = [
+    'id', 'username', 'problem_id', 'problem_title',
+    'language', 'status', 'time_used', 'memory_used',
+    'error_info', 'ai_feedback', 'test_results', 'code', 'submitted_at',
+]
 ```
 
-`contest_context` 现在只在"比赛进行中 + 当前用户已报名"时才设置，与 `submit_code` 的分配逻辑完全一致。
+---
 
-**问题 B：比赛排行榜无自动刷新**
+### Fix 2 — 个人资料编辑接口（PATCH /api/auth/me/）
 
-比赛排行榜是 Django 模板静态渲染，提交后需手动刷新才能看到变化。
+**问题**：`MeAPIView` 只有 GET，用户无法通过 API 修改 bio、头像颜色、邮箱等信息。
 
-**修复**（`judge/views/contest.py` + `contest_ranking.html`）：
+**修复**：为 `MeAPIView` 新增 `patch()` 方法，支持字段：`bio`、`avatar_color`、`avatar_url`（写入 `UserProfile`）、`email`（写入 Django `User`）。返回更新后的完整用户信息。
 
-视图向模板传入 `contest_is_active` 布尔值。模板在比赛进行中时注入一段 JS，每 30 秒执行 `location.reload()`，右下角显示倒计时提示"比赛进行中，排行榜每 30 秒自动刷新（Xs）"。比赛结束后不再注入此脚本。
+---
+
+### Fix 3 — 修改密码接口（POST /api/auth/password/）
+
+**新增** `ChangePasswordAPIView`，路由 `POST /api/auth/password/`。
+
+接收 `old_password` 和 `new_password`，校验规则：
+
+- 原密码正确
+- 新密码 ≥ 6 位
+- 新旧密码不能相同
+
+---
+
+### Fix 4 — 退出登录（POST /api/auth/logout/）+ Token 黑名单
+
+**问题**：无退出登录接口，前端只能删 localStorage，服务端 refresh token 继续有效。
+
+**修复**：
+
+- `settings.py` 新增 `rest_framework_simplejwt.token_blacklist` 至 `INSTALLED_APPS`
+- 执行 `python manage.py migrate` 生成 13 张黑名单相关表
+- 新增 `LogoutAPIView`：接收 `refresh` token，调用 `RefreshToken(...).blacklist()` 使其服务端失效，无效 token 返回 400
+
+```python
+def post(self, request):
+    try:
+        RefreshToken(request.data.get('refresh')).blacklist()
+    except TokenError:
+        return Response({'detail': 'token 无效或已过期'}, status=400)
+    return Response({'detail': '已退出登录'})
+```
+
+---
+
+### Fix 5 — 删除讨论帖 / 回复
+
+**问题**：讨论区发帖和回复后永久存在，无任何删除接口。
+
+**修复**：
+
+- `DiscussionDetailAPIView` 新增 `delete()` 方法，路由复用 `DELETE /api/discussions/<id>/`
+- 新增 `DiscussionReplyDeleteAPIView`，路由 `DELETE /api/discussions/<id>/replies/<reply_id>/`
+
+权限规则：只有帖子/回复的作者本人可以删除，他人操作返回 403。删除成功返回 204 No Content。
