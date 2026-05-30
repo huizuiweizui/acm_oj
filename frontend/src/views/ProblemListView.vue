@@ -170,49 +170,50 @@ onMounted(fetchProblems)
 
 <style scoped>
 .problem-list { padding: 0.5rem 0; }
-.page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; color: #e0e0f0; }
+.page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; color: var(--text-primary); }
 
 .search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .search-input {
   flex: 1; max-width: 360px;
   padding: 0.45rem 0.8rem;
-  background: #1e1e38; border: 1px solid #3d3d5c; border-radius: 6px;
-  color: #e0e0f0; font-size: 0.9rem;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-primary); font-size: 0.9rem;
 }
-.search-input:focus { outline: none; border-color: #7c6af7; }
+.search-input:focus { outline: none; border-color: var(--accent); }
 .btn-search {
-  padding: 0.45rem 1.2rem; background: #7c6af7; color: #fff;
+  padding: 0.45rem 1.2rem; background: var(--accent); color: #fff;
   border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
 }
-.btn-search:hover { background: #6c5ae7; }
+.btn-search:hover { background: var(--accent-deep); }
 .btn-clear {
-  padding: 0.45rem 1rem; background: transparent; color: #aaa;
-  border: 1px solid #3d3d5c; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
+  padding: 0.45rem 1rem; background: transparent; color: var(--text-muted);
+  border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.85rem;
 }
-.btn-clear:hover { border-color: #7c6af7; color: #e0e0f0; }
+.btn-clear:hover { border-color: var(--accent); color: var(--text-primary); }
 
 .filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.2rem; }
-.filter-label { color: #888; font-size: 0.85rem; }
+.filter-label { color: var(--text-muted); font-size: 0.85rem; }
 .filter-chip {
   padding: 0.2rem 0.7rem; border-radius: 999px;
-  background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #c0c0d8; font-size: 0.8rem; cursor: pointer;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 0.8rem; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.filter-chip:hover { border-color: #7c6af7; color: #fff; }
-.filter-chip.active { background: #7c6af7; border-color: #7c6af7; color: #fff; }
+.filter-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-.table-wrap { background: #16162a; border-radius: 8px; border: 1px solid #2d2d4e; overflow: hidden; }
-.loading { padding: 3rem; text-align: center; color: #888; }
+.table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.loading { padding: 3rem; text-align: center; color: var(--text-muted); }
 
 .problem-table { width: 100%; border-collapse: collapse; }
 .problem-table th {
   padding: 0.75rem 1rem; text-align: left;
-  font-size: 0.8rem; color: #888; font-weight: 500;
-  background: #1a1a30; border-bottom: 1px solid #2d2d4e;
+  font-size: 0.8rem; color: var(--text-muted); font-weight: 500;
+  background: var(--bg-secondary); border-bottom: 1px solid var(--border);
 }
-.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #1e1e38; }
+.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
 .problem-table tr:last-child td { border-bottom: none; }
-.problem-table tr:hover td { background: #1c1c35; }
+.problem-table tr:hover td { background: var(--bg-secondary); }
 
 .status-cell { text-align: center; }
 .status-dot {
@@ -220,28 +221,30 @@ onMounted(fetchProblems)
   width: 20px; height: 20px; border-radius: 50%;
   font-size: 0.7rem; font-weight: 700; color: #fff;
 }
-.id-cell { color: #888; font-size: 0.85rem; }
-.problem-link { color: #a0c4ff; text-decoration: none; font-size: 0.95rem; }
-.problem-link:hover { color: #7c6af7; text-decoration: underline; }
-.rate-cell { color: #888; font-size: 0.85rem; }
-.empty { text-align: center; padding: 3rem; color: #666; }
+.id-cell { color: var(--text-muted); font-size: 0.85rem; }
+.problem-link { color: var(--accent); text-decoration: none; font-size: 0.95rem; }
+.problem-link:hover { color: var(--accent-deep); text-decoration: underline; }
+.rate-cell { color: var(--text-muted); font-size: 0.85rem; }
+.empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 .tag-chip {
   display: inline-block; margin: 0.1rem 0.2rem;
   padding: 0.1rem 0.5rem; border-radius: 4px;
-  background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #a0a0c0; font-size: 0.75rem; cursor: pointer;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-secondary); font-size: 0.75rem; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.tag-chip:hover { border-color: #7c6af7; color: #e0e0f0; }
-.tag-chip.active { background: #2d2050; border-color: #7c6af7; color: #c4b5fd; }
+.tag-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+.tag-chip.active { background: rgba(124,106,247,0.15); border-color: var(--accent); color: var(--accent); }
 
 .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
 .pagination button {
-  padding: 0.4rem 1rem; background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #c0c0d8; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+  padding: 0.4rem 1rem; background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+  transition: border-color 0.15s, color 0.15s;
 }
-.pagination button:hover:not(:disabled) { border-color: #7c6af7; color: #fff; }
+.pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--text-primary); }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-.page-info { color: #888; font-size: 0.85rem; }
-.total-tip { text-align: center; color: #666; font-size: 0.85rem; margin-top: 1rem; }
+.page-info { color: var(--text-muted); font-size: 0.85rem; }
+.total-tip { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem; }
 </style>

@@ -191,13 +191,13 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.loading { text-align: center; padding: 4rem; color: #888; }
+.loading { text-align: center; padding: 4rem; color: var(--text-muted); }
 .profile-page { padding: 0.5rem 0; }
 
 /* 用户卡 */
 .user-card {
   display: flex; align-items: center; gap: 1.8rem;
-  background: #16162a; border: 1px solid #2d2d4e;
+  background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 12px; padding: 1.8rem 2rem; margin-bottom: 1.5rem;
 }
 .avatar-big {
@@ -206,44 +206,44 @@ onMounted(async () => {
   font-size: 2rem; font-weight: 700; color: #fff;
 }
 .user-info { flex: 1; }
-.username { font-size: 1.4rem; font-weight: 700; color: #e0e0f0; margin-bottom: 0.3rem; }
-.bio { color: #888; font-size: 0.9rem; margin-bottom: 0.8rem; }
+.username { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem; }
+.bio { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.8rem; }
 .stats-row { display: flex; align-items: center; gap: 0; }
 .stat-item { text-align: center; padding: 0 1.2rem; }
 .stat-item:first-child { padding-left: 0; }
-.stat-val { font-size: 1.3rem; font-weight: 700; color: #a78bfa; }
-.stat-label { font-size: 0.75rem; color: #666; margin-top: 0.1rem; }
-.stat-divider { width: 1px; height: 32px; background: #2d2d4e; }
+.stat-val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; }
+.stat-divider { width: 1px; height: 32px; background: var(--border); }
 
 /* 内容网格 */
 .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 1.2rem; align-items: start; }
 .col-left, .col-right { display: flex; flex-direction: column; gap: 1.2rem; }
 
 .chart-card {
-  background: #16162a; border: 1px solid #2d2d4e;
+  background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 10px; padding: 1.2rem 1.4rem;
 }
-.card-title { font-size: 0.9rem; font-weight: 700; color: #a78bfa; margin-bottom: 0.9rem; }
-.chart-note { font-size: 0.8rem; color: #666; margin-top: 0.5rem; }
+.card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 0.9rem; }
+.chart-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
 
 /* 近期提交表格 */
 .sub-table { width: 100%; border-collapse: collapse; }
 .sub-table th {
   padding: 0.5rem 0.6rem; font-size: 0.78rem;
-  color: #666; text-align: left; border-bottom: 1px solid #2d2d4e;
+  color: var(--text-muted); text-align: left; border-bottom: 1px solid var(--border);
 }
-.sub-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid #1e1e38; }
-.sub-row { cursor: pointer; }
+.sub-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
+.sub-row { cursor: pointer; transition: background 0.12s; }
 .sub-row:last-child td { border-bottom: none; }
-.sub-row:hover td { background: #1c1c35; }
-.problem-title { color: #a0c4ff; font-size: 0.88rem; }
-.lang-cell { color: #888; font-size: 0.82rem; }
-.time-cell { color: #666; font-size: 0.78rem; white-space: nowrap; }
+.sub-row:hover td { background: var(--bg-secondary); }
+.problem-title { color: var(--accent); font-size: 0.88rem; }
+.lang-cell { color: var(--text-muted); font-size: 0.82rem; }
+.time-cell { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
 
-.empty { color: #666; font-size: 0.9rem; padding: 1rem 0; text-align: center; }
+.empty { color: var(--text-muted); font-size: 0.9rem; padding: 1rem 0; text-align: center; }
 .empty-charts {
-  background: #16162a; border: 1px solid #2d2d4e; border-radius: 10px;
-  padding: 2rem; text-align: center; color: #555; font-size: 0.88rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.88rem;
 }
 
 /* AC 题目 chips */
@@ -258,14 +258,14 @@ onMounted(async () => {
 /* 比赛历史 */
 .contest-hist-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.65rem 0; border-bottom: 1px solid #1e1e38;
+  padding: 0.65rem 0; border-bottom: 1px solid var(--border);
   cursor: pointer; gap: 0.5rem;
 }
 .contest-hist-row:last-child { border-bottom: none; }
-.contest-hist-row:hover .ch-title { color: #a78bfa; }
-.ch-title { font-size: 0.88rem; color: #e0e0f0; font-weight: 500; }
-.ch-meta  { font-size: 0.75rem; color: #666; margin-top: 0.15rem; }
-.ch-date  { font-size: 0.78rem; color: #555; white-space: nowrap; flex-shrink: 0; }
+.contest-hist-row:hover .ch-title { color: var(--accent); }
+.ch-title { font-size: 0.88rem; color: var(--text-primary); font-weight: 500; }
+.ch-meta  { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+.ch-date  { font-size: 0.78rem; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 
 @media (max-width: 900px) {
   .content-grid { grid-template-columns: 1fr; }

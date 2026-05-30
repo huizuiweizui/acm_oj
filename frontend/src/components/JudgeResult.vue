@@ -57,26 +57,26 @@ watch(() => props.submission?.ai_feedback, (text) => {
 <style scoped>
 .judge-result {
   padding: 0.9rem 1rem;
-  background: #12121e;
-  border: 1px solid #2d2d4e;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 .judging {
   display: flex; align-items: center; gap: 0.5rem;
-  color: #3498db; font-size: 0.9rem;
+  color: #3b82f6; font-size: 0.9rem;
 }
 .spinner {
   display: inline-block; width: 14px; height: 14px;
-  border: 2px solid #3498db; border-top-color: transparent;
+  border: 2px solid #3b82f6; border-top-color: transparent;
   border-radius: 50%; animation: spin 0.7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .result-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.6rem; }
-.stat { font-size: 0.82rem; color: #888; }
+.stat { font-size: 0.82rem; color: var(--text-muted); }
 
 .error-block {
-  background: #1a0a0a; border: 1px solid #5c2020;
+  background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.3);
   border-radius: 6px; padding: 0.75rem;
   font-size: 0.8rem; color: #ff9090;
   white-space: pre-wrap; word-break: break-all;
@@ -86,10 +86,10 @@ watch(() => props.submission?.ai_feedback, (text) => {
 
 .ai-block {
   margin-top: 0.8rem;
-  background: #0e1a2e;
-  border: 1px solid #1e3a5a;
+  background: rgba(59,130,246,0.06);
+  border: 1px solid rgba(59,130,246,0.2);
   border-radius: 6px; padding: 0.75rem;
 }
-.ai-label { font-size: 0.78rem; color: #3a7bd5; font-weight: 600; margin-bottom: 0.4rem; }
-.ai-text { font-size: 0.85rem; color: #a0c4e8; line-height: 1.7; white-space: pre-wrap; }
+.ai-label { font-size: 0.78rem; color: #3b82f6; font-weight: 600; margin-bottom: 0.4rem; }
+.ai-text { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; white-space: pre-wrap; }
 </style>

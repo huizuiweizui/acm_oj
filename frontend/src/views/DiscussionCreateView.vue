@@ -83,49 +83,49 @@ async function submit() {
 
 <style scoped>
 .create-discussion { padding: 0.5rem 0; max-width: 860px; }
-.btn-back { background:none; border:none; color:#888; cursor:pointer; font-size:0.875rem; padding:0; margin-bottom:1.2rem; }
-.btn-back:hover { color:#e0e0f0; }
-.page-title { font-size:1.3rem; font-weight:700; color:#e0e0f0; margin:0 0 1.2rem; }
+.btn-back { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.875rem; padding:0; margin-bottom:1.2rem; }
+.btn-back:hover { color:var(--text-primary); }
+.page-title { font-size:1.3rem; font-weight:700; color:var(--text-primary); margin:0 0 1.2rem; }
 
-.form-card { background:#16162a; border:1px solid #2d2d4e; border-radius:10px; padding:1.8rem; }
+.form-card { background:var(--bg-card); border:1px solid var(--border); border-radius:10px; padding:1.8rem; }
 .form-group { display:flex; flex-direction:column; gap:0.4rem; margin-bottom:1.2rem; }
-.form-group label { font-size:0.85rem; color:#a0a0c0; }
+.form-group label { font-size:0.85rem; color:var(--text-secondary); }
 .form-group input {
-  padding:0.6rem 0.9rem; background:#1a1a30;
-  border:1px solid #3d3d5c; border-radius:7px; color:#e0e0f0; font-size:0.95rem;
+  padding:0.6rem 0.9rem; background:var(--bg-input);
+  border:1px solid var(--border); border-radius:7px; color:var(--text-primary); font-size:0.95rem;
 }
-.form-group input:focus { outline:none; border-color:#7c6af7; }
+.form-group input:focus { outline:none; border-color:var(--accent); }
 
 .content-header { display:flex; align-items:center; justify-content:space-between; }
 .toggle-btns { display:flex; gap:0.2rem; }
 .tog {
-  padding:0.2rem 0.7rem; background:#1e1e38;
-  border:1px solid #3d3d5c; color:#888; font-size:0.8rem; cursor:pointer; border-radius:4px;
+  padding:0.2rem 0.7rem; background:var(--bg-input);
+  border:1px solid var(--border); color:var(--text-muted); font-size:0.8rem; cursor:pointer; border-radius:4px;
 }
-.tog.active { background:#7c6af7; border-color:#7c6af7; color:#fff; }
+.tog.active { background:var(--accent); border-color:var(--accent); color:#fff; }
 
 .content-textarea {
-  padding:0.7rem 0.9rem; background:#1a1a30;
-  border:1px solid #3d3d5c; border-radius:7px; color:#e0e0f0;
+  padding:0.7rem 0.9rem; background:var(--bg-input);
+  border:1px solid var(--border); border-radius:7px; color:var(--text-primary);
   font-size:0.9rem; resize:vertical; font-family:inherit; width:100%;
 }
-.content-textarea:focus { outline:none; border-color:#7c6af7; }
+.content-textarea:focus { outline:none; border-color:var(--accent); }
 .preview-box {
-  min-height:200px; padding:1rem; background:#1a1a30;
-  border:1px solid #3d3d5c; border-radius:7px;
+  min-height:200px; padding:1rem; background:var(--bg-input);
+  border:1px solid var(--border); border-radius:7px;
 }
 
 .error-msg { color:#ff8080; font-size:0.85rem; margin-bottom:0.8rem; }
 .form-actions { display:flex; gap:0.75rem; }
 .btn-submit {
-  padding:0.55rem 1.4rem; background:#7c6af7; color:#fff;
+  padding:0.55rem 1.4rem; background:var(--accent); color:#fff;
   border:none; border-radius:6px; cursor:pointer; font-size:0.9rem;
 }
-.btn-submit:hover:not(:disabled) { background:#6c5ae7; }
+.btn-submit:hover:not(:disabled) { background:var(--accent-deep); }
 .btn-submit:disabled { opacity:0.6; cursor:not-allowed; }
 .btn-cancel {
   padding:0.55rem 1.2rem; background:transparent;
-  border:1px solid #3d3d5c; color:#888; border-radius:6px; cursor:pointer; font-size:0.9rem;
+  border:1px solid var(--border); color:var(--text-muted); border-radius:6px; cursor:pointer; font-size:0.9rem;
 }
-.btn-cancel:hover { border-color:#7c6af7; color:#e0e0f0; }
+.btn-cancel:hover { border-color:var(--accent); color:var(--text-primary); }
 </style>

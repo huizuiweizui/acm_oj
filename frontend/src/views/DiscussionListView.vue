@@ -109,43 +109,43 @@ onMounted(fetchDiscussions)
 <style scoped>
 .discussion-list { padding: 0.5rem 0; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
-.page-title { font-size: 1.5rem; font-weight: 700; color: #e0e0f0; }
+.page-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
 .btn-new {
-  padding: 0.45rem 1.1rem; background: #7c6af7; color: #fff;
+  padding: 0.45rem 1.1rem; background: var(--accent); color: #fff;
   border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
   text-decoration: none;
 }
-.btn-new:hover { background: #6c5ae7; }
+.btn-new:hover { background: var(--accent-deep); }
 
-.table-wrap { background: #16162a; border-radius: 8px; border: 1px solid #2d2d4e; overflow: hidden; }
-.empty { text-align: center; padding: 3rem; color: #666; }
-.loading { text-align: center; padding: 3rem; color: #888; }
+.table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.empty { text-align: center; padding: 3rem; color: var(--text-muted); }
+.loading { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 .disc-table { width: 100%; border-collapse: collapse; }
 .disc-table th {
   padding: 0.7rem 1rem; text-align: left;
-  font-size: 0.8rem; color: #888; background: #1a1a30;
-  border-bottom: 1px solid #2d2d4e;
+  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
 }
-.disc-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #1e1e38; }
-.disc-row { cursor: pointer; }
+.disc-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+.disc-row { cursor: pointer; transition: background 0.12s; }
 .disc-row:last-child td { border-bottom: none; }
-.disc-row:hover td { background: #1c1c35; }
+.disc-row:hover td { background: var(--bg-secondary); }
 
-.title-cell { color: #e0e0f0; font-size: 0.95rem; }
-.problem-link { color: #a78bfa; font-size: 0.85rem; }
+.title-cell { color: var(--text-primary); font-size: 0.95rem; }
+.problem-link { color: var(--accent); font-size: 0.85rem; }
 .problem-link:hover { text-decoration: underline; }
-.na { color: #555; }
-.author-cell { color: #a0c4ff; font-size: 0.85rem; }
-.reply-cell { color: #888; text-align: center; }
-.time-cell { color: #666; font-size: 0.82rem; white-space: nowrap; }
+.na { color: var(--text-muted); }
+.author-cell { color: var(--accent); font-size: 0.85rem; }
+.reply-cell { color: var(--text-muted); text-align: center; }
+.time-cell { color: var(--text-muted); font-size: 0.82rem; white-space: nowrap; }
 
 .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
 .pagination button {
-  padding: 0.4rem 1rem; background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #c0c0d8; border-radius: 6px; cursor: pointer;
+  padding: 0.4rem 1rem; background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
 }
-.pagination button:hover:not(:disabled) { border-color: #7c6af7; color: #fff; }
+.pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--text-primary); }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-.page-info { color: #888; font-size: 0.85rem; }
+.page-info { color: var(--text-muted); font-size: 0.85rem; }
 </style>

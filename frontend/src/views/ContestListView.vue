@@ -149,10 +149,10 @@ onMounted(fetchContests)
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 1.2rem;
 }
-.page-title { font-size: 1.5rem; font-weight: 700; color: #e0e0f0; margin: 0; }
+.page-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
 .btn-create {
   display: inline-flex; align-items: center; gap: 6px;
-  background: #7c6af7; color: #fff; border: none;
+  background: var(--accent); color: #fff; border: none;
   border-radius: 8px; padding: 0.5rem 1.1rem;
   font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s;
 }
@@ -161,29 +161,27 @@ onMounted(fetchContests)
 /* Tabs */
 .contest-tabs {
   display: flex; gap: 4px;
-  background: #1a1a30; border-radius: 10px;
+  background: var(--bg-secondary); border-radius: 10px;
   padding: 4px; margin-bottom: 1.5rem; width: fit-content;
 }
 .contest-tab {
   padding: 0.4rem 1rem; border-radius: 7px;
   font-size: 0.875rem; font-weight: 500;
-  color: #888; background: none; border: none; cursor: pointer; transition: all 0.15s;
+  color: var(--text-muted); background: none; border: none; cursor: pointer; transition: all 0.15s;
 }
-.contest-tab:hover { color: #e0e0f0; }
+.contest-tab:hover { color: var(--text-primary); }
 .contest-tab.active {
-  background: #16162a; color: #e0e0f0;
-  box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  background: var(--bg-card); color: var(--text-primary);
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
 }
 
-.loading { text-align: center; padding: 3rem; color: #888; }
+.loading { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 /* 空状态 */
-.contest-empty {
-  text-align: center; padding: 5rem 1rem;
-}
+.contest-empty { text-align: center; padding: 5rem 1rem; }
 .empty-icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.5; }
-.empty-title { font-size: 1.1rem; font-weight: 600; color: #e0e0f0; margin-bottom: 0.5rem; }
-.empty-desc { font-size: 0.875rem; color: #888; }
+.empty-title { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
+.empty-desc { font-size: 0.875rem; color: var(--text-muted); }
 
 /* 卡片网格 */
 .contest-grid {
@@ -192,20 +190,20 @@ onMounted(fetchContests)
   gap: 16px;
 }
 .contest-card-new {
-  background: #16162a; border: 1px solid #2d2d4e;
+  background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 12px; padding: 1.2rem 1.4rem;
   cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
 }
 .contest-card-new:hover {
-  box-shadow: 0 4px 18px rgba(0,0,0,.15);
-  border-color: #7c6af7;
+  box-shadow: 0 4px 18px rgba(0,0,0,.1);
+  border-color: var(--accent);
 }
 .contest-card-top {
   display: flex; align-items: flex-start;
   justify-content: space-between; gap: 10px; margin-bottom: 12px;
 }
 .contest-card-title {
-  font-size: 1rem; font-weight: 600; color: #e0e0f0; line-height: 1.4; flex: 1;
+  font-size: 1rem; font-weight: 600; color: var(--text-primary); line-height: 1.4; flex: 1;
 }
 
 .status-badge {
@@ -220,7 +218,7 @@ onMounted(fetchContests)
 .contest-card-meta { display: flex; flex-direction: column; gap: 5px; }
 .meta-row {
   display: flex; align-items: center; gap: 6px;
-  font-size: 0.8rem; color: #888;
+  font-size: 0.8rem; color: var(--text-muted);
 }
 .meta-row svg { flex-shrink: 0; opacity: 0.7; }
 
@@ -230,12 +228,12 @@ onMounted(fetchContests)
   gap: 1rem; margin-top: 2rem;
 }
 .pagination button {
-  padding: 0.4rem 1rem; background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #c0c0d8; border-radius: 6px; cursor: pointer;
+  padding: 0.4rem 1rem; background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--text-secondary); border-radius: 6px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
 }
-.pagination button:hover:not(:disabled) { border-color: #7c6af7; color: #fff; }
+.pagination button:hover:not(:disabled) { border-color: var(--accent); color: var(--text-primary); }
 .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-.page-info { color: #888; font-size: 0.85rem; }
+.page-info { color: var(--text-muted); font-size: 0.85rem; }
 
 @media (max-width: 700px) {
   .contest-grid { grid-template-columns: 1fr; }

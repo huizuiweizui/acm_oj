@@ -92,34 +92,34 @@ onMounted(fetchRank)
 
 <style scoped>
 .leaderboard { padding: 0.5rem 0; }
-.page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; color: #e0e0f0; }
+.page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.2rem; color: var(--text-primary); }
 
 .tabs {
   display: flex; gap: 0.3rem;
-  border-bottom: 1px solid #2d2d4e; margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;
 }
 .tab-btn {
   padding: 0.55rem 1.2rem; background: transparent;
   border: none; border-bottom: 2px solid transparent;
-  color: #888; font-size: 0.9rem; cursor: pointer; margin-bottom: -1px;
+  color: var(--text-muted); font-size: 0.9rem; cursor: pointer; margin-bottom: -1px;
 }
-.tab-btn:hover { color: #e0e0f0; }
-.tab-btn.active { color: #a78bfa; border-bottom-color: #a78bfa; font-weight: 600; }
+.tab-btn:hover { color: var(--text-primary); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 
-.table-wrap { background: #16162a; border-radius: 8px; border: 1px solid #2d2d4e; overflow: hidden; }
-.empty { text-align: center; padding: 3rem; color: #666; }
-.loading { text-align: center; padding: 3rem; color: #888; }
+.table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.empty { text-align: center; padding: 3rem; color: var(--text-muted); }
+.loading { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 .rank-table { width: 100%; border-collapse: collapse; }
 .rank-table th {
   padding: 0.75rem 1rem; text-align: left;
-  font-size: 0.8rem; color: #888; background: #1a1a30;
-  border-bottom: 1px solid #2d2d4e;
+  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
 }
-.rank-table td { padding: 0.8rem 1rem; border-bottom: 1px solid #1e1e38; }
-.rank-row { cursor: pointer; }
+.rank-table td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
+.rank-row { cursor: pointer; transition: background 0.12s; }
 .rank-row:last-child td { border-bottom: none; }
-.rank-row:hover td { background: #1c1c35; }
+.rank-row:hover td { background: var(--bg-secondary); }
 
 .rank-cell { font-size: 0.95rem; }
 .rank-num { font-size: 1rem; }
@@ -130,9 +130,9 @@ onMounted(fetchRank)
   display: flex; align-items: center; justify-content: center;
   font-size: 0.85rem; font-weight: 700; color: #fff; flex-shrink: 0;
 }
-.username { color: #a0c4ff; font-weight: 500; }
+.username { color: var(--accent); font-weight: 500; }
 
-.rating-cell { color: #a78bfa; font-weight: 600; }
-.ac-cell { color: #2ecc71; font-weight: 600; }
-.submit-cell { color: #888; }
+.rating-cell { color: var(--accent); font-weight: 600; }
+.ac-cell { color: #22c55e; font-weight: 600; }
+.submit-cell { color: var(--text-muted); }
 </style>

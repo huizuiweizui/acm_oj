@@ -162,30 +162,30 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.loading { text-align: center; padding: 4rem; color: #888; }
+.loading { text-align: center; padding: 4rem; color: var(--text-muted); }
 .ranking-page { padding: 0.5rem 0; }
 
 /* 头部 */
 .page-header {
   display: flex; justify-content: space-between; align-items: flex-start;
-  background: #16162a; border: 1px solid #2d2d4e;
+  background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 10px; padding: 1.4rem 1.8rem;
   margin-bottom: 1.2rem; gap: 1rem;
 }
 .back-link {
-  font-size: 0.82rem; color: #666; cursor: pointer;
+  font-size: 0.82rem; color: var(--text-muted); cursor: pointer;
   margin-bottom: 0.4rem; transition: color 0.15s;
 }
-.back-link:hover { color: #a78bfa; }
-.page-title { font-size: 1.3rem; font-weight: 700; color: #e0e0f0; margin: 0 0 0.5rem; }
+.back-link:hover { color: var(--accent); }
+.page-title { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.5rem; }
 .meta-row { display: flex; align-items: center; gap: 0.6rem; }
 .rule-badge {
-  background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #a78bfa; padding: 0.15rem 0.55rem;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--accent); padding: 0.15rem 0.55rem;
   border-radius: 4px; font-size: 0.75rem; font-weight: 600;
 }
 .live-badge {
-  background: #22c55e20; border: 1px solid #22c55e60;
+  background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.4);
   color: #22c55e; padding: 0.15rem 0.5rem;
   border-radius: 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
   animation: pulse 2s infinite;
@@ -194,23 +194,23 @@ onBeforeUnmount(() => {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
-.meta-time { font-size: 0.82rem; color: #666; }
+.meta-time { font-size: 0.82rem; color: var(--text-muted); }
 .header-right { text-align: right; flex-shrink: 0; }
-.update-info { font-size: 0.82rem; color: #666; display: flex; align-items: center; gap: 0.4rem; justify-content: flex-end; }
-.update-time { font-size: 0.75rem; color: #444; margin-top: 0.2rem; }
+.update-info { font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem; justify-content: flex-end; }
+.update-time { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem; }
 .refresh-dot {
   width: 7px; height: 7px; border-radius: 50%; background: #22c55e;
   animation: pulse 2s infinite;
 }
 
 .empty-state {
-  text-align: center; padding: 3rem; color: #555;
-  background: #16162a; border: 1px solid #2d2d4e; border-radius: 10px;
+  text-align: center; padding: 3rem; color: var(--text-muted);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
 }
 
 /* 表格 */
 .table-wrap {
-  background: #16162a; border: 1px solid #2d2d4e;
+  background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 10px; overflow-x: auto;
 }
 .rank-table {
@@ -218,14 +218,14 @@ onBeforeUnmount(() => {
 }
 .rank-table th {
   padding: 0.7rem 0.9rem; text-align: center;
-  font-size: 0.78rem; color: #666; background: #1a1a30;
-  border-bottom: 1px solid #2d2d4e; white-space: nowrap;
+  font-size: 0.78rem; color: var(--text-muted); background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
 }
 .th-user { text-align: left; }
-.rank-table td { padding: 0.65rem 0.9rem; border-bottom: 1px solid #1e1e38; text-align: center; }
+.rank-table td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); text-align: center; }
 .rank-row:last-child td { border-bottom: none; }
-.rank-row:hover td { background: #1c1c35; }
-.rank-row.top3 td { background: #1a1a32; }
+.rank-row:hover td { background: var(--bg-secondary); }
+.rank-row.top3 td { background: var(--bg-secondary); }
 
 /* 名次 */
 .medal {
@@ -233,25 +233,25 @@ onBeforeUnmount(() => {
   width: 26px; height: 26px; border-radius: 50%;
   font-size: 0.78rem; font-weight: 700;
 }
-.medal-1 { background: #ffd70030; color: #ffd700; border: 1px solid #ffd70060; }
-.medal-2 { background: #c0c0c030; color: #c0c0c0; border: 1px solid #c0c0c060; }
-.medal-3 { background: #cd7f3230; color: #cd7f32; border: 1px solid #cd7f3260; }
-.rank-num { color: #666; font-size: 0.88rem; }
+.medal-1 { background: rgba(255,215,0,0.18); color: #ffd700; border: 1px solid rgba(255,215,0,0.4); }
+.medal-2 { background: rgba(192,192,192,0.18); color: #c0c0c0; border: 1px solid rgba(192,192,192,0.4); }
+.medal-3 { background: rgba(205,127,50,0.18); color: #cd7f32; border: 1px solid rgba(205,127,50,0.4); }
+.rank-num { color: var(--text-muted); font-size: 0.88rem; }
 
 /* 选手 */
 .td-user { text-align: left; }
 .user-cell { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; }
-.user-cell:hover .username { color: #a78bfa; }
+.user-cell:hover .username { color: var(--accent); }
 .avatar-sm {
   width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 0.75rem; font-weight: 700; color: #fff;
 }
-.username { color: #c8c8d4; font-size: 0.88rem; transition: color 0.15s; }
+.username { color: var(--text-secondary); font-size: 0.88rem; transition: color 0.15s; }
 
 /* 统计列 */
 .td-solved { font-weight: 700; color: #22c55e; font-size: 0.95rem; }
-.td-penalty { color: #888; font-size: 0.85rem; }
+.td-penalty { color: var(--text-muted); font-size: 0.85rem; }
 
 /* 题目结果格 */
 .td-problem { min-width: 56px; }
@@ -260,9 +260,9 @@ onBeforeUnmount(() => {
   gap: 1px; line-height: 1.2;
 }
 .cell-time { color: #22c55e; font-size: 0.8rem; font-weight: 600; }
-.cell-wrong { color: #22c55e80; font-size: 0.72rem; }
+.cell-wrong { color: rgba(34,197,94,0.5); font-size: 0.72rem; }
 .cell-wa { color: #ef4444; font-size: 0.82rem; font-weight: 600; }
-.cell-empty { color: #333; font-size: 0.85rem; }
+.cell-empty { color: var(--text-muted); font-size: 0.85rem; }
 
 @media (max-width: 700px) {
   .page-header { flex-direction: column; }

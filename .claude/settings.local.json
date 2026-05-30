@@ -44,7 +44,11 @@
       "Bash(python -c \"import judge.api_views; import judge.serializers; print\\('OK'\\)\")",
       "Bash(python -m py_compile judge/api_views.py judge/serializers.py)",
       "Bash(npx vue-tsc *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(find /e:/MyCode/acm_oj -name \"*.py\" -path \"*/backend/*\" -type f | grep -E \"\\(problem|tag|algorithm\\)\" | head -20)",
+      "Read(//e:/MyCode/**)",
+      "Bash(dir e:\\\\MyCode\\\\acm_oj /s /b)",
+      "PowerShell(Get-ChildItem \"e:\\\\MyCode\\\\acm_oj\" -Directory | Where-Object {$_.Name -notin '.venv', '.idea', '.claude'})"
     ]
   }
 }

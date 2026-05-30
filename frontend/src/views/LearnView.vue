@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
 // ── 数据 ───────────────────────────────────────────────────────
 const CATEGORIES = ['全部', '基础算法', '排序', '搜索', '贪心', '动态规划', '图论', '数据结构', '字符串', '数学']
@@ -225,6 +226,7 @@ struct DSU {
 }
 
 // ── 状态 ─────────────────────────────────────────────────────
+const router = useRouter()
 const keyword = ref('')
 const activeCategory = ref('全部')
 const detail = ref(null)
@@ -252,6 +254,9 @@ function openDetail(algo) {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 function closeDetail() { detail.value = null }
+function goToProblems(algo) {
+  router.push({ path: '/problems', query: { tag: algo.name } })
+}
 
 // ── 视差 Hero ────────────────────────────────────────────────
 const heroRef = ref(null)
@@ -284,6 +289,10 @@ onUnmounted(() => { if (onScroll) window.removeEventListener('scroll', onScroll)
         <div class="detail-meta">
           <span class="diff-learn" :class="diffClass(detail.algo.difficulty)">{{ detail.algo.difficulty }}</span>
           <span class="cat-pill">{{ detail.algo.category }}</span>
+          <button class="practice-btn" @click="goToProblems(detail.algo)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
+            练习相关题目
+          </button>
         </div>
       </div>
 
@@ -541,6 +550,14 @@ onUnmounted(() => { if (onScroll) window.removeEventListener('scroll', onScroll)
 .detail-title-en { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; color: var(--text-muted); margin-bottom: 12px; }
 .detail-meta     { display: flex; align-items: center; gap: 10px; }
 .cat-pill { font-size: 0.8rem; color: var(--text-muted); padding: 3px 10px; background: var(--bg-input); border-radius: 6px; }
+.practice-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 20px; border: 1px solid var(--accent);
+  background: rgba(124,106,247,0.1); color: var(--accent);
+  font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.practice-btn:hover { background: rgba(124,106,247,0.2); transform: translateY(-1px); }
 
 .detail-section { margin-bottom: 2rem; }
 .section-hd {

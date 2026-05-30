@@ -149,68 +149,68 @@ onMounted(fetchContest)
 
 <style scoped>
 .contest-detail { padding: 0.5rem 0; }
-.loading { text-align: center; padding: 4rem; color: #888; }
+.loading { text-align: center; padding: 4rem; color: var(--text-muted); }
 
 .contest-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: #16162a;
-  border: 1px solid #2d2d4e;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.8rem 2rem;
   margin-bottom: 1.8rem;
   gap: 1.5rem;
 }
 .header-main { flex: 1; }
-.contest-title { font-size: 1.5rem; font-weight: 700; color: #e0e0f0; margin: 0 0 0.75rem; }
+.contest-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.75rem; }
 
 .meta-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
 .rule-badge {
-  background: #1e1e38; border: 1px solid #3d3d5c;
-  color: #a78bfa; padding: 0.15rem 0.55rem;
+  background: var(--bg-input); border: 1px solid var(--border);
+  color: var(--accent); padding: 0.15rem 0.55rem;
   border-radius: 4px; font-size: 0.78rem; font-weight: 600;
 }
 .status-badge {
   font-size: 0.82rem; font-weight: 600;
   border: 1px solid; padding: 0.15rem 0.55rem; border-radius: 4px;
 }
-.meta-text { color: #888; font-size: 0.85rem; }
+.meta-text { color: var(--text-muted); font-size: 0.85rem; }
 
-.time-info { font-size: 0.85rem; color: #888; margin-bottom: 0.75rem; }
+.time-info { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem; }
 .sep { margin: 0 0.5rem; }
-.desc { color: #a0a0c0; font-size: 0.9rem; line-height: 1.6; margin: 0.75rem 0 0; }
+.desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin: 0.75rem 0 0; }
 
 .header-action { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0; }
-.reg-ok { color: #2ecc71; font-weight: 600; font-size: 0.95rem; }
+.reg-ok { color: #22c55e; font-weight: 600; font-size: 0.95rem; }
 .btn-register {
-  padding: 0.6rem 1.6rem; background: #7c6af7; color: #fff;
+  padding: 0.6rem 1.6rem; background: var(--accent); color: #fff;
   border: none; border-radius: 7px; font-size: 0.95rem; font-weight: 600;
   cursor: pointer;
 }
-.btn-register:hover:not(:disabled) { background: #6c5ae7; }
+.btn-register:hover:not(:disabled) { background: var(--accent-deep); }
 .btn-register:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-rank {
   padding: 0.45rem 1.2rem; background: transparent;
-  border: 1px solid #3d3d5c; color: #a78bfa;
+  border: 1px solid var(--border); color: var(--accent);
   border-radius: 7px; font-size: 0.88rem; font-weight: 600;
   cursor: pointer; transition: border-color 0.15s;
 }
-.btn-rank:hover { border-color: #7c6af7; }
-.reg-msg { font-size: 0.82rem; color: #a0a0c0; }
+.btn-rank:hover { border-color: var(--accent); }
+.reg-msg { font-size: 0.82rem; color: var(--text-secondary); }
 
-.section-title { font-size: 1.1rem; font-weight: 700; color: #e0e0f0; margin-bottom: 0.9rem; }
+.section-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.9rem; }
 
-.table-wrap { background: #16162a; border-radius: 8px; border: 1px solid #2d2d4e; overflow: hidden; }
+.table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .problem-table { width: 100%; border-collapse: collapse; }
 .problem-table th {
   padding: 0.7rem 1rem; text-align: left;
-  font-size: 0.8rem; color: #888; background: #1a1a30;
-  border-bottom: 1px solid #2d2d4e;
+  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
 }
-.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid #1e1e38; }
+.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
 .problem-table tr:last-child td { border-bottom: none; }
-.problem-table tr:hover td { background: #1c1c35; }
+.problem-table tr:hover td { background: var(--bg-secondary); }
 
 .status-cell { text-align: center; }
 .status-dot {
@@ -218,8 +218,8 @@ onMounted(fetchContest)
   width: 20px; height: 20px; border-radius: 50%;
   font-size: 0.7rem; font-weight: 700; color: #fff;
 }
-.label-cell { font-weight: 700; color: #a78bfa; }
-.problem-link { color: #a0c4ff; text-decoration: none; }
-.problem-link:hover { color: #7c6af7; text-decoration: underline; }
-.empty { text-align: center; padding: 2rem; color: #666; }
+.label-cell { font-weight: 700; color: var(--accent); }
+.problem-link { color: var(--accent); text-decoration: none; }
+.problem-link:hover { color: var(--accent-deep); text-decoration: underline; }
+.empty { text-align: center; padding: 2rem; color: var(--text-muted); }
 </style>

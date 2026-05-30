@@ -61,70 +61,7 @@ input, textarea, select {
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
-/* ── 全局亮色覆盖（组件用硬编码颜色时靠这里兜底）── */
+/* 导航栏与布局 */
 [data-theme="light"] .navbar     { background: var(--navbar-bg) !important; border-color: var(--border) !important; }
 [data-theme="light"] .main-content { background: var(--bg-primary); }
 [data-theme="light"] .footer     { background: var(--bg-primary); border-color: var(--border) !important; color: var(--text-muted); }
-
-/* 卡片背景 */
-[data-theme="light"] .chart-card,
-[data-theme="light"] .user-card,
-[data-theme="light"] .post-card,
-[data-theme="light"] .reply-card,
-[data-theme="light"] .reply-form,
-[data-theme="light"] .table-wrap,
-[data-theme="light"] .contest-card-new,
-[data-theme="light"] .contest-card,
-[data-theme="light"] .card,
-[data-theme="light"] .hero-enhanced {
-  background: var(--bg-card) !important;
-  border-color: var(--border) !important;
-}
-
-/* 文字 */
-[data-theme="light"] .page-title,
-[data-theme="light"] .username,
-[data-theme="light"] .hero-title,
-[data-theme="light"] .section-title,
-[data-theme="light"] .feature-title,
-[data-theme="light"] .card-title,
-[data-theme="light"] .card-title-sm,
-[data-theme="light"] .contest-card-title,
-[data-theme="light"] .problem-title-cell { color: var(--text-primary) !important; }
-
-[data-theme="light"] .hero-sub,
-[data-theme="light"] .section-subtitle,
-[data-theme="light"] .feature-desc,
-[data-theme="light"] .meta-row,
-[data-theme="light"] .contest-row-meta { color: var(--text-secondary) !important; }
-
-/* 表格 */
-[data-theme="light"] .problem-table th,
-[data-theme="light"] .rank-table th,
-[data-theme="light"] .sub-table th,
-[data-theme="light"] .disc-table th,
-[data-theme="light"] .mini-table th { background: var(--bg-secondary) !important; border-color: var(--border) !important; }
-
-[data-theme="light"] .problem-table td,
-[data-theme="light"] .rank-table td,
-[data-theme="light"] .sub-table td,
-[data-theme="light"] .disc-table td,
-[data-theme="light"] .mini-table td { border-color: var(--border) !important; }
-
-[data-theme="light"] .problem-table tr:hover td,
-[data-theme="light"] .rank-row:hover td,
-[data-theme="light"] .sub-row:hover td,
-[data-theme="light"] .disc-row:hover td,
-[data-theme="light"] .mini-row:hover td,
-[data-theme="light"] .contest-row:hover,
-[data-theme="light"] .quicknav-item:hover,
-[data-theme="light"] .live-item { background: var(--bg-secondary) !important; }
-
-/* 输入框 */
-[data-theme="light"] .search-input,
-[data-theme="light"] .reply-textarea { background: var(--bg-input) !important; border-color: var(--border) !important; color: var(--text-primary) !important; }
-
-/* Hero 粒子背景 */
-[data-theme="light"] .hero-enhanced { background: linear-gradient(180deg,#eeeeff 0%,#f0f0fb 100%) !important; }
-[data-theme="light"] .stats-grid    { background: rgba(240,240,255,0.8) !important; border-color: var(--border) !important; }
-[data-theme="light"] .stat-card     { border-color: var(--border) !important; }
