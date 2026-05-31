@@ -2,9 +2,23 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from .models import (
+    Algorithm,
     Contest, Discussion, DiscussionReply,
     Problem, Submission, Tag, UserProfile,
 )
+
+
+class AlgorithmListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Algorithm
+        fields = ['algo_id', 'name', 'name_en', 'category', 'difficulty', 'desc', 'sort_order']
+
+
+class AlgorithmDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Algorithm
+        fields = ['algo_id', 'name', 'name_en', 'category', 'difficulty', 'desc',
+                  'description', 'steps', 'complexity', 'stable', 'codes']
 
 
 class TagSerializer(serializers.ModelSerializer):

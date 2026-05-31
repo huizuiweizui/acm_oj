@@ -74,6 +74,11 @@ const router = createRouter({
       component: () => import('@/views/LearnView.vue'),
     },
     {
+      path: '/learn/:id',
+      name: 'learn-detail',
+      component: () => import('@/views/LearnDetailView.vue'),
+    },
+    {
       path: '/users/:id',
       name: 'user-profile',
       component: () => import('@/views/ProfileView.vue'),

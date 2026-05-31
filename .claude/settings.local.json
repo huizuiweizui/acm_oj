@@ -48,7 +48,10 @@
       "Bash(find /e:/MyCode/acm_oj -name \"*.py\" -path \"*/backend/*\" -type f | grep -E \"\\(problem|tag|algorithm\\)\" | head -20)",
       "Read(//e:/MyCode/**)",
       "Bash(dir e:\\\\MyCode\\\\acm_oj /s /b)",
-      "PowerShell(Get-ChildItem \"e:\\\\MyCode\\\\acm_oj\" -Directory | Where-Object {$_.Name -notin '.venv', '.idea', '.claude'})"
+      "PowerShell(Get-ChildItem \"e:\\\\MyCode\\\\acm_oj\" -Directory | Where-Object {$_.Name -notin '.venv', '.idea', '.claude'})",
+      "Bash(.venv\\\\Scripts\\\\python.exe manage.py makemigrations)",
+      "Bash(.venv\\\\Scripts\\\\python.exe manage.py migrate)",
+      "PowerShell(.venv\\\\Scripts\\\\python.exe manage.py seed_algorithms)"
     ]
   }
 }

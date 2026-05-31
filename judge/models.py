@@ -249,6 +249,38 @@ class ContestParticipant(models.Model):
         return f'{self.user.username} @ {self.contest.title}'
 
 
+# ==================== 算法学习 ====================
+
+class Algorithm(models.Model):
+    DIFFICULTY_CHOICES = [
+        ('入门', '入门'),
+        ('提高', '提高'),
+        ('进阶', '进阶'),
+    ]
+
+    algo_id = models.CharField('算法ID', max_length=50, unique=True)
+    name = models.CharField('算法名称', max_length=50)
+    name_en = models.CharField('英文名', max_length=100)
+    category = models.CharField('分类', max_length=20)
+    difficulty = models.CharField('难度', max_length=10, choices=DIFFICULTY_CHOICES)
+    desc = models.CharField('卡片描述', max_length=300)
+    description = models.TextField('详细简介', blank=True, default='')
+    steps = models.JSONField('执行步骤', default=list, blank=True)
+    complexity = models.JSONField('时空复杂度', default=list, blank=True)
+    stable = models.BooleanField('是否稳定排序', null=True, blank=True)
+    codes = models.JSONField('参考代码', default=dict, blank=True)
+    sort_order = models.IntegerField('排序', default=0)
+
+    class Meta:
+        db_table = 'judge_algorithm'
+        verbose_name = '算法知识点'
+        verbose_name_plural = '算法知识点'
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'{self.name} ({self.algo_id})'
+
+
 # ==================== 讨论区 ====================
 
 class Discussion(models.Model):

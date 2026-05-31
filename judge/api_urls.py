@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .api_views import (
+    AlgorithmListAPIView, AlgorithmDetailAPIView,
     ChangePasswordAPIView,
     ContestDetailAPIView, ContestListAPIView, ContestRankingAPIView, ContestRegisterAPIView,
     DiscussionCreateAPIView, DiscussionDetailAPIView,
@@ -14,6 +15,10 @@ from .api_views import (
 )
 
 urlpatterns = [
+    # 算法学习
+    path('algorithms/', AlgorithmListAPIView.as_view(), name='api-algorithm-list'),
+    path('algorithms/<str:algo_id>/', AlgorithmDetailAPIView.as_view(), name='api-algorithm-detail'),
+
     # 认证
     path('auth/register/', RegisterAPIView.as_view(), name='api-register'),
     path('auth/login/', LoginAPIView.as_view(), name='api-login'),

@@ -16,11 +16,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
 from .models import (
+    Algorithm,
     Contest, ContestParticipant, ContestProblem,
     Discussion, DiscussionReply,
     Problem, Submission, UserProfile,
 )
 from .serializers import (
+    AlgorithmListSerializer, AlgorithmDetailSerializer,
     ContestSerializer, DiscussionReplySerializer, DiscussionSerializer,
     ProblemListSerializer, ProblemDetailSerializer,
     SubmissionSerializer, UserSerializer,
@@ -653,6 +655,26 @@ class LeaderboardAPIView(APIView):
             })
 
         return Response({'tab': tab, 'ranked_users': ranked})
+
+
+# ==================== 算法学习 ====================
+
+class AlgorithmListAPIView(generics.ListAPIView):
+    serializer_class = AlgorithmListSerializer
+    permission_classes = [AllowAny]
+    pagination_class = None
+
+    def get_queryset(self):
+        return Algorithm.objects.all()
+
+
+class AlgorithmDetailAPIView(generics.RetrieveAPIView):
+    serializer_class = AlgorithmDetailSerializer
+    permission_classes = [AllowAny]
+    lookup_field = 'algo_id'
+
+    def get_queryset(self):
+        return Algorithm.objects.all()
 
 
 # ==================== 讨论区 ====================
