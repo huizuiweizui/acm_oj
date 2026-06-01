@@ -281,6 +281,59 @@ class Algorithm(models.Model):
         return f'{self.name} ({self.algo_id})'
 
 
+class KnowledgeChunk(models.Model):
+    """算法笔记按二级标题切分后的片段"""
+    source_file = models.CharField('来源文件', max_length=300)
+    algo        = models.ForeignKey(Algorithm, null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name='chunks')
+    section     = models.CharField('章节标题', max_length=200, blank=True)
+    content     = models.TextField('原文内容')
+    token_count = models.IntegerField('估算 token 数', default=0)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_knowledgechunk'
+        verbose_name = '知识片段'
+        verbose_name_plural = '知识片段'
+
+    def __str__(self):
+        return f'{self.source_file} § {self.section}'
+
+
+class ChunkEmbedding(models.Model):
+    """知识片段对应的向量（单独存，避免 chunk 表过重）"""
+    chunk      = models.OneToOneField(KnowledgeChunk, on_delete=models.CASCADE,
+                                       related_name='embedding')
+    vector     = models.JSONField('向量')          # list[float]
+    model_name = models.CharField('Embedding 模型', max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_chunkembedding'
+        verbose_name = 'Chunk 向量'
+        verbose_name_plural = 'Chunk 向量'
+
+
+class AlgorithmEdge(models.Model):
+    EDGE_TYPES = [
+        ('prerequisite', '前置依赖'),
+        ('related',      '相关算法'),
+        ('extends',      '扩展应用'),
+    ]
+    source = models.ForeignKey(Algorithm, related_name='out_edges', on_delete=models.CASCADE)
+    target = models.ForeignKey(Algorithm, related_name='in_edges',  on_delete=models.CASCADE)
+    edge_type = models.CharField(max_length=20, choices=EDGE_TYPES, default='related')
+
+    class Meta:
+        db_table = 'judge_algorithmedge'
+        verbose_name = '算法关系边'
+        verbose_name_plural = '算法关系边'
+        unique_together = ['source', 'target']
+
+    def __str__(self):
+        return f'{self.source.algo_id} --{self.edge_type}--> {self.target.algo_id}'
+
+
 # ==================== 讨论区 ====================
 
 class Discussion(models.Model):
@@ -303,10 +356,6 @@ class Discussion(models.Model):
 
     def __str__(self):
         return self.title
-
-    @property
-    def reply_count(self):
-        return self.replies.count()
 
 
 class DiscussionReply(models.Model):

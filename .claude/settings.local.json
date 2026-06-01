@@ -51,7 +51,25 @@
       "PowerShell(Get-ChildItem \"e:\\\\MyCode\\\\acm_oj\" -Directory | Where-Object {$_.Name -notin '.venv', '.idea', '.claude'})",
       "Bash(.venv\\\\Scripts\\\\python.exe manage.py makemigrations)",
       "Bash(.venv\\\\Scripts\\\\python.exe manage.py migrate)",
-      "PowerShell(.venv\\\\Scripts\\\\python.exe manage.py seed_algorithms)"
+      "PowerShell(.venv\\\\Scripts\\\\python.exe manage.py seed_algorithms)",
+      "Bash(python manage.py runserver 8000)",
+      "Bash(curl -s http://127.0.0.1:8000/api/algorithms/graph/)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('nodes:', len\\(d['nodes']\\), 'edges:', len\\(d['edges']\\)\\)\")",
+      "Bash(npm run *)",
+      "Read(//tmp/**)",
+      "Bash(pip show *)",
+      "PowerShell(cd e:\\\\MyCode\\\\acm_oj; $env:PYTHONIOENCODING=\"utf-8\"; python manage.py build_chunks --dry-run 2>&1 | Select-Object -Last 5)",
+      "PowerShell(cd e:\\\\MyCode\\\\acm_oj; $env:PYTHONIOENCODING=\"utf-8\"; python manage.py build_chunks 2>&1)",
+      "PowerShell(cd e:\\\\MyCode\\\\acm_oj; $env:PYTHONIOENCODING=\"utf-8\"; python manage.py shell -c \"from judge.models import KnowledgeChunk, ChunkEmbedding; print\\('Chunks:', KnowledgeChunk.objects.count\\(\\)\\); print\\('Embeddings:', ChunkEmbedding.objects.count\\(\\)\\)\" 2>&1)",
+      "PowerShell(cd e:\\\\MyCode\\\\acm_oj; $env:PYTHONIOENCODING=\"utf-8\"; python manage.py build_embeddings --batch 5 2>&1 | Select-Object -First 20)",
+      "PowerShell(cd e:\\\\MyCode\\\\acm_oj; $env:PYTHONIOENCODING=\"utf-8\"; python manage.py build_embeddings --batch 20 2>&1)",
+      "Bash(python manage.py migrate --list)",
+      "Bash(python manage.py showmigrations judge)",
+      "Bash(python manage.py shell -c \"from judge.models import Algorithm, AlgorithmEdge, KnowledgeChunk, ChunkEmbedding; print\\('Algorithm:', Algorithm.objects.count\\(\\)\\); print\\('AlgorithmEdge:', AlgorithmEdge.objects.count\\(\\)\\); print\\('KnowledgeChunk:', KnowledgeChunk.objects.count\\(\\)\\); print\\('ChunkEmbedding:', ChunkEmbedding.objects.count\\(\\)\\)\")",
+      "Bash(python manage.py shell -c \"from judge.models import AlgorithmEdge; print\\('边类型统计:'\\); [print\\(f'  {t}: {AlgorithmEdge.objects.filter\\(edge_type=t\\).count\\(\\)}'\\) for t in ['prerequisite','related','extends']]\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('scripts',{}\\)\\)\")",
+      "Bash(npx vite *)",
+      "Bash(curl -s http://localhost:5174/)"
     ]
   }
 }

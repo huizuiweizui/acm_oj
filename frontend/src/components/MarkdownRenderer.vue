@@ -1,15 +1,50 @@
 <script setup>
 import { computed } from 'vue'
 import { marked } from 'marked'
+import katex from 'katex'
 
 const props = defineProps({
   content: { type: String, default: '' },
 })
 
-// 配置 marked：换行保留、安全转义
 marked.setOptions({ breaks: true, gfm: true })
 
-const html = computed(() => marked.parse(props.content || ''))
+function renderContent(raw) {
+  if (!raw) return ''
+
+  // 1. 提取数学块，用占位符替换，防止 marked 破坏 LaTeX 语法
+  const maths = []
+
+  // $$ ... $$ 块级（先处理，避免被 $ ... $ 误匹配）
+  let text = raw.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
+    maths.push({ display: true, expr: expr.trim() })
+    return `\x00MATH${maths.length - 1}\x00`
+  })
+
+  // $ ... $ 行内（不跨行，排除空格仅包含的情况）
+  text = text.replace(/\$([^$\n]{1,300}?)\$/g, (_, expr) => {
+    if (!expr.trim()) return _
+    maths.push({ display: false, expr: expr })
+    return `\x00MATH${maths.length - 1}\x00`
+  })
+
+  // 2. marked 处理剩余 Markdown
+  let html = marked.parse(text)
+
+  // 3. 将占位符替换为 KaTeX 渲染结果
+  html = html.replace(/\x00MATH(\d+)\x00/g, (_, i) => {
+    const { display, expr } = maths[+i]
+    try {
+      return katex.renderToString(expr, { displayMode: display, throwOnError: false, strict: false })
+    } catch {
+      return `<code class="math-err">${expr}</code>`
+    }
+  })
+
+  return html
+}
+
+const html = computed(() => renderContent(props.content))
 </script>
 
 <template>
@@ -27,11 +62,11 @@ const html = computed(() => marked.parse(props.content || ''))
 .md-body a { color: var(--accent); text-decoration: underline; }
 .md-body code {
   background: var(--bg-input); padding: 0.15em 0.4em;
-  border-radius: 4px; font-size: 0.875em; color: #f8b4d9;
+  border-radius: 4px; font-size: 0.875em; color: var(--code-color);
   font-family: 'Fira Code', 'Consolas', monospace;
 }
 .md-body pre {
-  background: var(--bg-input); border: 1px solid var(--border);
+  background: var(--code-bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 1rem; overflow-x: auto;
   margin: 0.8em 0;
 }
@@ -54,6 +89,10 @@ const html = computed(() => marked.parse(props.content || ''))
 }
 .md-body th { background: var(--bg-secondary); color: var(--text-primary); }
 .md-body hr { border: none; border-top: 1px solid var(--border); margin: 1em 0; }
+/* KaTeX 数学公式适配主题 */
+.md-body .katex { color: var(--text-primary); font-size: 1em; }
+.md-body .katex-display { margin: 0.8em 0; overflow-x: auto; }
+.math-err { color: #ef4444; }
 .md-body img {
   max-width: 100% !important;
   width: auto !important;

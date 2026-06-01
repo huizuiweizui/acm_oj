@@ -5,3 +5,4 @@ export const getDiscussion = (id) => api.get(`/discussions/${id}/`)
 export const createDiscussion = (data) => api.post('/discussions/create/', data)
 export const createReply = (id, content) =>
   api.post(`/discussions/${id}/replies/`, { content })
+export const deleteDiscussion = (id) => api.delete(`/discussions/${id}/`)

@@ -127,4 +127,10 @@ JUDGE_DOCKER_IMAGE = env('JUDGE_DOCKER_IMAGE', default='acm-oj-sandbox:latest')
 # ===== AI 评测（可选，留空则禁用） =====
 LLM_API_KEY = env('LLM_API_KEY', default='')
 LLM_API_URL = env('LLM_API_URL', default='')
-LLM_MODEL = env('LLM_MODEL', default='')
+LLM_MODEL   = env('LLM_MODEL',   default='')
+
+# ===== RAG 向量检索（可选） =====
+# EMBED_API_KEY / EMBED_API_BASE 留空时自动复用 LLM_API_KEY / LLM_API_URL 的 base
+EMBED_API_KEY  = env('EMBED_API_KEY',  default='')
+EMBED_API_BASE = env('EMBED_API_BASE', default='')   # e.g. https://ark.cn-beijing.volces.com/api/v3
+EMBED_MODEL    = env('EMBED_MODEL',    default='')   # e.g. ep-xxxx（Ark embedding 端点）

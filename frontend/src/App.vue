@@ -47,6 +47,7 @@ function logout() {
           <RouterLink to="/rank">排行榜</RouterLink>
           <RouterLink to="/discussions">讨论</RouterLink>
           <RouterLink to="/learn">算法学习</RouterLink>
+          <RouterLink to="/learn/graph">知识图谱</RouterLink>
         </div>
         <div class="nav-user">
           <!-- 主题切换 -->

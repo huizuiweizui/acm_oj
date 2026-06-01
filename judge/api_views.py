@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
+from django.http import StreamingHttpResponse
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
@@ -16,7 +17,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
 from .models import (
-    Algorithm,
+    Algorithm, AlgorithmEdge, KnowledgeChunk,
     Contest, ContestParticipant, ContestProblem,
     Discussion, DiscussionReply,
     Problem, Submission, UserProfile,
@@ -722,7 +723,6 @@ class DiscussionCreateAPIView(APIView):
             content=content,
             problem=problem,
         )
-        disc.reply_count = 0
         return Response(DiscussionSerializer(disc).data, status=status.HTTP_201_CREATED)
 
 
@@ -731,7 +731,7 @@ class DiscussionDetailAPIView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
-        disc = Discussion.objects.filter(id=pk).select_related('user', 'problem').first()
+        disc = Discussion.objects.filter(id=pk).select_related('user', 'problem').annotate(reply_count=Count('replies')).first()
         if disc is None:
             raise NotFound('帖子不存在')
 
@@ -739,7 +739,6 @@ class DiscussionDetailAPIView(APIView):
         disc.view_count += 1
 
         replies = disc.replies.select_related('user').order_by('created_at')
-        disc.reply_count = replies.count()
 
         return Response({
             'discussion': DiscussionSerializer(disc).data,
@@ -991,3 +990,89 @@ class DiscussionReplyDeleteAPIView(APIView):
             return Response({'detail': '无权删除他人回复'}, status=status.HTTP_403_FORBIDDEN)
         reply.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── 算法知识图谱 ──────────────────────────────────────────────
+
+CATEGORY_GROUP = {
+    '基础算法': 0,
+    '排序':    1,
+    '搜索':    2,
+    '贪心':    3,
+    '动态规划': 4,
+    '图论':    5,
+    '数据结构': 6,
+    '字符串':  7,
+    '数学':    8,
+}
+
+
+class AlgorithmChunksAPIView(APIView):
+    """GET /api/algorithms/<algo_id>/chunks/ — 返回该算法的知识片段列表"""
+    permission_classes = [AllowAny]
+
+    def get(self, request, algo_id):
+        try:
+            algo = Algorithm.objects.get(algo_id=algo_id)
+        except Algorithm.DoesNotExist:
+            raise NotFound()
+        chunks = (KnowledgeChunk.objects
+                  .filter(algo=algo)
+                  .order_by('id')
+                  .values('section', 'content'))
+        return Response(list(chunks))
+
+
+class AlgorithmGraphAPIView(APIView):
+    """GET /api/algorithms/graph/"""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        algos = Algorithm.objects.all()
+        nodes = [
+            {
+                'id':         a.algo_id,
+                'name':       a.name,
+                'name_en':    a.name_en,
+                'category':   a.category,
+                'difficulty': a.difficulty,
+                'group':      CATEGORY_GROUP.get(a.category, 9),
+            }
+            for a in algos
+        ]
+
+        edges = AlgorithmEdge.objects.select_related('source', 'target').all()
+        edge_list = [
+            {
+                'source': e.source.algo_id,
+                'target': e.target.algo_id,
+                'type':   e.edge_type,
+            }
+            for e in edges
+        ]
+
+        return Response({'nodes': nodes, 'edges': edge_list})
+
+
+# ── AI 问答（RAG） ────────────────────────────────────────────
+
+class AskAIAPIView(APIView):
+    """POST /api/ai/ask/  — SSE 流式返回"""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        from judge.services.rag import retrieve, stream_answer
+
+        question = (request.data.get('question') or '').strip()
+        algo_id  = (request.data.get('algo_id')  or '').strip() or None
+        if not question:
+            return Response({'detail': '问题不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+
+        chunks = retrieve(question, algo_id=algo_id, top_k=5)
+        resp = StreamingHttpResponse(
+            stream_answer(question, chunks),
+            content_type='text/event-stream; charset=utf-8',
+        )
+        resp['Cache-Control']     = 'no-cache'
+        resp['X-Accel-Buffering'] = 'no'
+        return resp

@@ -2,7 +2,8 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .api_views import (
-    AlgorithmListAPIView, AlgorithmDetailAPIView,
+    AlgorithmListAPIView, AlgorithmDetailAPIView, AlgorithmChunksAPIView, AlgorithmGraphAPIView,
+    AskAIAPIView,
     ChangePasswordAPIView,
     ContestDetailAPIView, ContestListAPIView, ContestRankingAPIView, ContestRegisterAPIView,
     DiscussionCreateAPIView, DiscussionDetailAPIView,
@@ -17,6 +18,8 @@ from .api_views import (
 urlpatterns = [
     # 算法学习
     path('algorithms/', AlgorithmListAPIView.as_view(), name='api-algorithm-list'),
+    path('algorithms/graph/', AlgorithmGraphAPIView.as_view(), name='api-algorithm-graph'),
+    path('algorithms/<str:algo_id>/chunks/', AlgorithmChunksAPIView.as_view(), name='api-algorithm-chunks'),
     path('algorithms/<str:algo_id>/', AlgorithmDetailAPIView.as_view(), name='api-algorithm-detail'),
 
     # 认证
@@ -51,6 +54,9 @@ urlpatterns = [
 
     # 平台统计
     path('stats/', PlatformStatsAPIView.as_view(), name='api-stats'),
+
+    # AI 问答（RAG）
+    path('ai/ask/', AskAIAPIView.as_view(), name='api-ai-ask'),
 
     # 讨论区
     path('discussions/', DiscussionListAPIView.as_view(), name='api-discussion-list'),

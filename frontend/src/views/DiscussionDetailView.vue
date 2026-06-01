@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getDiscussion, createReply } from '@/api/discussions'
+import { getDiscussion, createReply, deleteDiscussion } from '@/api/discussions'
 import { useUserStore } from '@/stores/user'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 
@@ -36,6 +36,16 @@ async function fetchDiscussion() {
     replies.value = data.replies
   } finally {
     loading.value = false
+  }
+}
+
+async function deletePost() {
+  if (!confirm('确定要删除这篇帖子吗？')) return
+  try {
+    await deleteDiscussion(route.params.id)
+    router.push('/discussions')
+  } catch (e) {
+    alert(e.response?.data?.detail || '删除失败')
   }
 }
 
@@ -77,11 +87,18 @@ onMounted(fetchDiscussion)
             <span class="time">{{ timeAgo(discussion.created_at) }}</span>
           </div>
         </div>
-        <RouterLink
-          v-if="discussion.problem_id"
-          :to="`/problems/${discussion.problem_id}`"
-          class="problem-tag"
-        >题目 #{{ discussion.problem_id }}：{{ discussion.problem_title }}</RouterLink>
+        <div class="post-actions">
+          <RouterLink
+            v-if="discussion.problem_id"
+            :to="`/problems/${discussion.problem_id}`"
+            class="problem-tag"
+          >题目 #{{ discussion.problem_id }}：{{ discussion.problem_title }}</RouterLink>
+          <button
+            v-if="userStore.user?.username === discussion.username"
+            class="btn-delete"
+            @click="deletePost"
+          >删除</button>
+        </div>
       </div>
 
       <h1 class="post-title">{{ discussion.title }}</h1>
@@ -171,6 +188,13 @@ onMounted(fetchDiscussion)
   padding: 0.2rem 0.6rem; border-radius: 4px;
 }
 .problem-tag:hover { border-color: var(--accent); }
+.post-actions { display: flex; align-items: center; gap: 0.6rem; }
+.btn-delete {
+  padding: 0.2rem 0.7rem; font-size: 0.82rem; cursor: pointer;
+  background: transparent; border: 1px solid #e05555; color: #e05555;
+  border-radius: 4px; transition: background 0.15s, color 0.15s;
+}
+.btn-delete:hover { background: #e05555; color: #fff; }
 
 .post-title { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin: 0 0 1rem; }
 .post-footer { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }

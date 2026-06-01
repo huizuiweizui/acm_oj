@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from rest_framework import serializers
 
 from .models import (
-    Algorithm,
+    Algorithm, AlgorithmEdge,
     Contest, Discussion, DiscussionReply,
     Problem, Submission, Tag, UserProfile,
 )
@@ -15,10 +15,59 @@ class AlgorithmListSerializer(serializers.ModelSerializer):
 
 
 class AlgorithmDetailSerializer(serializers.ModelSerializer):
+    prerequisites = serializers.SerializerMethodField()
+    extends_to    = serializers.SerializerMethodField()
+    related       = serializers.SerializerMethodField()
+
     class Meta:
         model = Algorithm
         fields = ['algo_id', 'name', 'name_en', 'category', 'difficulty', 'desc',
-                  'description', 'steps', 'complexity', 'stable', 'codes']
+                  'description', 'steps', 'complexity', 'stable', 'codes',
+                  'prerequisites', 'extends_to', 'related']
+
+    @staticmethod
+    def _mini(algo):
+        return {
+            'algo_id':    algo.algo_id,
+            'name':       algo.name,
+            'name_en':    algo.name_en,
+            'category':   algo.category,
+            'difficulty': algo.difficulty,
+        }
+
+    def get_prerequisites(self, obj):
+        """先学这些：obj 的前置依赖节点（source=obj, type=prerequisite 的 target）"""
+        edges = (AlgorithmEdge.objects
+                 .filter(source=obj, edge_type='prerequisite')
+                 .select_related('target'))
+        return [self._mini(e.target) for e in edges]
+
+    def get_extends_to(self, obj):
+        """学完可继续：以 obj 为前置或被 obj 扩展的算法"""
+        seen, result = set(), []
+        qs = (AlgorithmEdge.objects
+              .filter(target=obj, edge_type__in=['prerequisite', 'extends'])
+              .select_related('source'))
+        for e in qs:
+            if e.source.algo_id not in seen:
+                seen.add(e.source.algo_id)
+                result.append(self._mini(e.source))
+        return result
+
+    def get_related(self, obj):
+        """相关算法：related 类型双向邻居，排除已出现在前置/延伸中的节点"""
+        exclude = {a['algo_id'] for a in self.get_prerequisites(obj) + self.get_extends_to(obj)}
+        exclude.add(obj.algo_id)
+        seen, result = set(), []
+        for e in AlgorithmEdge.objects.filter(source=obj, edge_type='related').select_related('target'):
+            if e.target.algo_id not in seen and e.target.algo_id not in exclude:
+                seen.add(e.target.algo_id)
+                result.append(self._mini(e.target))
+        for e in AlgorithmEdge.objects.filter(target=obj, edge_type='related').select_related('source'):
+            if e.source.algo_id not in seen and e.source.algo_id not in exclude:
+                seen.add(e.source.algo_id)
+                result.append(self._mini(e.source))
+        return result
 
 
 class TagSerializer(serializers.ModelSerializer):

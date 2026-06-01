@@ -16,6 +16,8 @@
   --navbar-bg:    #1a1a2e;
   --scrollbar-track: #1a1a30;
   --scrollbar-thumb: #3d3d5c;
+  --code-bg:      #12121e;
+  --code-color:   #f8b4d9;
 }
 
 /* ── CSS 变量（亮色模式）───────────────────────── */
@@ -34,6 +36,8 @@
   --navbar-bg:    #ffffff;
   --scrollbar-track: #e8e8f8;
   --scrollbar-thumb: #b0b0d0;
+  --code-bg:      #f0f0f8;
+  --code-color:   #6c3aed;
 }
 
 html, body {
