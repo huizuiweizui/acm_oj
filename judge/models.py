@@ -13,17 +13,25 @@ from django.contrib.auth.models import User
 class UserProfile(models.Model):
     """用户扩展资料（扩展 Django 内置 User 表）"""
     ROLE_CHOICES = [
-        ('user', '普通用户'),
+        ('student', '学生'),
+        ('teacher', '教师'),
         ('admin', '管理员'),
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     avatar_url = models.URLField('头像地址', max_length=500, blank=True, default='')
     avatar_color = models.CharField('头像颜色', max_length=7, default='#4F46E5')
-    role = models.CharField('角色', max_length=10, choices=ROLE_CHOICES, default='user')
+    role = models.CharField('角色', max_length=10, choices=ROLE_CHOICES, default='student')
     ac_count = models.IntegerField('AC题目数', default=0)
     submit_count = models.IntegerField('总提交数', default=0)
     rating = models.IntegerField('Rating', default=1500)
     bio = models.CharField('个人简介', max_length=200, blank=True, default='')
+    # 学籍字段
+    student_id = models.CharField('学号', max_length=30, blank=True, default='', db_index=True)
+    real_name = models.CharField('真实姓名', max_length=50, blank=True, default='')
+    major = models.CharField('专业', max_length=100, blank=True, default='')
+    grade = models.CharField('年级', max_length=20, blank=True, default='')
+    must_change_password = models.BooleanField('首次登录需改密', default=False)
+    can_create_contest = models.BooleanField('可创建比赛', default=False)
 
     class Meta:
         db_table = 'judge_userprofile'
@@ -334,6 +342,88 @@ class AlgorithmEdge(models.Model):
         return f'{self.source.algo_id} --{self.edge_type}--> {self.target.algo_id}'
 
 
+# ==================== 团队（班级）====================
+
+class Team(models.Model):
+    """团队/班级，由教师创建"""
+    name = models.CharField('团队名称', max_length=100)
+    description = models.TextField('简介', blank=True, default='')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_teams', verbose_name='创建教师')
+    invite_code = models.CharField('邀请码', max_length=8, unique=True)
+    need_review = models.BooleanField('加入需审核', default=True)
+    is_active = models.BooleanField('是否启用', default=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_team'
+        verbose_name = '团队'
+        verbose_name_plural = '团队'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+
+class TeamMembership(models.Model):
+    """团队成员"""
+    ROLE_CHOICES = [
+        ('captain', '队长'),
+        ('member', '队员'),
+    ]
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships', verbose_name='团队')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_memberships', verbose_name='用户')
+    role = models.CharField('成员角色', max_length=10, choices=ROLE_CHOICES, default='member')
+    remark = models.CharField('团队内备注', max_length=50, blank=True, default='')
+    joined_at = models.DateTimeField('加入时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_teammembership'
+        verbose_name = '团队成员'
+        verbose_name_plural = '团队成员'
+        unique_together = ('team', 'user')
+
+    def __str__(self):
+        return f'{self.user.username} @ {self.team.name}'
+
+    @property
+    def display_name(self):
+        """备注 > 真实姓名 > 用户名"""
+        if self.remark:
+            return self.remark
+        try:
+            real = self.user.profile.real_name
+            return real if real else self.user.username
+        except Exception:
+            return self.user.username
+
+
+class TeamJoinRequest(models.Model):
+    """加入团队申请"""
+    STATUS_CHOICES = [
+        ('pending', '待审核'),
+        ('approved', '已通过'),
+        ('rejected', '已拒绝'),
+    ]
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='join_requests', verbose_name='团队')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='team_join_requests', verbose_name='申请人')
+    remark = models.CharField('申请备注', max_length=100, help_text='请填写如「2023级 张三」，教师将以此识别你的身份')
+    status = models.CharField('状态', max_length=10, choices=STATUS_CHOICES, default='pending')
+    reject_reason = models.TextField('拒绝理由', blank=True, default='')
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='reviewed_requests', verbose_name='审核人')
+    reviewed_at = models.DateTimeField('审核时间', null=True, blank=True)
+    created_at = models.DateTimeField('申请时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_teamjoinrequest'
+        verbose_name = '加入申请'
+        verbose_name_plural = '加入申请'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} → {self.team.name} [{self.status}]'
+
+
 # ==================== 讨论区 ====================
 
 class Discussion(models.Model):
@@ -373,3 +463,63 @@ class DiscussionReply(models.Model):
 
     def __str__(self):
         return f'{self.user.username} 回复 {self.discussion.title}'
+
+
+# ==================== 作业与公告 ====================
+
+class Announcement(models.Model):
+    """团队公告"""
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='announcements', verbose_name='团队')
+    title = models.CharField('标题', max_length=200)
+    content = models.TextField('内容（Markdown）', blank=True, default='')
+    is_pinned = models.BooleanField('置顶', default=False)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_announcements')
+    created_at = models.DateTimeField('发布时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'judge_announcement'
+        verbose_name = '公告'
+        verbose_name_plural = '公告'
+        ordering = ['-is_pinned', '-created_at']
+
+    def __str__(self):
+        return f'[{self.team.name}] {self.title}'
+
+
+class Assignment(models.Model):
+    """团队作业"""
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='assignments', verbose_name='团队')
+    title = models.CharField('作业名称', max_length=200)
+    description = models.TextField('作业说明', blank=True, default='')
+    deadline = models.DateTimeField('截止时间', null=True, blank=True)
+    is_active = models.BooleanField('是否发布', default=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_assignments')
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'judge_assignment'
+        verbose_name = '作业'
+        verbose_name_plural = '作业'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'[{self.team.name}] {self.title}'
+
+
+class AssignmentProblem(models.Model):
+    """作业题目"""
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='problems', verbose_name='作业')
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='assignment_entries', verbose_name='题目')
+    sort_order = models.IntegerField('排序', default=0)
+
+    class Meta:
+        db_table = 'judge_assignmentproblem'
+        verbose_name = '作业题目'
+        verbose_name_plural = '作业题目'
+        unique_together = ['assignment', 'problem']
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'{self.assignment.title} - #{self.problem_id}'

@@ -9,6 +9,11 @@ export const useUserStore = defineStore('user', () => {
 
   const isLoggedIn = computed(() => !!accessToken.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isTeacher = computed(() => user.value?.role === 'teacher')
+  const isTeacherOrAdmin = computed(() => ['teacher', 'admin'].includes(user.value?.role))
+  const canCreateContest = computed(() =>
+    isTeacherOrAdmin.value || !!user.value?.can_create_contest
+  )
 
   function _saveTokens(access, refresh) {
     accessToken.value = access
@@ -47,5 +52,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('refresh_token')
   }
 
-  return { user, accessToken, isLoggedIn, isAdmin, login, register, fetchMe, logout }
+  return { user, accessToken, isLoggedIn, isAdmin, isTeacher, isTeacherOrAdmin, canCreateContest, login, register, fetchMe, logout }
 })

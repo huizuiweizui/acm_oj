@@ -83,12 +83,20 @@ class UserSerializer(serializers.ModelSerializer):
     ac_count = serializers.IntegerField(source='profile.ac_count', default=0)
     submit_count = serializers.IntegerField(source='profile.submit_count', default=0)
     bio = serializers.CharField(source='profile.bio', default='')
-    role = serializers.CharField(source='profile.role', default='user')
+    role = serializers.CharField(source='profile.role', default='student')
+    student_id = serializers.CharField(source='profile.student_id', default='')
+    real_name = serializers.CharField(source='profile.real_name', default='')
+    major = serializers.CharField(source='profile.major', default='')
+    grade = serializers.CharField(source='profile.grade', default='')
+    must_change_password = serializers.BooleanField(source='profile.must_change_password', default=False)
+    can_create_contest = serializers.BooleanField(source='profile.can_create_contest', default=False)
 
     class Meta:
         model = User
         fields = ['id', 'username', 'avatar_url', 'avatar_color',
-                  'rating', 'ac_count', 'submit_count', 'bio', 'role']
+                  'rating', 'ac_count', 'submit_count', 'bio', 'role',
+                  'student_id', 'real_name', 'major', 'grade',
+                  'must_change_password', 'can_create_contest']
 
 
 class ProblemListSerializer(serializers.ModelSerializer):

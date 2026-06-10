@@ -21,6 +21,7 @@ from .models import (
     Contest, ContestParticipant, ContestProblem,
     Discussion, DiscussionReply,
     Problem, Submission, UserProfile,
+    Team,
 )
 from .serializers import (
     AlgorithmListSerializer, AlgorithmDetailSerializer,
@@ -140,6 +141,13 @@ class ChangePasswordAPIView(APIView):
 
         request.user.set_password(new_password)
         request.user.save(update_fields=['password'])
+        # 清除首次登录强制改密标志
+        try:
+            if request.user.profile.must_change_password:
+                request.user.profile.must_change_password = False
+                request.user.profile.save(update_fields=['must_change_password'])
+        except Exception:
+            pass
         return Response({'detail': '密码修改成功'})
 
 
@@ -592,6 +600,143 @@ class ContestRegisterAPIView(APIView):
         )
 
 
+class ContestCreateAPIView(APIView):
+    """POST /api/contests/create/"""
+    permission_classes = [IsAuthenticated]
+
+    def _can_create(self, user):
+        profile = getattr(user, 'profile', None)
+        if profile is None:
+            return False
+        return profile.role in ('teacher', 'admin') or profile.can_create_contest
+
+    def post(self, request):
+        if not self._can_create(request.user):
+            return Response({'detail': '无权创建比赛'}, status=status.HTTP_403_FORBIDDEN)
+        from django.utils.dateparse import parse_datetime
+
+        title = request.data.get('title', '').strip()
+        description = request.data.get('description', '').strip()
+        start_time_str = request.data.get('start_time', '')
+        end_time_str = request.data.get('end_time', '')
+        rule_type = request.data.get('rule_type', 'ICPC')
+        problem_ids = request.data.get('problem_ids', [])
+
+        if not title:
+            return Response({'detail': '比赛名称不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(title) > 100:
+            return Response({'detail': '比赛名称不能超过 100 字符'}, status=status.HTTP_400_BAD_REQUEST)
+        if rule_type not in ('ICPC', 'IOI'):
+            return Response({'detail': '赛制参数错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_time = parse_datetime(start_time_str)
+        end_time = parse_datetime(end_time_str)
+        if not start_time or not end_time:
+            return Response({'detail': '时间格式错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        if start_time < now:
+            return Response({'detail': '开始时间不能早于当前时间'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_time <= start_time:
+            return Response({'detail': '结束时间必须晚于开始时间'}, status=status.HTTP_400_BAD_REQUEST)
+        if (end_time - start_time).total_seconds() < 300:
+            return Response({'detail': '结束时间必须晚于开始时间至少 5 分钟'}, status=status.HTTP_400_BAD_REQUEST)
+
+        contest = Contest.objects.create(
+            title=title,
+            description=description,
+            start_time=start_time,
+            end_time=end_time,
+            rule_type=rule_type,
+            created_by=request.user,
+        )
+
+        labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for idx, pid in enumerate(problem_ids):
+            problem = Problem.objects.filter(id=pid, is_published=True).first()
+            if problem:
+                ContestProblem.objects.create(
+                    contest=contest,
+                    problem=problem,
+                    label=labels[idx] if idx < len(labels) else str(idx + 1),
+                    sort_order=idx,
+                )
+
+        return Response({'id': contest.id}, status=status.HTTP_201_CREATED)
+
+
+class ContestProblemPoolAPIView(APIView):
+    """GET /api/contests/problem-pool/ — 题目选择器使用"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.core.paginator import Paginator
+
+        qs = Problem.objects.filter(is_published=True).prefetch_related('tags')
+
+        keyword = request.query_params.get('keyword', '').strip()
+        difficulty = request.query_params.get('difficulty', '').strip()
+        tag = request.query_params.get('tag', '').strip()
+
+        if keyword:
+            qs = qs.filter(Q(title__icontains=keyword) | Q(id__icontains=keyword))
+        if difficulty:
+            qs = qs.filter(difficulty=difficulty)
+        if tag:
+            qs = qs.filter(tags__name=tag)
+
+        paginator = Paginator(qs, 15)
+        page_obj = paginator.get_page(request.query_params.get('page', 1))
+
+        return Response({
+            'problems': [
+                {
+                    'id': p.id,
+                    'title': p.title,
+                    'difficulty': p.difficulty,
+                    'tags': [t.name for t in p.tags.all()],
+                }
+                for p in page_obj
+            ],
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
+            'page': page_obj.number,
+            'total_pages': page_obj.paginator.num_pages,
+            'total_count': page_obj.paginator.count,
+        })
+
+
+class UserContestPermAPIView(APIView):
+    """
+    PATCH /api/users/<pk>/contest-perm/
+    教师或管理员授予/撤销学生创建比赛的权限
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        operator = request.user
+        op_role = getattr(getattr(operator, 'profile', None), 'role', 'student')
+        if op_role not in ('teacher', 'admin'):
+            return Response({'detail': '无权操作'}, status=status.HTTP_403_FORBIDDEN)
+
+        target = User.objects.filter(pk=pk).select_related('profile').first()
+        if target is None:
+            raise NotFound('用户不存在')
+
+        target_role = getattr(target.profile, 'role', 'student')
+        # 教师只能操作学生；管理员可以操作任何人
+        if op_role == 'teacher' and target_role != 'student':
+            return Response({'detail': '只能修改学生的权限'}, status=status.HTTP_403_FORBIDDEN)
+
+        can = request.data.get('can_create_contest')
+        if not isinstance(can, bool):
+            return Response({'detail': 'can_create_contest 必须为布尔值'}, status=status.HTTP_400_BAD_REQUEST)
+
+        target.profile.can_create_contest = can
+        target.profile.save(update_fields=['can_create_contest'])
+        return Response({'can_create_contest': can})
+
+
 # ==================== 排行榜 ====================
 
 class LeaderboardAPIView(APIView):
@@ -955,6 +1100,117 @@ class PlatformStatsAPIView(APIView):
             'recent_problems': recent_problems,
             'recent_submissions': recent_submissions,
         })
+
+
+def _is_admin(user):
+    return hasattr(user, 'profile') and user.profile.role == 'admin'
+
+
+# ==================== 管理员 API ====================
+
+class AdminStatsAPIView(APIView):
+    """GET /api/admin/stats/ — 管理员专用扩展统计"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _is_admin(request.user):
+            return Response({'detail': '无权限'}, status=403)
+
+        roles = dict(
+            UserProfile.objects.values('role').annotate(cnt=Count('id')).values_list('role', 'cnt')
+        )
+        total_teams = Team.objects.count()
+        today = date.today()
+        today_reg = User.objects.filter(date_joined__date=today).count()
+        week_start = today - timedelta(days=6)
+        week_reg = User.objects.filter(date_joined__date__gte=week_start).count()
+
+        recent_users = list(
+            User.objects.select_related('profile')
+            .order_by('-date_joined')[:10]
+            .values('id', 'username', 'date_joined', 'profile__role',
+                    'profile__display_name', 'profile__student_id')
+        )
+        for u in recent_users:
+            u['date_joined'] = u['date_joined'].strftime('%Y-%m-%d %H:%M')
+            u['role'] = u.pop('profile__role') or 'student'
+            u['display_name'] = u.pop('profile__display_name') or ''
+            u['student_id'] = u.pop('profile__student_id') or ''
+
+        return Response({
+            'roles': roles,
+            'total_teams': total_teams,
+            'today_reg': today_reg,
+            'week_reg': week_reg,
+            'recent_users': recent_users,
+        })
+
+
+class AdminUserListAPIView(APIView):
+    """GET /api/admin/users/?page=1&search=&role= — 用户列表"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not _is_admin(request.user):
+            return Response({'detail': '无权限'}, status=403)
+
+        qs = User.objects.select_related('profile').order_by('-date_joined')
+        search = request.query_params.get('search', '').strip()
+        role = request.query_params.get('role', '').strip()
+
+        if search:
+            qs = qs.filter(
+                Q(username__icontains=search) |
+                Q(profile__display_name__icontains=search) |
+                Q(profile__student_id__icontains=search)
+            )
+        if role in ('student', 'teacher', 'admin'):
+            qs = qs.filter(profile__role=role)
+
+        page_size = 20
+        try:
+            page = max(1, int(request.query_params.get('page', 1)))
+        except ValueError:
+            page = 1
+        total = qs.count()
+        start = (page - 1) * page_size
+        users = list(qs[start:start + page_size].values(
+            'id', 'username', 'date_joined',
+            'profile__role', 'profile__display_name',
+            'profile__student_id', 'profile__major', 'profile__grade',
+        ))
+        for u in users:
+            u['date_joined'] = u['date_joined'].strftime('%Y-%m-%d')
+            u['role'] = u.pop('profile__role') or 'student'
+            u['display_name'] = u.pop('profile__display_name') or ''
+            u['student_id'] = u.pop('profile__student_id') or ''
+            u['major'] = u.pop('profile__major') or ''
+            u['grade'] = u.pop('profile__grade') or ''
+            ac = Submission.objects.filter(user_id=u['id'], status='AC').values('problem_id').distinct().count()
+            u['ac_count'] = ac
+
+        return Response({'total': total, 'page': page, 'page_size': page_size, 'users': users})
+
+
+class AdminUserUpdateAPIView(APIView):
+    """PATCH /api/admin/users/<id>/ — 修改用户角色"""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if not _is_admin(request.user):
+            return Response({'detail': '无权限'}, status=403)
+        user = User.objects.filter(pk=pk).select_related('profile').first()
+        if not user:
+            return Response({'detail': '用户不存在'}, status=404)
+        profile = user.profile
+        role = request.data.get('role')
+        if role in ('student', 'teacher', 'admin'):
+            profile.role = role
+        display_name = request.data.get('display_name')
+        if display_name is not None:
+            profile.display_name = display_name.strip()
+        profile.save()
+        return Response({'ok': True, 'role': profile.role})
 
 
 class DiscussionReplyCreateAPIView(APIView):

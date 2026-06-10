@@ -1,12 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useUserStore } from '@/stores/user'
 import { getContests } from '@/api/contests'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const { canCreateContest } = storeToRefs(userStore)
 
 const tab = ref(route.query.tab || 'all')
 const contests = ref([])
@@ -73,7 +75,7 @@ onMounted(fetchContests)
     <div class="page-header">
       <h1 class="page-title">比赛</h1>
       <button
-        v-if="userStore.isLoggedIn"
+        v-if="canCreateContest"
         class="btn-create"
         @click="router.push('/contests/create')"
       >

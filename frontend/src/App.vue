@@ -48,6 +48,12 @@ function logout() {
           <RouterLink to="/discussions">讨论</RouterLink>
           <RouterLink to="/learn">算法学习</RouterLink>
           <RouterLink to="/learn/graph">知识图谱</RouterLink>
+          <!-- 学生：我的团队 -->
+          <RouterLink v-if="userStore.isLoggedIn && !userStore.isTeacherOrAdmin" to="/my-teams">我的团队</RouterLink>
+          <!-- 教师：教学管理 -->
+          <RouterLink v-if="userStore.isTeacherOrAdmin" to="/teacher" class="nav-link-teacher">教学管理</RouterLink>
+          <!-- 管理员：管理后台 -->
+          <RouterLink v-if="userStore.isAdmin" to="/admin" class="nav-link-admin">管理后台</RouterLink>
         </div>
         <div class="nav-user">
           <!-- 主题切换 -->
@@ -204,6 +210,14 @@ function logout() {
   transition: background 0.15s;
 }
 .btn-reg:hover { background: var(--accent-deep); }
+
+/* 角色专属导航链接 */
+.nav-links .nav-link-teacher { color: #34d399 !important; }
+.nav-links .nav-link-teacher:hover,
+.nav-links .nav-link-teacher.router-link-active { color: #6ee7b7 !important; }
+.nav-links .nav-link-admin { color: #f87171 !important; }
+.nav-links .nav-link-admin:hover,
+.nav-links .nav-link-admin.router-link-active { color: #fca5a5 !important; }
 
 /* Main */
 .main-content {

@@ -1543,3 +1543,553 @@ CSS 细节：
 - `blockquote` 左侧 3px accent 色竖线 + 背景色，对齐 Obsidian 笔记风格
 
 **Dijkstra 详情页最终笔记 chunk 数：12 个，过滤后展示 10 个。**
+
+---
+
+## 阶段十二：知识图谱先修关系精标注
+
+**背景**：阶段十完成知识图谱基础设施（`Algorithm` 表 ≡ 知识点，`AlgorithmEdge` 表 ≡ 关系边）后，`seed_edges.py` 中的 48 条手工边存在两个问题：
+
+1. **语义错误**：若干边的 `edge_type` 不准确，与实际学习顺序不符：
+   - `(dijkstra, shortest-path, 'extends')` → 应为 `prerequisite`（先学"最短路"概念，再学 Dijkstra 算法）
+   - `(prefix-sum, difference-array, 'related')` → 应改为 `(difference-array, prefix-sum, 'prerequisite')`（前缀和是差分的前置知识）
+   - `(bitmask-dp, dp-general, 'extends')` → 应为 `prerequisite`（DP 基础是状压 DP 的前置）
+2. **覆盖不全**：排序子类对 `sort-general` 的依赖、图论算法对 `graph-general` 的依赖、数学工具链的依赖均未收录。
+
+本阶段将 `seed_edges.py` 从 48 条扩展到 **76 条**精标注先修边，作为论文"知识图谱构建"一节的核心内容。
+
+---
+
+### 边类型语义定义
+
+| 类型 | 含义 | 示例 |
+|------|------|------|
+| `prerequisite` | `target` 是学习 `source` 的前置知识，有严格学习顺序 | `(dijkstra, heap, prerequisite)` 意为：Dijkstra 需要先掌握堆 |
+| `extends` | `source` 是 `target` 的进阶 / 具体实现，建立在 `target` 思路之上 | `(merge-sort, divide-conquer, extends)` 意为：归并排序是分治的典型应用 |
+| `related` | 双向关联，同类问题或常配合使用，无严格先后顺序 | `(kmp, hashing, related)` 意为：两者都是字符串匹配的主流思路 |
+
+---
+
+### 先修边汇总（按分类）
+
+#### 基础算法（7 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| recursion → dfs | prerequisite | DFS 用递归实现 |
+| recursion → divide-conquer | prerequisite | 分治用递归拆解子问题 |
+| recursion → fast-pow | prerequisite | 快速幂递归版本 |
+| recursion ↔ recurrence | related | 递推与递归互为对偶思维 |
+| recurrence → dp-general | prerequisite | DP 本质是带记忆的递推 |
+| recurrence ← fast-pow | extends | 快速幂基于 a^n=a^(n/2)² 递推关系 |
+| two-pointers ↔ binary-search | related | 同属"索引缩减"类技巧 |
+
+#### 排序（7 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| sort-general → bubble-sort | extends | 冒泡是排序的具体实现 |
+| sort-general → quick-sort | extends | 快速排序是排序的具体实现 |
+| sort-general → merge-sort | extends | 归并排序是排序的具体实现 |
+| sort-general → heap-sort | extends | 堆排序是排序的具体实现 |
+| heap → heap-sort | prerequisite | 堆排序需要掌握堆结构 |
+| divide-conquer → quick-sort | extends | 快速排序是分治的典型应用 |
+| divide-conquer → merge-sort | extends | 归并排序是分治的典型应用 |
+
+#### 搜索（7 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| sort-general → binary-search | prerequisite | 二分要求序列有序 |
+| graph-general → dfs | prerequisite | 图 DFS 需要图论基础 |
+| graph-general → bfs | prerequisite | 图 BFS 需要图论基础 |
+| queue → bfs | prerequisite | BFS 用队列维护层序 |
+| search-general → dfs | extends | DFS 是深度优先搜索 |
+| search-general → bfs | extends | BFS 是广度优先搜索 |
+| search-general → binary-search | extends | 二分是有序空间的高效搜索 |
+
+#### 贪心（2 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| greedy → activity-select | extends | 活动选择是贪心的经典例题 |
+| sort-general → activity-select | prerequisite | 活动选择先按截止时间排序 |
+
+#### 动态规划（12 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| dp-general → knapsack | extends | 背包是 DP 的经典模型 |
+| dp-general → lcs | extends | LCS 是 DP 的经典模型 |
+| dp-general → lis | extends | LIS 是 DP 的经典模型 |
+| binary-search → lis | prerequisite | O(n log n) LIS 需要二分优化 |
+| **dp-general → bitmask-dp** | **prerequisite** | **DP 是状压 DP 的基础** |
+| bitwise → bitmask-dp | prerequisite | 状压 DP 用位运算枚举子集 |
+| dp-general → interval-dp | extends | 区间 DP |
+| dp-general → tree-dp | extends | 树形 DP |
+| dfs → tree-dp | prerequisite | 树形 DP 用 DFS 遍历树 |
+| dp-general → digit-dp | extends | 数位 DP |
+| dp-general → floyd | extends | Floyd 是 DP 在图上的应用 |
+| dp-general ↔ game-theory | related | 博弈论常用 DP 记忆化 |
+
+#### 图论（18 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| graph-general → shortest-path | prerequisite | 最短路需要图论基础 |
+| **shortest-path → dijkstra** | **prerequisite** | **Dijkstra 是最短路的算法实现** |
+| heap → dijkstra | prerequisite | 优先队列加速 Dijkstra |
+| graph-general → dijkstra | prerequisite | |
+| shortest-path → floyd | prerequisite | Floyd 是全源最短路算法 |
+| graph-general → mst | prerequisite | |
+| union-find → kruskal | prerequisite | Kruskal 用并查集合并连通分量 |
+| mst → kruskal | extends | Kruskal 是 MST 的一种实现 |
+| graph-general → kruskal | prerequisite | |
+| graph-general → topo-sort | prerequisite | |
+| bfs → topo-sort | prerequisite | Kahn 算法基于 BFS |
+| graph-general → network-flow | extends | 网络流是图论的高级模型 |
+| bfs → network-flow | prerequisite | Edmonds-Karp 增广路用 BFS |
+| graph-general → bipartite | extends | |
+| bfs → bipartite | prerequisite | 二分图染色用 BFS |
+| network-flow ↔ bipartite | related | 二分图最大匹配 = 最大流特例 |
+| dfs → lca | prerequisite | LCA 需要 DFS 遍历 |
+| sparse-table → lca | prerequisite | 倍增 LCA 需要 Sparse Table |
+
+#### 数据结构（8 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| stack → monotone-stack | prerequisite | |
+| queue → monotone-queue | prerequisite | |
+| sort-general ↔ heap | related | 堆与排序强关联 |
+| bitwise → bit | prerequisite | 树状数组依赖 lowbit 位运算 |
+| divide-conquer → segment-tree | prerequisite | 线段树基于分治思想 |
+| prefix-sum → sparse-table | extends | Sparse Table 是 RMQ 版前缀积 |
+| hashing ↔ trie | related | 字典树与哈希同为字符串索引 |
+| graph-general ↔ union-find | related | 并查集大量用于图连通性 |
+
+#### 字符串（6 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| brute-force → kmp | extends | KMP 是暴力匹配的线性优化 |
+| hashing ↔ kmp | related | 两种字符串匹配的主流思路 |
+| binary-search → suffix-array | prerequisite | 后缀数组上查询需要二分 |
+| hashing ↔ suffix-array | related | 后缀数组与字符串哈希互补 |
+| trie → aho-corasick | extends | AC 自动机在字典树上构建失配指针 |
+| kmp → aho-corasick | extends | AC 自动机是 KMP 的多模式推广 |
+
+#### 数学（9 条）
+
+| 先学 → 后学 | 类型 | 理由 |
+|------------|------|------|
+| **prefix-sum → difference-array** | **prerequisite** | **差分数组用前缀和还原** |
+| bitwise ↔ fast-pow | related | 快速幂常用位运算判奇偶 |
+| fast-pow → matrix | prerequisite | 矩阵快速幂 |
+| enumeration → sieve | extends | 线性筛是聪明的枚举优化 |
+| fast-pow ↔ number-theory | related | 费马小定理用快速幂求逆元 |
+| sieve → number-theory | prerequisite | 数论需要质数筛法 |
+| fast-pow → combinatorics | prerequisite | C(n,r) mod p 需快速幂求阶乘逆元 |
+| combinatorics → probability | prerequisite | 概率论建立在组合数基础上 |
+| recurrence ↔ big-integer | related | 高精度按位逐步递推处理 |
+
+---
+
+### 运行命令
+
+```bash
+# --clear 先清空再写入，使修正后的 edge_type 生效
+python manage.py seed_edges --clear
+# 完成: 新建 76 条，已存在跳过 0 条，缺失算法 0 处
+
+# 重新构建 Obsidian 链接自动解析的边（保留手工边）
+python manage.py build_graph
+# 新建 152 条，已存在跳过 90 条（手工边覆盖的部分），未匹配源文件 3 个（无 algo_id，正常）
+```
+
+---
+
+### 最终图谱状态
+
+| 指标 | 数值 |
+|------|------|
+| 知识节点（Algorithm） | **62 个** |
+| 手工先修边（seed_edges） | **76 条** |
+| 自动解析边（build_graph 净新增） | **152 条** |
+| 总关系边 | **228 条** |
+| prerequisite 边占比 | **~45%** |
+
+---
+
+## 阶段十三：三端教学平台（学生 / 教师 / 队长）
+
+本阶段将系统从"单用户 OJ"升级为支持"学生 / 教师 / 管理员"三端分角色运营的教学平台，核心功能包括：角色体系重构、团队管理（含队长角色）、学生导入、团队数据仪表盘、学生个人详情、作业与公告系统。
+
+---
+
+### Phase 1 — 角色体系重构
+
+**目标**：在原有 `is_staff / is_superuser` 基础上，新增业务级角色字段，支持 `student / teacher / admin` 三档权限。
+
+#### 数据模型
+
+`UserProfile`（扩展 `auth.User` 的 OneToOne 表）新增字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `role` | CharField | `student` / `teacher` / `admin`，默认 `student` |
+| `student_id` | CharField | 学号（可空） |
+| `major` | CharField | 专业（可空） |
+| `grade` | CharField | 年级（可空） |
+| `display_name` | CharField | 显示名（优先于 username） |
+| `must_change_password` | BooleanField | 批量导入账号首次登录强制改密 |
+
+#### API 变更
+
+`/api/auth/me/` 返回新增 `role`、`must_change_password`、`display_name`、`student_id` 等字段，Pinia `userStore` 同步存储。
+
+Router `beforeEach` 新增 `must_change_password` 拦截：已登录且未修改默认密码时，除 `/change-password` 外所有路由均重定向到修改密码页。
+
+---
+
+### Phase 2 — 团队管理系统
+
+#### 新增模型
+
+| 模型 | 关键字段 | 说明 |
+|------|----------|------|
+| `Team` | `name`, `creator`, `invite_code`, `is_active` | 班级/团队实体，创建者自动成为成员 |
+| `TeamMembership` | `team`, `user`, `role`（`member`/`captain`）, `joined_at` | 团队成员关系，支持队长角色 |
+| `TeamJoinRequest` | `team`, `user`, `status`（`pending`/`approved`/`rejected`）, `message` | 申请加入流程 |
+
+`invite_code`：8 位随机字符串，教师可重置。
+
+#### API 端点
+
+```
+POST   /api/teams/                    # 创建团队（教师/管理员）
+GET    /api/teams/                    # 我管理的团队列表
+GET    /api/my-teams/                 # 我加入的团队列表（学生用）
+GET    /api/teams/<id>/               # 团队详情（含 can_manage / my_role）
+PATCH  /api/teams/<id>/               # 更新团队信息
+POST   /api/teams/<id>/join/          # 申请加入（用邀请码）
+GET    /api/teams/<id>/members/       # 成员列表（含 can_manage）
+POST   /api/teams/<id>/requests/      # 查看/审批申请列表
+POST   /api/teams/<id>/reset-invite/  # 重置邀请码
+DELETE /api/teams/<id>/members/<uid>/ # 移除成员
+```
+
+#### 权限设计
+
+```python
+def _is_team_viewer(user, team):
+    # 团队创建者、管理员、队长均可查看
+    ...
+
+def _is_creator_or_admin(user, team):
+    # 仅创建者或 admin 可进行管理操作
+    ...
+```
+
+`TeamDetailAPIView.get()` 返回 `can_manage`（创建者/admin 为 True，队长为 False）和 `my_role`（`member`/`captain`/`creator`）。
+
+---
+
+### Phase 3 — 学生导入与强制改密
+
+#### 单个学生添加
+
+```
+GET  /api/teams/<id>/search-student/  # 按用户名/姓名搜索已注册用户
+POST /api/teams/<id>/add-student/     # 将现有用户加入团队（直接通过，无需审批）
+```
+
+#### Excel 批量导入
+
+```
+GET  /api/teams/<id>/import-template/  # 下载空白 xlsx 模板（含样例行）
+POST /api/teams/<id>/import-students/  # 上传 xlsx 批量创建账号并加入团队
+```
+
+导入逻辑（`ImportStudentsAPIView`）：
+
+1. `openpyxl` 读取工作表，按列：用户名、密码、姓名、学号、专业、年级
+2. 账号不存在则 `User.objects.create_user()`，存在则直接加入团队
+3. 新建账号设置 `UserProfile.must_change_password = True`
+4. 返回 `{ created, added, skipped }` 三个计数
+
+#### 强制改密流程
+
+- **前端**：`ChangePasswordView.vue`，调用 `POST /api/auth/password/`（旧密码 + 新密码）
+- 成功后 `userStore.fetchMe()` 拉取最新 profile，`must_change_password` 变为 `False`
+- Router 守卫从 `userStore.user.must_change_password` 读取，自动放行
+
+---
+
+### Phase 4 — 团队仪表盘
+
+#### 后端：`TeamDashboardAPIView`
+
+```
+GET /api/teams/<id>/dashboard/         # 统计数据
+GET /api/teams/<id>/dashboard/export/  # 导出 Excel（openpyxl）
+```
+
+**核心函数 `_build_ranking_and_stats(team, member_user_ids, memberships)`：**
+
+- **AC 去重**：全部使用 `distinct (user_id, problem_id)` 对，避免同题多次提交重复计数
+- `total_ac`：全时间段去重 AC 数
+- `week_ac`：最近 7 天去重 AC 数
+- `month_ac`：最近 30 天去重 AC 数
+- `by_group`：按难度分组（入门/普及/提高/NOI/其他）的 AC 分布
+
+**`_build_trend(member_user_ids)`：**
+
+30 天每日团队 AC 趋势，以 `(user_id, problem_id, TruncDate(created_at))` 三元组去重，反映有效日进展。
+
+**统计卡片：**
+
+```json
+{
+  "stats": {
+    "member_count": 32,
+    "total_ac": 847,
+    "week_ac": 124,
+    "avg_ac": "26.47",
+    "pending_count": 3
+  }
+}
+```
+
+**Excel 导出**（`TeamDashboardExportAPIView`）：
+
+`openpyxl` 写入排行表，含：排名、姓名、学号、总AC、本周AC、本月AC、各难度分组列，返回 `application/vnd.openxmlformats` blob。
+
+#### 前端：`TeamDashboardView.vue`
+
+- **统计卡片行**：5 张，待审核数 > 0 时显示橙色警告色
+- **成员排行表**：3 个排序 tab（总排名/本周/本月），点击列头可切换排序，点击姓名跳转学生详情页
+- **队长皇冠**：`role === 'captain'` 时显示 👑
+- **ECharts 折线图**：30 天 AC 趋势，渐变填充，`vue-echarts` `CanvasRenderer`
+- **导出按钮**：下载 blob 并触发浏览器另存为
+
+```js
+const { data: blob } = await exportDashboard(teamId)
+const url = URL.createObjectURL(blob)
+const a = document.createElement('a')
+a.href = url; a.download = `${team.value.name}_ranking.xlsx`; a.click()
+URL.revokeObjectURL(url)
+```
+
+---
+
+### Phase 5 — 学生详情页
+
+#### 后端：`TeamStudentDetailAPIView`
+
+```
+GET /api/teams/<teamId>/students/<userId>/
+```
+
+返回结构：
+
+```json
+{
+  "member": { "display_name", "username", "student_id", "major", "grade", "total_ac", "total_submit" },
+  "diff_dist": [{ "group": "入门", "count": 12 }, ...],
+  "trend": [{ "date": "2026-05-11", "count": 3 }, ...],
+  "heatmap": { "2026-01-15": 5, "2026-01-20": 2, ... },
+  "ac_problems": [{ "problem_id", "title", "difficulty", "first_ac_at" }, ...]
+}
+```
+
+- `diff_dist`：按 `_group_difficulty()` 分为 5 档，`DIFF_ORDER = ['入门','普及','提高','NOI','其他']`
+- `trend`：近 30 天每日去重 AC（同 dashboard trend，但只统计该学生）
+- `heatmap`：过去 365 天，按日汇总 AC 数（字典格式，前端直接遍历）
+- `ac_problems`：最近 50 条去重 AC 记录，含首次通过时间
+
+#### 前端：`StudentDetailView.vue`
+
+- **顶部**：姓名、学号/专业/年级、AC 总数 + 总提交数（右上角）
+- **难度分布**：ECharts 环形饼图（`PieChart`，`radius: ['45%','75%']`），右侧图例
+- **30 天趋势**：ECharts 折线面积图（`LineChart`），与 dashboard 风格统一
+- **过去一年热力图**：ECharts `HeatmapChart` + `CalendarComponent`，范围 `[today-365, today]`，颜色从 `#1e2030` 渐变到 `#a5b4fc`
+- **AC 题目表格**：题号、标题、难度 tag（颜色徽章）、首次 AC 日期
+
+---
+
+### Phase 6 — 作业与公告系统
+
+#### 新增模型
+
+**`Announcement`：**
+
+```python
+class Announcement(models.Model):
+    team = ForeignKey(Team)
+    title = CharField(max_length=200)
+    content = TextField(blank=True)
+    is_pinned = BooleanField(default=False)
+    created_by = ForeignKey(User)
+    created_at = DateTimeField(auto_now_add=True)
+    updated_at = DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ['-is_pinned', '-created_at']  # 置顶在前，新在前
+```
+
+**`Assignment`：**
+
+```python
+class Assignment(models.Model):
+    team = ForeignKey(Team)
+    title = CharField(max_length=200)
+    description = TextField(blank=True)
+    deadline = DateTimeField(null=True, blank=True)
+    is_active = BooleanField(default=True)
+    created_by = ForeignKey(User)
+    ...
+```
+
+**`AssignmentProblem`：**
+
+```python
+class AssignmentProblem(models.Model):
+    assignment = ForeignKey(Assignment)
+    problem = ForeignKey(Problem)
+    sort_order = IntegerField(default=0)
+    class Meta:
+        unique_together = ['assignment', 'problem']
+        ordering = ['sort_order']
+```
+
+迁移文件 `0012_assignment_announcement.py` 自动生成，`python manage.py migrate` 应用成功。
+
+#### API 端点
+
+```
+GET    /api/teams/<id>/announcements/         # 公告列表（成员可见）
+POST   /api/teams/<id>/announcements/         # 创建公告（仅管理者）
+PATCH  /api/teams/<id>/announcements/<aid>/   # 更新（含 togglePin）
+DELETE /api/teams/<id>/announcements/<aid>/   # 删除
+
+GET    /api/teams/<id>/assignments/           # 作业列表（含学生 AC 状态）
+POST   /api/teams/<id>/assignments/           # 创建作业（仅管理者）
+PATCH  /api/teams/<id>/assignments/<aid>/     # 更新（含题目列表）
+DELETE /api/teams/<id>/assignments/<aid>/     # 删除
+```
+
+**`_assignment_data(assignment, user=None)`：**
+
+为学生注入每道题的 `ac` 字段：
+
+```python
+if user:
+    ac_set = set(Submission.objects.filter(
+        user=user, status='AC', problem_id__in=pids
+    ).values_list('problem_id', flat=True))
+```
+
+教师/管理员查看时 `user=None`，所有题目 `ac: False`（不显示完成情况，显示题目内容即可）。
+
+#### 前端：`TeamDetailView.vue` 新增 Tab
+
+教师管理界面新增两个 Tab（仅 `canManage=true` 时显示）：
+
+**公告 Tab：**
+- 公告列表，每条显示：标题、置顶状态（📌）、内容、创建时间
+- 操作：新建、编辑（弹窗）、置顶/取消置顶（`PATCH is_pinned`）、删除
+
+**作业 Tab：**
+- 作业列表，显示题目数、截止时间
+- 新建/编辑弹窗：标题、描述、截止日期、题目搜索添加（`/api/problems/?search=`）
+- 题目列表可按 sort_order 排序，支持逐条删除
+
+---
+
+### Phase 7 — 队长只读视图（`can_manage`）
+
+**设计原则**：队长可以查看团队信息、成员、仪表盘，但不能进行管理操作（审批、导入、重置邀请码、发公告、布置作业）。
+
+#### 后端变更
+
+所有涉及管理操作的接口使用 `_is_creator_or_admin()` 鉴权（而非 `_is_team_viewer()`），确保队长调用管理接口时返回 403。
+
+三个 API 的响应均新增 `can_manage` 字段：
+
+```python
+# TeamDetailAPIView / TeamMembersAPIView / TeamDashboardAPIView
+"can_manage": _is_creator_or_admin(request.user, team)
+```
+
+`TeamMembersAPIView` 响应格式从纯数组改为：
+
+```json
+{ "members": [...], "can_manage": true }
+```
+
+前端兼容处理：`members.value = ml.data.members ?? ml.data`
+
+#### 前端变更（`TeamDetailView.vue`）
+
+`canManage` ref 从 API 响应初始化：
+
+```js
+const { data: td } = await getTeam(teamId)
+canManage.value = td.data.can_manage
+```
+
+以下元素加 `v-if="canManage"` 隐藏：
+
+- 申请审批 Tab
+- 添加学生 Tab
+- 公告管理 Tab
+- 作业管理 Tab
+- 成员表格中的操作列（移除按钮）
+- 邀请码重置按钮（队长只看到只读状态条）
+
+#### 路由变更
+
+`/teacher/teams/:id`、`/teacher/teams/:id/dashboard`、`/teacher/teams/:teamId/students/:userId` 三个路由移除 `requiresRole: 'teacher'`，改为仅 `requiresAuth: true`，权限校验下沉到后端 `_is_team_viewer()`。
+
+#### 学生端队长快捷入口（`StudentTeamView.vue`）
+
+```js
+const isCaptain = computed(() => team.value?.my_role === 'captain')
+```
+
+`isCaptain` 为 True 时，顶部右侧显示"成员管理"和"团队排行 →"两个快捷按钮，直接跳转到对应的教师端页面。
+
+---
+
+### 新增文件汇总
+
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| `frontend/src/views/ChangePasswordView.vue` | Vue | 强制改密页（auto 账号首次登录） |
+| `frontend/src/views/student/StudentTeamView.vue` | Vue | 学生端团队详情（公告+作业+队长快捷入口） |
+| `frontend/src/views/teacher/TeamDashboardView.vue` | Vue | 团队总览仪表盘（统计卡+排行表+ECharts） |
+| `frontend/src/views/teacher/StudentDetailView.vue` | Vue | 学生个人详情（饼图+折线+热力图+AC列表） |
+| `judge/migrations/0012_assignment_announcement.py` | Django | 新增 Announcement / Assignment / AssignmentProblem 三表 |
+
+### 主要修改文件汇总
+
+| 文件 | 关键改动 |
+|------|----------|
+| `judge/models.py` | 新增 `Announcement` / `Assignment` / `AssignmentProblem` |
+| `judge/team_api_views.py` | 新增 Dashboard / StudentDetail / Announcement / Assignment 全套 API |
+| `judge/api_urls.py` | 注册以上所有新端点 |
+| `frontend/src/api/team.js` | 新增 12 个 API 调用函数 |
+| `frontend/src/views/teacher/TeamDetailView.vue` | 新增公告/作业 Tab，添加 `canManage` 控制显示/隐藏 |
+| `frontend/src/views/student/MyTeamsView.vue` | 新增"公告/作业"入口按钮 |
+| `frontend/src/router/index.js` | 新增 change-password / student-team 路由，移除教师团队路由的角色限制，增加 must_change_password 守卫 |
+
+### 数据库状态
+
+| 表 | 说明 |
+|----|------|
+| `judge_team` | 团队实体 |
+| `judge_teammembership` | 成员关系（含队长角色） |
+| `judge_teamjoinrequest` | 申请流程 |
+| `judge_announcement` | 公告 |
+| `judge_assignment` | 作业 |
+| `judge_assignmentproblem` | 作业-题目关联表 |
