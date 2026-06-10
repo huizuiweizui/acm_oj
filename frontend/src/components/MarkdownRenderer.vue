@@ -53,7 +53,7 @@ const html = computed(() => renderContent(props.content))
 
 <style>
 /* 全局样式（非 scoped），让 v-html 内部生效 */
-.md-body { color: var(--text-secondary); line-height: 1.8; font-size: 0.95rem; }
+.md-body { color: var(--text-primary); line-height: 1.9; font-size: 15px; }
 .md-body h1, .md-body h2, .md-body h3,
 .md-body h4, .md-body h5, .md-body h6 {
   color: var(--text-primary); margin: 1.2em 0 0.5em; font-weight: 700;

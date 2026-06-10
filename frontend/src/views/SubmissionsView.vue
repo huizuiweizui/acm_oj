@@ -142,36 +142,37 @@ onMounted(fetchSubmissions)
   border-radius: 6px; color: var(--text-secondary); font-size: 0.85rem; cursor: pointer; transition: all 0.15s;
 }
 .mode-btn:hover { border-color: var(--accent); color: var(--text-primary); }
-.mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mode-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent-text); }
 
 .table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .loading { padding: 3rem; text-align: center; color: var(--text-muted); }
 
 .sub-table { width: 100%; border-collapse: collapse; }
 .sub-table th {
-  padding: 0.7rem 1rem; text-align: left;
-  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  padding: 8px 16px; text-align: left;
+  font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
+  background: var(--bg-page); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
 }
-.sub-table td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+.sub-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; }
 .sub-row:last-child td { border-bottom: none; }
-.sub-row:hover td { background: var(--bg-secondary); }
+.sub-row:hover td { background: var(--bg-hover); }
 
-.id-cell { color: var(--text-muted); font-size: 0.8rem; }
-.user-cell { display: flex; align-items: center; gap: 0.5rem; }
+.id-cell { color: var(--text-muted); font-size: 13px; font-family: var(--font-mono); }
+.user-cell { display: flex; align-items: center; gap: 6px; }
 .sub-avatar {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.65rem; font-weight: 700; color: #fff;
+  font-size: 10px; font-weight: 700; color: #fff;
   background: var(--accent);
 }
-.sub-user { color: var(--accent); text-decoration: none; font-size: 0.85rem; }
-.sub-user:hover { text-decoration: underline; }
-.problem-link { color: var(--accent); text-decoration: none; }
-.problem-link:hover { color: var(--accent-deep); text-decoration: underline; }
-.lang-cell { color: var(--text-muted); font-size: 0.82rem; }
-.time-used-cell { color: var(--text-muted); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
-.time-cell { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
+.sub-user { color: var(--text-secondary); text-decoration: none; font-size: 14px; }
+.sub-user:hover { color: var(--accent-text); }
+.problem-link { color: var(--text-primary); text-decoration: none; }
+.problem-link:hover { color: var(--accent-text); }
+.lang-cell { color: var(--text-secondary); font-size: 13px; font-family: var(--font-mono); }
+.time-used-cell { color: var(--text-muted); font-size: 13px; font-family: var(--font-mono); }
+.time-cell { color: var(--text-muted); font-size: 12.5px; white-space: nowrap; }
 .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 .pagination {

@@ -1,3 +1,5 @@
+import shutil
+import tempfile
 import threading
 from datetime import date, timedelta
 
@@ -5,6 +7,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.http import StreamingHttpResponse
 from rest_framework import generics, status
@@ -240,6 +243,20 @@ class ProblemDetailAPIView(generics.RetrieveAPIView):
         if obj is None:
             raise NotFound('题目不存在或未公开')
         return obj
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        data = dict(self.get_serializer(instance).data)
+        pub_ids = list(
+            Problem.objects.filter(is_published=True).order_by('id').values_list('id', flat=True)
+        )
+        try:
+            pos = pub_ids.index(instance.id)
+            data['prev_id'] = pub_ids[pos - 1] if pos > 0 else None
+            data['next_id'] = pub_ids[pos + 1] if pos < len(pub_ids) - 1 else None
+        except ValueError:
+            data['prev_id'] = data['next_id'] = None
+        return Response(data)
 
 
 # ==================== 提交记录 ====================
@@ -1332,3 +1349,53 @@ class AskAIAPIView(APIView):
         resp['Cache-Control']     = 'no-cache'
         resp['X-Accel-Buffering'] = 'no'
         return resp
+
+
+class CustomRunAPIView(APIView):
+    """POST /api/problems/<pk>/run/  — 自定义测试，不保存提交记录"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        from .services.sandbox import compile_code, run_code, source_path
+
+        get_object_or_404(Problem, id=pk, is_published=True)
+
+        code = request.data.get('code', '').strip()
+        language = request.data.get('language', 'C++')
+        custom_input = request.data.get('input', '')
+
+        if not code:
+            return Response({'detail': '代码不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+        if language not in VALID_LANGUAGES:
+            return Response({'detail': f'语言须为 {VALID_LANGUAGES} 之一'}, status=status.HTTP_400_BAD_REQUEST)
+
+        tmp_dir = tempfile.mkdtemp(prefix='api_run_')
+        try:
+            src = source_path(language, tmp_dir)
+            with open(src, 'w', encoding='utf-8') as f:
+                f.write(code)
+
+            ok, err_msg = compile_code(language, tmp_dir)
+            if not ok:
+                return Response({'status': 'CE', 'output': '', 'error': err_msg[:2000]})
+
+            returncode, stdout_data, stderr_data, timed_out = run_code(
+                language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
+            )
+
+            if timed_out:
+                run_status = 'TLE'
+            elif returncode == 137:
+                run_status = 'MLE'
+            elif returncode != 0:
+                run_status = 'RE'
+            else:
+                run_status = 'OK'
+
+            return Response({
+                'status': run_status,
+                'output': stdout_data[:4096],
+                'error': stderr_data[:1024] if run_status != 'OK' else '',
+            })
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)

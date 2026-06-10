@@ -1,32 +1,37 @@
 <script setup>
 defineProps({ difficulty: String })
 
-const colorMap = {
-  '入门':          '#5cb85c',
-  '普及-':         '#2185d0',
-  '普及/提高-':    '#2185d0',
-  '普及+/提高':    '#a0a0f0',
-  '提高+/省选-':   '#ffcc00',
-  '省选/NOI-':     '#ff8800',
-  'NOI/NOI+/CTSC': '#e03131',
-  '暂无评定':      '#888',
+const styleMap = {
+  '暂无评定':      { bg: 'rgba(191,191,191,0.15)', color: '#6b7280',  dot: '#bfbfbf' },
+  '入门':          { bg: 'rgba(254,76,97,0.12)',   color: '#dc2626',  dot: '#fe4c61' },
+  '普及-':         { bg: 'rgba(243,156,17,0.12)',  color: '#b45309',  dot: '#f39c11' },
+  '普及/提高-':    { bg: 'rgba(255,193,22,0.15)',  color: '#92400e',  dot: '#ffc116' },
+  '普及+/提高':    { bg: 'rgba(82,196,26,0.12)',   color: '#15803d',  dot: '#52c41a' },
+  '提高+/省选-':   { bg: 'rgba(52,152,219,0.12)',  color: '#1d4ed8',  dot: '#3498db' },
+  '省选/NOI-':     { bg: 'rgba(157,61,207,0.12)',  color: '#7e22ce',  dot: '#9d3dcf' },
+  'NOI/NOI+/CTSC': { bg: 'rgba(14,29,105,0.12)',  color: '#0e1d69',  dot: '#0e1d69' },
 }
 </script>
 
 <template>
-  <span class="badge" :style="{ background: colorMap[difficulty] ?? '#888' }">
+  <span class="badge" :style="{ background: (styleMap[difficulty] ?? styleMap['暂无评定']).bg, color: (styleMap[difficulty] ?? styleMap['暂无评定']).color }">
+    <span class="dot" :style="{ background: (styleMap[difficulty] ?? styleMap['暂无评定']).dot }"></span>
     {{ difficulty }}
   </span>
 </template>
 
 <style scoped>
 .badge {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
-  font-weight: 500;
+}
+.dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
 }
 </style>

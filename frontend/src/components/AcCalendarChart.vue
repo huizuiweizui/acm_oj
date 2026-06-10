@@ -24,10 +24,12 @@ const option = computed(() => {
     backgroundColor: 'transparent',
     tooltip: {
       formatter: (p) => `${p.data[0]}<br/>AC: ${p.data[1]} 次`,
+      backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
+      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
     },
     visualMap: {
       min: 0, max: 5,
-      inRange: { color: ['#1a1a30', '#2d1b69', '#5b21b6', '#7c3aed', '#a78bfa'] },
+      inRange: { color: ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a', '#14532d'] },
       show: false,
     },
     calendar: {
@@ -35,8 +37,8 @@ const option = computed(() => {
       cellSize: [13, 13],
       left: 30, right: 0, top: 20, bottom: 0,
       itemStyle: { borderWidth: 2, borderColor: 'transparent' },
-      dayLabel: { color: '#888', fontSize: 10, firstDay: 1 },
-      monthLabel: { color: '#888', fontSize: 10 },
+      dayLabel: { color: '#a1a1aa', fontSize: 10, firstDay: 1 },
+      monthLabel: { color: '#a1a1aa', fontSize: 10 },
       yearLabel: { show: false },
       splitLine: { show: false },
     },

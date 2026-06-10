@@ -18,12 +18,13 @@ const registering = ref(false)
 const regMsg = ref('')
 
 const statusCfg = {
-  running:  { label: '进行中', color: '#2ecc71' },
-  upcoming: { label: '即将开始', color: '#3498db' },
-  ended:    { label: '已结束', color: '#888' },
+  running:  { label: '进行中', bg: 'var(--status-ac-bg)',      color: 'var(--status-ac-text)' },
+  upcoming: { label: '即将开始', bg: 'var(--status-pending-bg)', color: 'var(--status-pending-text)' },
+  ended:    { label: '已结束', bg: 'var(--bg-hover)',           color: 'var(--text-muted)' },
 }
-const statusIconMap = { ac: '✓', tried: '?', todo: '' }
-const statusColorMap = { ac: '#2ecc71', tried: '#f39c12', todo: 'transparent' }
+const statusIconMap  = { ac: '✓', tried: '·', todo: '' }
+const statusBgMap    = { ac: 'var(--status-ac-bg)',  tried: 'var(--status-tle-bg)', todo: 'transparent' }
+const statusColorMap = { ac: 'var(--status-ac-text)', tried: 'var(--status-tle-text)', todo: 'transparent' }
 
 function formatTime(iso) {
   if (!iso) return '-'
@@ -78,7 +79,7 @@ onMounted(fetchContest)
           <span class="rule-badge">{{ contest.rule_type }}</span>
           <span
             class="status-badge"
-            :style="{ color: statusCfg[contest.status]?.color, borderColor: statusCfg[contest.status]?.color }"
+            :style="{ background: statusCfg[contest.status]?.bg, color: statusCfg[contest.status]?.color }"
           >{{ statusCfg[contest.status]?.label }}</span>
           <span class="meta-text">{{ participantCount }} 人参赛</span>
         </div>
@@ -124,7 +125,7 @@ onMounted(fetchContest)
             <td class="status-cell">
               <span
                 class="status-dot"
-                :style="{ background: statusColorMap[p.user_status] }"
+                :style="{ background: statusBgMap[p.user_status], color: statusColorMap[p.user_status] }"
               >{{ statusIconMap[p.user_status] }}</span>
             </td>
             <td class="label-cell">{{ p.label }}</td>
@@ -172,8 +173,8 @@ onMounted(fetchContest)
   border-radius: 4px; font-size: 0.78rem; font-weight: 600;
 }
 .status-badge {
-  font-size: 0.82rem; font-weight: 600;
-  border: 1px solid; padding: 0.15rem 0.55rem; border-radius: 4px;
+  font-size: 12.5px; font-weight: 600;
+  padding: 2px 10px; border-radius: 6px;
 }
 .meta-text { color: var(--text-muted); font-size: 0.85rem; }
 
@@ -182,13 +183,12 @@ onMounted(fetchContest)
 .desc { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin: 0.75rem 0 0; }
 
 .header-action { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; flex-shrink: 0; }
-.reg-ok { color: #22c55e; font-weight: 600; font-size: 0.95rem; }
 .btn-register {
   padding: 0.6rem 1.6rem; background: var(--accent); color: #fff;
   border: none; border-radius: 7px; font-size: 0.95rem; font-weight: 600;
   cursor: pointer;
 }
-.btn-register:hover:not(:disabled) { background: var(--accent-deep); }
+.btn-register:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-register:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-rank {
   padding: 0.45rem 1.2rem; background: transparent;
@@ -204,22 +204,24 @@ onMounted(fetchContest)
 .table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .problem-table { width: 100%; border-collapse: collapse; }
 .problem-table th {
-  padding: 0.7rem 1rem; text-align: left;
-  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  padding: 8px 16px; text-align: left;
+  font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
+  background: var(--bg-page); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
 }
-.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
+.problem-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .problem-table tr:last-child td { border-bottom: none; }
-.problem-table tr:hover td { background: var(--bg-secondary); }
+.problem-table tr:hover td { background: var(--bg-hover); }
 
 .status-cell { text-align: center; }
 .status-dot {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 50%;
-  font-size: 0.7rem; font-weight: 700; color: #fff;
+  font-size: 11px; font-weight: 700;
 }
-.label-cell { font-weight: 700; color: var(--accent); }
-.problem-link { color: var(--accent); text-decoration: none; }
-.problem-link:hover { color: var(--accent-deep); text-decoration: underline; }
+.label-cell { font-weight: 700; color: var(--accent); font-family: var(--font-mono); }
+.problem-link { color: var(--text-primary); text-decoration: none; }
+.problem-link:hover { color: var(--accent-text); }
+.reg-ok { color: var(--status-ac-text); font-weight: 600; font-size: 0.95rem; }
 .empty { text-align: center; padding: 2rem; color: var(--text-muted); }
 </style>

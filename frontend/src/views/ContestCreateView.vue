@@ -117,13 +117,12 @@ function moveDown(i) {
   ;[arr[i], arr[i + 1]] = [arr[i + 1], arr[i]]
 }
 
-function diffClass(d) {
-  if (!d) return 'diff-other'
-  if (d === '入门' || d === '普及-') return 'diff-easy'
-  if (d.includes('普及')) return 'diff-medium'
-  if (d.includes('提高') || d.includes('省选') || d.includes('NOI')) return 'diff-hard'
-  return 'diff-other'
+const DIFF_COLORS = {
+  '暂无评定': '#bfbfbf', '入门': '#fe4c61',
+  '普及-': '#f39c11', '普及/提高-': '#ffc116', '普及+/提高': '#52c41a',
+  '提高+/省选-': '#3498db', '省选/NOI-': '#9d3dcf', 'NOI/NOI+/CTSC': '#0e1d69',
 }
+function diffColor(d) { return DIFF_COLORS[d] ?? '#bfbfbf' }
 
 // ===== 提交 =====
 const submitting = ref(false)
@@ -291,7 +290,7 @@ const diffs = ['入门', '普及-', '普及/提高-', '普及+/提高', '提高+
               <div class="prob-info">
                 <div class="prob-title">{{ p.title }}</div>
                 <div class="prob-meta">
-                  <span class="diff-badge" :class="diffClass(p.difficulty)">{{ p.difficulty }}</span>
+                  <span class="diff-badge" :style="{ background: diffColor(p.difficulty), color: '#fff' }">{{ p.difficulty }}</span>
                   <span v-for="t in p.tags.slice(0,3)" :key="t" class="tag-mini">{{ t }}</span>
                 </div>
               </div>
@@ -324,7 +323,7 @@ const diffs = ['入门', '普及-', '普及/提高-', '普及+/提高', '提高+
               <div class="sel-order">{{ String.fromCharCode(65 + i) }}</div>
               <div class="prob-info">
                 <div class="prob-title">{{ p.title }}</div>
-                <span class="diff-badge" :class="diffClass(p.difficulty)">{{ p.difficulty }}</span>
+                <span class="diff-badge" :style="{ background: diffColor(p.difficulty), color: '#fff' }">{{ p.difficulty }}</span>
               </div>
               <div class="arrows">
                 <button class="arrow-btn" :disabled="i === 0" @click="moveUp(i)">▲</button>
@@ -499,12 +498,8 @@ const diffs = ['入门', '普及-', '普及/提高-', '普及+/提高', '提高+
 .prob-meta { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
 
 .diff-badge {
-  font-size: 0.68rem; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+  font-size: 0.68rem; font-weight: 600; padding: 1px 7px; border-radius: 10px; color: #fff;
 }
-.diff-easy   { background: rgba(34,197,94,.15);  color: #22c55e; }
-.diff-medium { background: rgba(234,179,8,.15);  color: #eab308; }
-.diff-hard   { background: rgba(239,68,68,.15);  color: #ef4444; }
-.diff-other  { background: rgba(107,114,128,.15);color: #6b7280; }
 
 .tag-mini {
   font-size: 0.68rem; padding: 1px 6px; border-radius: 8px;

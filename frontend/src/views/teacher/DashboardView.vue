@@ -156,7 +156,7 @@ onMounted(load)
 .creator-tag { color: var(--accent); font-weight: 500; }
 .invite-row {
   display: flex; align-items: center; gap: 0.5rem;
-  background: var(--bg-alt, rgba(0,0,0,0.15)); border-radius: 6px; padding: 0.4rem 0.75rem;
+  background: var(--bg-secondary); border-radius: 6px; padding: 0.4rem 0.75rem;
 }
 .invite-label { font-size: 0.75rem; color: var(--text-muted); }
 .invite-code { font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; color: var(--accent); letter-spacing: 0.1em; flex: 1; }
@@ -192,7 +192,7 @@ onMounted(load)
 .form-group label { font-size: 0.875rem; color: var(--text-secondary); }
 .required { color: #f87171; }
 .form-input, .form-textarea {
-  background: var(--input-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border);
+  background: var(--bg-input); border: 1px solid var(--border);
   border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.9rem;
   transition: border-color 0.15s; width: 100%; box-sizing: border-box;
 }
@@ -210,7 +210,7 @@ onMounted(load)
   padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
   transition: background 0.15s;
 }
-.btn-primary:hover:not(:disabled) { background: var(--accent-deep); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: default; }
 .btn-secondary {
   background: none; border: 1px solid var(--border); color: var(--text-secondary);

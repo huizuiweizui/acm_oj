@@ -8,7 +8,8 @@ const router = useRouter()
 const route = useRoute()
 
 const isAuthPage = computed(() => route.name === 'login' || route.name === 'register')
-const isDark = ref(true)
+const isFullPage = computed(() => route.name === 'problem-detail')
+const isDark = ref(false)
 
 function applyTheme(dark) {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
@@ -22,7 +23,7 @@ function toggleTheme() {
 
 onMounted(() => {
   const saved = localStorage.getItem('theme')
-  isDark.value = saved !== 'light'
+  isDark.value = saved === 'dark'
   applyTheme(isDark.value)
 })
 
@@ -82,11 +83,11 @@ function logout() {
       </div>
     </nav>
 
-    <main :class="isAuthPage ? 'auth-content' : 'main-content'">
+    <main :class="isAuthPage ? 'auth-content' : isFullPage ? 'full-content' : 'main-content'">
       <RouterView />
     </main>
 
-    <footer v-if="!isAuthPage" class="footer">
+    <footer v-if="!isAuthPage && !isFullPage" class="footer">
       <div class="footer-inner">
         <p>ACM OJ 算法竞赛在线评测平台</p>
       </div>
@@ -125,9 +126,9 @@ function logout() {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--accent);
-  font-family: 'JetBrains Mono', monospace;
-  background: rgba(124,106,247,0.12);
-  border: 1px solid rgba(124,106,247,0.3);
+  font-family: var(--font-mono);
+  background: var(--accent-light);
+  border: 1px solid var(--accent);
   border-radius: 6px;
   padding: 1px 6px;
 }
@@ -148,11 +149,20 @@ function logout() {
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.9rem;
+  font-size: 14px;
   transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  border-bottom: 2px solid transparent;
+  box-sizing: border-box;
 }
-.nav-links a:hover,
-.nav-links a.router-link-active {
+.nav-links a:hover {
   color: var(--text-primary);
+}
+.nav-links a.router-link-active {
+  color: var(--accent-text);
+  border-bottom-color: var(--accent);
 }
 
 /* User section */
@@ -209,15 +219,13 @@ function logout() {
   border-radius: 4px;
   transition: background 0.15s;
 }
-.btn-reg:hover { background: var(--accent-deep); }
+.btn-reg:hover { background: var(--accent-hover); }
 
 /* 角色专属导航链接 */
-.nav-links .nav-link-teacher { color: #34d399 !important; }
-.nav-links .nav-link-teacher:hover,
-.nav-links .nav-link-teacher.router-link-active { color: #6ee7b7 !important; }
-.nav-links .nav-link-admin { color: #f87171 !important; }
-.nav-links .nav-link-admin:hover,
-.nav-links .nav-link-admin.router-link-active { color: #fca5a5 !important; }
+.nav-links .nav-link-teacher { color: #059669 !important; }
+.nav-links .nav-link-teacher.router-link-active { color: #059669 !important; border-bottom-color: #059669; }
+.nav-links .nav-link-admin { color: #dc2626 !important; }
+.nav-links .nav-link-admin.router-link-active { color: #dc2626 !important; border-bottom-color: #dc2626; }
 
 /* Main */
 .main-content {
@@ -228,6 +236,12 @@ function logout() {
 .auth-content {
   padding: 0;
   margin: 0;
+}
+.full-content {
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  width: 100%;
 }
 
 /* Footer */

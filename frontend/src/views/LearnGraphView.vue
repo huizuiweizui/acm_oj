@@ -38,15 +38,15 @@ const theme = computed(() => isDark.value ? {
   edgeRelated:   '#475569',
   edgeRelOpacity: 0.45,
 } : {
-  labelColor:    '#1a1a2e',
-  tooltipBg:     'rgba(255,255,255,0.97)',
-  tooltipBorder: '#c7c7e0',
-  tooltipText:   '#1a1a2e',
-  tooltipMuted:  '#555580',
-  tooltipFaint:  '#8080b0',
-  legendText:    '#7070a0',
-  edgeRelated:   '#94a3b8',
-  edgeRelOpacity: 0.5,
+  labelColor:    '#18181b',
+  tooltipBg:     '#ffffff',
+  tooltipBorder: '#e5e7eb',
+  tooltipText:   '#18181b',
+  tooltipMuted:  '#52525b',
+  tooltipFaint:  '#a1a1aa',
+  legendText:    '#a1a1aa',
+  edgeRelated:   '#d1d5db',
+  edgeRelOpacity: 0.6,
 })
 
 const selectedDiff = ref([])
@@ -323,7 +323,7 @@ onMounted(async () => {
 .leg-line { display: inline-block; width: 24px; height: 2px; border-radius: 2px; }
 .leg-line.prereq  { background: #f87171; }
 .leg-line.extends { background: #a78bfa; }
-.leg-line.related { background: transparent; border-top: 2px dashed #475569; height: 0; }
+.leg-line.related { background: transparent; border-top: 2px dashed #a1a1aa; height: 0; }
 
 /* Reset button */
 .reset-btn {

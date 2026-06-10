@@ -211,7 +211,7 @@ onMounted(async () => {
 .stats-row { display: flex; align-items: center; gap: 0; }
 .stat-item { text-align: center; padding: 0 1.2rem; }
 .stat-item:first-child { padding-left: 0; }
-.stat-val { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+.stat-val { font-size: 1.3rem; font-weight: 700; color: var(--accent-text); font-family: var(--font-mono); }
 .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.1rem; }
 .stat-divider { width: 1px; height: 32px; background: var(--border); }
 
@@ -223,37 +223,38 @@ onMounted(async () => {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 10px; padding: 1.2rem 1.4rem;
 }
-.card-title { font-size: 0.9rem; font-weight: 700; color: var(--accent); margin-bottom: 0.9rem; }
-.chart-note { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; }
+.chart-note { font-size: 12.5px; color: var(--text-muted); margin-top: 8px; }
 
 /* 近期提交表格 */
 .sub-table { width: 100%; border-collapse: collapse; }
 .sub-table th {
-  padding: 0.5rem 0.6rem; font-size: 0.78rem;
-  color: var(--text-muted); text-align: left; border-bottom: 1px solid var(--border);
+  padding: 6px 10px; font-size: 12.5px; font-weight: 500;
+  color: var(--text-secondary); text-align: left; border-bottom: 1px solid var(--border);
+  background: var(--bg-page); position: sticky; top: 0;
 }
-.sub-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--border); }
-.sub-row { cursor: pointer; transition: background 0.12s; }
+.sub-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.sub-row { cursor: pointer; }
 .sub-row:last-child td { border-bottom: none; }
-.sub-row:hover td { background: var(--bg-secondary); }
-.problem-title { color: var(--accent); font-size: 0.88rem; }
-.lang-cell { color: var(--text-muted); font-size: 0.82rem; }
-.time-cell { color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; }
+.sub-row:hover td { background: var(--bg-hover); }
+.problem-title { color: var(--text-primary); font-size: 13px; }
+.lang-cell { color: var(--text-secondary); font-size: 13px; font-family: var(--font-mono); }
+.time-cell { color: var(--text-muted); font-size: 12.5px; white-space: nowrap; }
 
-.empty { color: var(--text-muted); font-size: 0.9rem; padding: 1rem 0; text-align: center; }
+.empty { color: var(--text-muted); font-size: 13px; padding: 16px 0; text-align: center; }
 .empty-charts {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-  padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.88rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 32px; text-align: center; color: var(--text-muted); font-size: 13px;
 }
 
 /* AC 题目 chips */
-.ac-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.3rem 0; }
+.ac-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
 .ac-chip {
-  padding: 0.25rem 0.7rem; border-radius: 6px; font-size: 0.78rem;
-  background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3);
-  color: #22c55e; cursor: pointer; transition: background 0.12s;
+  padding: 2px 8px; border-radius: 6px; font-size: 12px;
+  background: var(--status-ac-bg); color: var(--status-ac-text);
+  cursor: pointer; font-family: var(--font-mono);
 }
-.ac-chip:hover { background: rgba(34,197,94,0.18); }
+.ac-chip:hover { opacity: 0.8; }
 
 /* 比赛历史 */
 .contest-hist-row {

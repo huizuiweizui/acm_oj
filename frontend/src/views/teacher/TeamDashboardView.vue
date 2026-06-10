@@ -44,22 +44,22 @@ const chartOption = computed(() => {
     grid: { top: 20, right: 20, bottom: 40, left: 40 },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: '#1e2030',
-      borderColor: '#3a3f5c',
-      textStyle: { color: '#c8cce8' },
+      backgroundColor: '#fff',
+      borderColor: '#e5e7eb',
+      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
       formatter: (params) => `${params[0].axisValue}<br/>AC 数：<b>${params[0].value}</b>`,
     },
     xAxis: {
       type: 'category',
       data: trend.map(t => t.date.slice(5)),
-      axisLine: { lineStyle: { color: '#3a3f5c' } },
-      axisLabel: { color: '#6b7280', fontSize: 11, interval: 4 },
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisLabel: { color: '#a1a1aa', fontSize: 11, interval: 4 },
     },
     yAxis: {
       type: 'value',
       minInterval: 1,
-      splitLine: { lineStyle: { color: '#2a2d3e', type: 'dashed' } },
-      axisLabel: { color: '#6b7280', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
+      axisLabel: { color: '#a1a1aa', fontSize: 11 },
     },
     series: [{
       type: 'line',
@@ -283,7 +283,7 @@ async function doExport() {
 .rank-badge {
   display: inline-flex; align-items: center; justify-content: center;
   width: 1.65rem; height: 1.65rem; border-radius: 50%; font-size: 0.78rem;
-  background: rgba(255,255,255,0.05); color: var(--text-muted);
+  background: var(--bg-secondary); color: var(--text-muted);
 }
 .rank-1 { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b55; }
 .rank-2 { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }

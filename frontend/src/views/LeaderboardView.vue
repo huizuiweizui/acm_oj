@@ -29,10 +29,10 @@ function switchTab(key) {
 }
 
 const rankStyle = (rank) => {
-  if (rank === 1) return { color: '#ffd700', fontWeight: '700' }
-  if (rank === 2) return { color: '#c0c0c0', fontWeight: '700' }
-  if (rank === 3) return { color: '#cd7f32', fontWeight: '700' }
-  return { color: '#888' }
+  if (rank === 1) return { color: '#f59e0b', fontWeight: '700' }
+  if (rank === 2) return { color: '#94a3b8', fontWeight: '700' }
+  if (rank === 3) return { color: '#b45309', fontWeight: '700' }
+  return { color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }
 }
 
 onMounted(fetchRank)
@@ -104,7 +104,7 @@ onMounted(fetchRank)
   color: var(--text-muted); font-size: 0.9rem; cursor: pointer; margin-bottom: -1px;
 }
 .tab-btn:hover { color: var(--text-primary); }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+.tab-btn.active { color: var(--accent-text); border-bottom-color: var(--accent); font-weight: 600; }
 
 .table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
@@ -112,27 +112,28 @@ onMounted(fetchRank)
 
 .rank-table { width: 100%; border-collapse: collapse; }
 .rank-table th {
-  padding: 0.75rem 1rem; text-align: left;
-  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  padding: 8px 16px; text-align: left;
+  font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
+  background: var(--bg-page); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
 }
-.rank-table td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); }
-.rank-row { cursor: pointer; transition: background 0.12s; }
+.rank-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; }
+.rank-row { cursor: pointer; }
 .rank-row:last-child td { border-bottom: none; }
-.rank-row:hover td { background: var(--bg-secondary); }
+.rank-row:hover td { background: var(--bg-hover); }
 
-.rank-cell { font-size: 0.95rem; }
-.rank-num { font-size: 1rem; }
+.rank-cell { font-size: 14px; }
+.rank-num { font-size: 16px; }
 
-.user-cell { display: flex; align-items: center; gap: 0.75rem; }
+.user-cell { display: flex; align-items: center; gap: 10px; }
 .avatar {
   width: 32px; height: 32px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; font-weight: 700; color: #fff; flex-shrink: 0;
+  font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
 }
-.username { color: var(--accent); font-weight: 500; }
+.username { color: var(--text-primary); font-weight: 500; }
 
-.rating-cell { color: var(--accent); font-weight: 600; }
-.ac-cell { color: #22c55e; font-weight: 600; }
-.submit-cell { color: var(--text-muted); }
+.rating-cell { color: var(--accent-text); font-weight: 600; font-family: var(--font-mono); }
+.ac-cell { color: var(--status-ac-text); font-weight: 600; font-family: var(--font-mono); }
+.submit-cell { color: var(--text-muted); font-family: var(--font-mono); }
 </style>

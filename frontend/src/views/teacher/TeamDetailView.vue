@@ -862,7 +862,7 @@ onMounted(load)
 .btn-xs.btn-perm-off { border-color: var(--border); color: var(--text-muted); }
 .btn-xs.btn-perm-off:hover { border-color: var(--accent); color: var(--accent); }
 .btn-sm.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn-sm.btn-primary:hover:not(:disabled) { background: var(--accent-deep); }
+.btn-sm.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 
 /* Modal */
 .modal-overlay {
@@ -876,7 +876,7 @@ onMounted(load)
 .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin: 0; }
 .modal-sub { color: var(--text-muted); font-size: 0.875rem; margin: 0; }
 .form-input {
-  background: var(--input-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border);
+  background: var(--bg-input); border: 1px solid var(--border);
   border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.9rem;
   width: 100%; box-sizing: border-box; transition: border-color 0.15s;
 }
@@ -909,7 +909,7 @@ onMounted(load)
 .btn-sm-solid:hover { opacity: 0.85; }
 .ann-list, .asgn-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .ann-card, .asgn-card {
-  background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
   padding: 1rem;
 }
 .ann-head, .asgn-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
@@ -936,7 +936,7 @@ onMounted(load)
 /* Modal wide */
 .modal-wide { width: 520px; max-height: 90vh; overflow-y: auto; }
 .form-textarea {
-  background: var(--input-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border);
+  background: var(--bg-input); border: 1px solid var(--border);
   border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.875rem;
   width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; line-height: 1.5;
 }
@@ -965,7 +965,7 @@ onMounted(load)
 .search-result-list { display: flex; flex-direction: column; gap: 0.5rem; }
 .search-result-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03);
+  padding: 0.5rem 0.75rem; background: var(--bg-secondary);
   border: 1px solid var(--border); border-radius: 6px;
 }
 .sr-info { display: flex; flex-direction: column; gap: 0.1rem; }
@@ -979,7 +979,7 @@ onMounted(load)
 }
 .import-label.disabled { opacity: 0.5; cursor: default; pointer-events: none; }
 .import-report {
-  background: rgba(0,0,0,0.15); border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px;
   padding: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;
 }
 .ir-summary { display: flex; gap: 1.25rem; flex-wrap: wrap; }

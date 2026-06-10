@@ -79,7 +79,7 @@ onMounted(fetchDiscussion)
     <div class="post-card">
       <div class="post-header">
         <div class="post-meta">
-          <div class="avatar" :style="{ background: '#7c6af7' }">
+          <div class="avatar" :style="{ background: 'var(--accent)' }">
             {{ discussion.username?.[0]?.toUpperCase() }}
           </div>
           <div class="meta-info">
@@ -118,7 +118,7 @@ onMounted(fetchDiscussion)
       <div class="reply-card" v-for="(r, i) in replies" :key="r.id">
         <div class="reply-header">
           <div class="reply-meta">
-            <div class="avatar small" :style="{ background: '#4f6af7' }">
+            <div class="avatar small" :style="{ background: 'var(--accent)' }">
               {{ r.username?.[0]?.toUpperCase() }}
             </div>
             <span class="author">{{ r.username }}</span>
@@ -226,13 +226,13 @@ onMounted(fetchDiscussion)
   resize: vertical; font-family: inherit;
 }
 .reply-textarea:focus { outline: none; border-color: var(--accent); }
-.error-msg { color: #ff8080; font-size: 0.85rem; margin-top: 0.4rem; }
+.error-msg { color: var(--status-wa-text); font-size: 0.85rem; margin-top: 0.4rem; }
 .form-actions { margin-top: 0.75rem; }
 .btn-submit {
   padding: 0.5rem 1.4rem; background: var(--accent); color: #fff;
   border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
 }
-.btn-submit:hover:not(:disabled) { background: var(--accent-deep); }
+.btn-submit:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .login-tip {

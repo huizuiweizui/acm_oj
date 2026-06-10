@@ -1,54 +1,103 @@
 *, *::before, *::after { box-sizing: border-box; }
 
-/* ── CSS 变量（暗色模式，默认）────────────────── */
+/* ══════════════════════════════════════════
+   Design Tokens — Light Theme (Default)
+   ══════════════════════════════════════════ */
 :root {
-  --bg-primary:   #0f0f1e;
-  --bg-secondary: #13132a;
-  --bg-card:      #16162a;
-  --bg-input:     #1e1e38;
-  --border:       #2d2d4e;
-  --border-hover: #4d4d7e;
-  --text-primary: #e0e0f0;
-  --text-secondary: #c0c0d8;
-  --text-muted:   #888;
-  --accent:       #7c6af7;
-  --accent-deep:  #6c5ae7;
-  --navbar-bg:    #1a1a2e;
-  --scrollbar-track: #1a1a30;
-  --scrollbar-thumb: #3d3d5c;
-  --code-bg:      #12121e;
-  --code-color:   #f8b4d9;
-}
-
-/* ── CSS 变量（亮色模式）───────────────────────── */
-[data-theme="light"] {
-  --bg-primary:   #f2f2fb;
-  --bg-secondary: #eaeaf7;
+  /* Backgrounds */
+  --bg-page:      #f7f7f8;
+  --bg-primary:   #f7f7f8;   /* alias */
   --bg-card:      #ffffff;
-  --bg-input:     #f5f5ff;
-  --border:       #d8d8ee;
-  --border-hover: #a0a0cc;
-  --text-primary: #1a1a2e;
-  --text-secondary: #3a3a5e;
-  --text-muted:   #7070a0;
-  --accent:       #6c5ae7;
-  --accent-deep:  #5a48d5;
-  --navbar-bg:    #ffffff;
-  --scrollbar-track: #e8e8f8;
-  --scrollbar-thumb: #b0b0d0;
-  --code-bg:      #f0f0f8;
-  --code-color:   #6c3aed;
+  --bg-secondary: #f3f4f6;   /* alias for bg-hover */
+  --bg-hover:     #f3f4f6;
+  --bg-active:    #eef2ff;
+  --bg-input:     #ffffff;
+
+  /* Borders */
+  --border:        #e5e7eb;
+  --border-strong: #d1d5db;
+  --border-hover:  #d1d5db;  /* alias */
+
+  /* Text */
+  --text-primary:   #18181b;
+  --text-secondary: #52525b;
+  --text-muted:     #a1a1aa;
+
+  /* Accent — Indigo 500 */
+  --accent:        #6366f1;
+  --accent-hover:  #4f46e5;
+  --accent-deep:   #4f46e5;  /* alias */
+  --accent-light:  #eef2ff;
+  --accent-text:   #4338ca;
+
+  /* Navbar */
+  --navbar-bg: #ffffff;
+
+  /* Scrollbar */
+  --scrollbar-track: #f1f1f5;
+  --scrollbar-thumb: #d1d5db;
+
+  /* Code */
+  --code-bg:    #f3f4f6;
+  --code-color: #4338ca;
+
+  /* Fonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+
+  /* Semantic — Judgment status (two-theme shared palette) */
+  --status-ac-bg:      #dcfce7; --status-ac-text:      #15803d; --status-ac-dot:  #22c55e;
+  --status-wa-bg:      #fee2e2; --status-wa-text:      #b91c1c; --status-wa-dot:  #ef4444;
+  --status-tle-bg:     #fef3c7; --status-tle-text:     #b45309; --status-tle-dot: #f59e0b;
+  --status-mle-bg:     #ffedd5; --status-mle-text:     #c2410c; --status-mle-dot: #f97316;
+  --status-re-bg:      #f3e8ff; --status-re-text:      #7e22ce; --status-re-dot:  #a855f7;
+  --status-ce-bg:      #f1f5f9; --status-ce-text:      #475569; --status-ce-dot:  #64748b;
+  --status-pending-bg: #dbeafe; --status-pending-text: #1d4ed8; --status-pending-dot: #3b82f6;
+  --status-nt-bg:      #f1f5f9; --status-nt-text:      #64748b; --status-nt-dot:  #94a3b8;
 }
 
+/* ══════════════════════════════════════════
+   Design Tokens — Dark Theme (Optional)
+   only problem-solving page remembers user pref
+   ══════════════════════════════════════════ */
+[data-theme="dark"] {
+  --bg-page:      #111113;
+  --bg-primary:   #111113;
+  --bg-card:      #1a1a1e;
+  --bg-secondary: #232328;
+  --bg-hover:     #232328;
+  --bg-active:    #1e1e36;
+  --bg-input:     #232328;
+  --border:        #2a2a30;
+  --border-strong: #3f3f46;
+  --border-hover:  #3f3f46;
+  --text-primary:   #ededef;
+  --text-secondary: #a1a1aa;
+  --text-muted:     #6b6b74;
+  --accent:        #818cf8;
+  --accent-hover:  #a5b4fc;
+  --accent-deep:   #a5b4fc;
+  --accent-light:  #1e1e36;
+  --accent-text:   #a5b4fc;
+  --navbar-bg:    #1a1a1e;
+  --scrollbar-track: #232328;
+  --scrollbar-thumb: #3f3f46;
+  --code-bg:    #111113;
+  --code-color: #a5b4fc;
+}
+
+/* ══════════════════════════════════════════
+   Global Base
+   ══════════════════════════════════════════ */
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg-primary);
+  background: var(--bg-page);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  font-size: 15px;
+  font-family: var(--font-sans);
+  font-size: 14px;
   line-height: 1.6;
-  transition: background 0.25s, color 0.25s;
 }
 
 #app { min-height: 100vh; }
@@ -60,12 +109,8 @@ input, textarea, select {
   font-size: inherit;
 }
 
+/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
-
-/* 导航栏与布局 */
-[data-theme="light"] .navbar     { background: var(--navbar-bg) !important; border-color: var(--border) !important; }
-[data-theme="light"] .main-content { background: var(--bg-primary); }
-[data-theme="light"] .footer     { background: var(--bg-primary); border-color: var(--border) !important; color: var(--text-muted); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }

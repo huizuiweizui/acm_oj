@@ -264,7 +264,7 @@ onMounted(load)
   padding: 0.5rem 1.1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem;
   transition: background 0.15s; white-space: nowrap;
 }
-.btn-primary:hover:not(:disabled) { background: var(--accent-deep); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-primary:disabled { opacity: 0.5; cursor: default; }
 .btn-secondary {
   background: none; border: 1px solid var(--border); color: var(--text-secondary);
@@ -286,7 +286,7 @@ onMounted(load)
 .required { color: #f87171; }
 .input-row { display: flex; gap: 0.5rem; }
 .form-input {
-  flex: 1; background: var(--input-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border);
+  flex: 1; background: var(--bg-input); border: 1px solid var(--border);
   border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.9rem;
   width: 100%; box-sizing: border-box; transition: border-color 0.15s;
 }

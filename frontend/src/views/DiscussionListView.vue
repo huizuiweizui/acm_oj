@@ -115,7 +115,7 @@ onMounted(fetchDiscussions)
   border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
   text-decoration: none;
 }
-.btn-new:hover { background: var(--accent-deep); }
+.btn-new:hover { background: var(--accent-hover); }
 
 .table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
@@ -124,13 +124,13 @@ onMounted(fetchDiscussions)
 .disc-table { width: 100%; border-collapse: collapse; }
 .disc-table th {
   padding: 0.7rem 1rem; text-align: left;
-  font-size: 0.8rem; color: var(--text-muted); background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
+  font-size: 12.5px; font-weight: 500; color: var(--text-secondary); background: var(--bg-page);
+  border-bottom: 1px solid var(--border); position: sticky; top: 0;
 }
 .disc-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
 .disc-row { cursor: pointer; transition: background 0.12s; }
 .disc-row:last-child td { border-bottom: none; }
-.disc-row:hover td { background: var(--bg-secondary); }
+.disc-row:hover td { background: var(--bg-hover); }
 
 .title-cell { color: var(--text-primary); font-size: 0.95rem; }
 .problem-link { color: var(--accent); font-size: 0.85rem; }

@@ -2,31 +2,38 @@
 defineProps({ status: String })
 
 const cfg = {
-  AC:      { label: 'AC',      color: '#2ecc71' },
-  WA:      { label: 'WA',      color: '#e74c3c' },
-  TLE:     { label: 'TLE',     color: '#e67e22' },
-  MLE:     { label: 'MLE',     color: '#e67e22' },
-  RE:      { label: 'RE',      color: '#9b59b6' },
-  CE:      { label: 'CE',      color: '#e74c3c' },
-  Pending: { label: '等待中',  color: '#95a5a6' },
-  Judging: { label: '评测中',  color: '#3498db' },
-  NT:      { label: '无测试点', color: '#7f8c8d' },
+  AC:      { icon: '✓', label: 'AC',      bg: 'var(--status-ac-bg)',      color: 'var(--status-ac-text)' },
+  WA:      { icon: '✗', label: 'WA',      bg: 'var(--status-wa-bg)',      color: 'var(--status-wa-text)' },
+  TLE:     { icon: '⏱', label: 'TLE',     bg: 'var(--status-tle-bg)',     color: 'var(--status-tle-text)' },
+  MLE:     { icon: '▤', label: 'MLE',     bg: 'var(--status-mle-bg)',     color: 'var(--status-mle-text)' },
+  RE:      { icon: '⚠', label: 'RE',      bg: 'var(--status-re-bg)',      color: 'var(--status-re-text)' },
+  CE:      { icon: '⚙', label: 'CE',      bg: 'var(--status-ce-bg)',      color: 'var(--status-ce-text)' },
+  Pending: { icon: '◌', label: '等待中',  bg: 'var(--status-pending-bg)', color: 'var(--status-pending-text)' },
+  Judging: { icon: '◌', label: '评测中',  bg: 'var(--status-pending-bg)', color: 'var(--status-pending-text)' },
+  NT:      { icon: '—', label: '无测试点', bg: 'var(--status-nt-bg)',      color: 'var(--status-nt-text)' },
 }
 </script>
 
 <template>
-  <span class="badge" :style="{ color: cfg[status]?.color ?? '#aaa', borderColor: cfg[status]?.color ?? '#aaa' }">
+  <span class="badge" :style="{ background: cfg[status]?.bg ?? 'var(--status-nt-bg)', color: cfg[status]?.color ?? 'var(--text-muted)' }">
+    <span class="badge-icon" :class="{ spin: status === 'Judging' }">{{ cfg[status]?.icon ?? '—' }}</span>
     {{ cfg[status]?.label ?? status }}
   </span>
 </template>
 
 <style scoped>
 .badge {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
   font-weight: 600;
-  border: 1px solid;
+  white-space: nowrap;
+  font-family: var(--font-mono);
 }
+.badge-icon { font-style: normal; }
+.spin { display: inline-block; animation: judging-spin 1.2s linear infinite; }
+@keyframes judging-spin { to { transform: rotate(360deg); } }
 </style>

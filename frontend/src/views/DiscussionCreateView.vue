@@ -115,13 +115,13 @@ async function submit() {
   border:1px solid var(--border); border-radius:7px;
 }
 
-.error-msg { color:#ff8080; font-size:0.85rem; margin-bottom:0.8rem; }
+.error-msg { color: var(--status-wa-text); font-size:0.85rem; margin-bottom:0.8rem; }
 .form-actions { display:flex; gap:0.75rem; }
 .btn-submit {
   padding:0.55rem 1.4rem; background:var(--accent); color:#fff;
   border:none; border-radius:6px; cursor:pointer; font-size:0.9rem;
 }
-.btn-submit:hover:not(:disabled) { background:var(--accent-deep); }
+.btn-submit:hover:not(:disabled) { background:var(--accent-hover); }
 .btn-submit:disabled { opacity:0.6; cursor:not-allowed; }
 .btn-cancel {
   padding:0.55rem 1.2rem; background:transparent;

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import VChart from 'vue-echarts'
@@ -14,75 +14,6 @@ use([CanvasRenderer, BarChart, PieChart, TooltipComponent, GridComponent, Legend
 const router = useRouter()
 const userStore = useUserStore()
 const stats = ref(null)
-const canvasRef = ref(null)
-let animFrame = null
-
-// ── 粒子动画 ──────────────────────────────────────────────────
-function startParticles(canvas) {
-  const ctx = canvas.getContext('2d')
-  let pts = []
-
-  function resize() {
-    canvas.width  = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
-  }
-
-  function col(a) {
-    return `rgba(124,106,247,${a})`
-  }
-
-  function init() {
-    resize()
-    pts = []
-    const n = Math.min(60, Math.floor(canvas.width * canvas.height / 10000))
-    for (let i = 0; i < n; i++) {
-      pts.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
-        r: Math.random() * 1.8 + 0.6,
-      })
-    }
-  }
-
-  function frame() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i]
-      p.x += p.vx; p.y += p.vy
-      if (p.x < 0 || p.x > canvas.width)  p.vx *= -1
-      if (p.y < 0 || p.y > canvas.height) p.vy *= -1
-      for (let j = i + 1; j < pts.length; j++) {
-        const q = pts[j]
-        const dx = p.x - q.x, dy = p.y - q.y
-        const d = Math.sqrt(dx * dx + dy * dy)
-        if (d < 130) {
-          ctx.beginPath()
-          ctx.strokeStyle = col((1 - d / 130) * 0.3)
-          ctx.lineWidth = 0.7
-          ctx.moveTo(p.x, p.y)
-          ctx.lineTo(q.x, q.y)
-          ctx.stroke()
-        }
-      }
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-      ctx.fillStyle = col(0.6)
-      ctx.fill()
-    }
-    animFrame = requestAnimationFrame(frame)
-  }
-
-  const onResize = () => init()
-  window.addEventListener('resize', onResize, { passive: true })
-  init()
-  frame()
-  return () => {
-    window.removeEventListener('resize', onResize)
-    if (animFrame) cancelAnimationFrame(animFrame)
-  }
-}
 
 // ── 数字滚动动画 ──────────────────────────────────────────────
 function animateCount(el) {
@@ -112,17 +43,11 @@ function setupReveal() {
 }
 
 onMounted(async () => {
-  // 粒子
-  let cleanup = null
-  if (canvasRef.value) cleanup = startParticles(canvasRef.value)
-
-  // 数据
   try {
     const res = await api.get('/stats/')
     stats.value = res.data
   } catch {}
 
-  // 数字滚动（等数据渲染后）
   await new Promise(r => setTimeout(r, 50))
   const cntObs = new IntersectionObserver(entries => {
     entries.forEach(e => {
@@ -132,8 +57,6 @@ onMounted(async () => {
   document.querySelectorAll('.count-up').forEach(el => cntObs.observe(el))
 
   setupReveal()
-
-  onUnmounted(() => { if (cleanup) cleanup() })
 })
 
 // ── ECharts ──────────────────────────────────────────────────
@@ -144,21 +67,24 @@ const dailyOption = computed(() => {
   if (!stats.value) return {}
   return {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+      backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
+      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
+    },
     grid: { left: 36, right: 8, top: 8, bottom: 48 },
     xAxis: {
       type: 'category',
       data: stats.value.daily_submissions.map(d => d.date.slice(5)),
-      axisLabel: { color: '#888', fontSize: 10, rotate: 30, interval: 4 },
-      axisLine: { lineStyle: { color: 'rgba(128,128,128,0.2)' } },
+      axisLabel: { color: '#a1a1aa', fontSize: 10, rotate: 30, interval: 4 },
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
     },
     yAxis: {
       type: 'value', minInterval: 1,
-      axisLabel: { color: '#888', fontSize: 10 },
-      splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)' } },
+      axisLabel: { color: '#a1a1aa', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
     },
     series: [{ type: 'bar', data: stats.value.daily_submissions.map(d => ({
-      value: d.count, itemStyle: { color: '#7c6af7', borderRadius: [3,3,0,0] },
+      value: d.count, itemStyle: { color: '#6366f1', borderRadius: [3,3,0,0] },
     })), barMaxWidth: 18 }],
   }
 })
@@ -170,8 +96,11 @@ const statusOption = computed(() => {
     .map(([k, v]) => ({ name: STATUS_LABELS[k], value: v, itemStyle: { color: STATUS_COLORS[k] } }))
   return {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { bottom: 0, textStyle: { color: '#888', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)',
+      backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
+      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
+    },
+    legend: { bottom: 0, textStyle: { color: '#a1a1aa', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
     series: [{ type: 'pie', radius: ['45%','70%'], center: ['50%','42%'], data: pieData,
       label: { show: false }, emphasis: { label: { show: true, fontSize: 12 } } }],
   }
@@ -191,10 +120,19 @@ function timeAgo(iso) {
   if (h < 24) return `${h} 小时前`
   return new Date(iso).toLocaleDateString('zh-CN')
 }
-function diffClass(d) {
-  const m = { '入门':'easy','普及-':'easy','普及/提高-':'medium','普及+/提高':'medium',
-    '提高+/省选-':'hard','省选/NOI-':'hard','NOI/NOI+/CTSC':'expert','暂无评定':'unrated' }
-  return m[d] || 'unrated'
+const DIFF_STYLE = {
+  '暂无评定':      { bg: 'rgba(191,191,191,0.15)', color: '#6b7280' },
+  '入门':          { bg: 'rgba(254,76,97,0.12)',   color: '#dc2626' },
+  '普及-':         { bg: 'rgba(243,156,17,0.12)',  color: '#b45309' },
+  '普及/提高-':    { bg: 'rgba(255,193,22,0.15)',  color: '#92400e' },
+  '普及+/提高':    { bg: 'rgba(82,196,26,0.12)',   color: '#15803d' },
+  '提高+/省选-':   { bg: 'rgba(52,152,219,0.12)',  color: '#1d4ed8' },
+  '省选/NOI-':     { bg: 'rgba(157,61,207,0.12)',  color: '#7e22ce' },
+  'NOI/NOI+/CTSC': { bg: 'rgba(14,29,105,0.12)',  color: '#0e1d69' },
+}
+function diffStyle(d) {
+  const s = DIFF_STYLE[d] ?? { bg: 'rgba(191,191,191,0.15)', color: '#6b7280' }
+  return { background: s.bg, color: s.color }
 }
 </script>
 
@@ -203,18 +141,6 @@ function diffClass(d) {
 
     <!-- ===== Hero ===== -->
     <section class="hero hero-enhanced">
-      <canvas ref="canvasRef" class="hero-canvas"></canvas>
-
-      <!-- 浮动算法文字 -->
-      <div class="hero-deco" aria-hidden="true">
-        <span class="deco-line" style="top:18%;left:5%;animation-delay:0s">O(n log n)</span>
-        <span class="deco-line" style="top:72%;left:4%;animation-delay:1.5s">BFS / DFS</span>
-        <span class="deco-line" style="top:22%;right:5%;animation-delay:0.8s">dp[i][j]</span>
-        <span class="deco-line" style="top:68%;right:6%;animation-delay:2s">Dijkstra</span>
-        <span class="deco-line" style="top:48%;left:8%;animation-delay:2.8s">AC ✓</span>
-        <span class="deco-line" style="top:38%;right:9%;animation-delay:3.5s">#include</span>
-      </div>
-
       <div class="hero-content">
         <div class="hero-eyebrow">
           <span class="eyebrow-dot"></span>
@@ -340,7 +266,7 @@ function diffClass(d) {
                 <td class="mono-cell">{{ p.id }}</td>
                 <td class="problem-title-cell">{{ p.title }}</td>
                 <td>
-                  <span class="diff-badge" :class="diffClass(p.difficulty)">{{ p.difficulty }}</span>
+                  <span class="diff-badge" :style="diffStyle(p.difficulty)">{{ p.difficulty }}</span>
                 </td>
                 <td class="muted-cell">{{ p.ac_rate }}%</td>
               </tr>
@@ -435,47 +361,23 @@ function diffClass(d) {
 
 /* ── Hero ─────────────────────────────────────── */
 .hero-enhanced {
-  position: relative;
   text-align: center;
-  padding: 5rem 1rem 4rem;
-  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-  border-radius: 12px;
+  padding: 4rem 1rem 3.5rem;
+  background: var(--bg-card);
+  border-radius: 8px;
   margin-bottom: 2rem;
   border: 1px solid var(--border);
-  overflow: hidden;
 }
-.hero-canvas {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  pointer-events: none;
-}
-.hero-deco {
-  position: absolute; inset: 0; pointer-events: none;
-}
-.deco-line {
-  position: absolute;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82rem;
-  color: rgba(124,106,247,0.25);
-  animation: decoFloat 6s ease-in-out infinite;
-  white-space: nowrap;
-}
-@keyframes decoFloat {
-  0%, 100% { transform: translateY(0); opacity: 0.25; }
-  50%        { transform: translateY(-8px); opacity: 0.45; }
-}
-.hero-content { position: relative; z-index: 1; }
+.hero-content { }
 .hero-eyebrow {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 0.82rem; color: var(--accent); font-weight: 500;
+  font-size: 12.5px; color: var(--accent); font-weight: 500;
   margin-bottom: 1rem;
 }
 .eyebrow-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-  animation: pulse 2s ease-in-out infinite;
 }
-@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(0.8)} }
 
 .hero-title {
   font-size: 3.5rem; font-weight: 800; color: var(--text-primary);
@@ -505,13 +407,13 @@ function diffClass(d) {
   padding: 0.65rem 2.2rem; border-radius: 7px;
   font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
 }
-.btn-hero-primary:hover { background: var(--accent-deep); }
+.btn-hero-primary:hover { background: var(--accent-hover); }
 .btn-hero-ghost {
   background: transparent; color: var(--accent);
   border: 1px solid var(--accent); padding: 0.65rem 2.2rem;
   border-radius: 7px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
 }
-.btn-hero-ghost:hover { background: rgba(124,106,247,0.1); }
+.btn-hero-ghost:hover { background: var(--accent-light); }
 
 /* ── Features ─────────────────────────────────── */
 .features-section { margin-bottom: 2rem; }
@@ -590,7 +492,7 @@ function diffClass(d) {
   cursor: pointer; transition: background 0.12s;
 }
 .contest-row:last-child { border-bottom: none; }
-.contest-row:hover { background: var(--bg-secondary); }
+.contest-row:hover { background: var(--bg-hover); }
 .contest-row-title { font-size: 0.9rem; color: var(--text-primary); font-weight: 500; }
 .contest-row-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
 .contest-status-tag {
@@ -603,27 +505,29 @@ function diffClass(d) {
 /* 最新题目 */
 .mini-table { width: 100%; border-collapse: collapse; }
 .mini-table th {
-  padding: 0.5rem 1rem; font-size: 0.75rem; color: var(--text-muted);
-  text-align: left; border-bottom: 1px solid var(--border); background: var(--bg-secondary);
+  padding: 8px 16px; font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
+  text-align: left; border-bottom: 1px solid var(--border); background: var(--bg-page);
+  position: sticky; top: 0;
 }
-.mini-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.mini-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; }
 .mini-row:last-child td { border-bottom: none; }
-.mini-row { cursor: pointer; transition: background 0.12s; }
-.mini-row:hover td { background: var(--bg-secondary); }
-.mono-cell { color: var(--text-muted); font-size: 0.8rem; }
+.mini-row { cursor: pointer; }
+.mini-row:hover td { background: var(--bg-hover); }
+.mono-cell { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
 .problem-title-cell { color: var(--accent); }
 .muted-cell { color: var(--text-muted); font-size: 0.82rem; }
 .empty-inner { padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.88rem; }
 
-/* 难度徽章 */
+/* 难度徽章 — 浅底深字，颜色通过 JS inline style 注入 */
 .diff-badge {
-  font-size: 0.7rem; padding: 0.1rem 0.5rem; border-radius: 4px; font-weight: 600;
+  font-size: 12px; padding: 1px 7px; border-radius: 6px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 5px;
 }
-.diff-badge.easy    { background: rgba(34,197,94,.15);  color: #22c55e; }
-.diff-badge.medium  { background: rgba(251,191,36,.15); color: #f59e0b; }
-.diff-badge.hard    { background: rgba(239,68,68,.15);  color: #ef4444; }
-.diff-badge.expert  { background: rgba(139,92,246,.15); color: #8b5cf6; }
-.diff-badge.unrated { background: rgba(107,114,128,.15);color: #6b7280; }
+.diff-badge::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex-shrink: 0;
+}
 
 /* 快速导航 */
 .quicknav-list { display: flex; flex-direction: column; }

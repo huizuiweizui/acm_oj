@@ -23,9 +23,9 @@ const difficulties = [
   '提高+/省选-', '省选/NOI-', 'NOI/NOI+/CTSC', '暂无评定',
 ]
 
-// 用于「已 AC / 尝试过」图标
-const statusIcon = { ac: '✓', tried: '?', todo: '' }
-const statusColor = { ac: '#2ecc71', tried: '#f39c12', todo: 'transparent' }
+const statusIcon  = { ac: '✓', tried: '·', todo: '' }
+const statusBg    = { ac: 'var(--status-ac-bg)', tried: 'var(--status-tle-bg)', todo: 'transparent' }
+const statusColor = { ac: 'var(--status-ac-text)', tried: 'var(--status-tle-text)', todo: 'transparent' }
 
 async function fetchProblems() {
   loading.value = true
@@ -128,7 +128,7 @@ onMounted(fetchProblems)
             <td class="status-cell">
               <span
                 class="status-dot"
-                :style="{ background: statusColor[p.user_status] }"
+                :style="{ background: statusBg[p.user_status], color: statusColor[p.user_status] }"
                 :title="p.user_status === 'ac' ? '已通过' : p.user_status === 'tried' ? '已尝试' : ''"
               >{{ statusIcon[p.user_status] }}</span>
             </td>
@@ -179,12 +179,12 @@ onMounted(fetchProblems)
   background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px;
   color: var(--text-primary); font-size: 0.9rem;
 }
-.search-input:focus { outline: none; border-color: var(--accent); }
+.search-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
 .btn-search {
   padding: 0.45rem 1.2rem; background: var(--accent); color: #fff;
   border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
 }
-.btn-search:hover { background: var(--accent-deep); }
+.btn-search:hover { background: var(--accent-hover); }
 .btn-clear {
   padding: 0.45rem 1rem; background: transparent; color: var(--text-muted);
   border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.85rem;
@@ -200,42 +200,42 @@ onMounted(fetchProblems)
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .filter-chip:hover { border-color: var(--accent); color: var(--text-primary); }
-.filter-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.filter-chip.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent-text); }
 
 .table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .loading { padding: 3rem; text-align: center; color: var(--text-muted); }
 
 .problem-table { width: 100%; border-collapse: collapse; }
 .problem-table th {
-  padding: 0.75rem 1rem; text-align: left;
-  font-size: 0.8rem; color: var(--text-muted); font-weight: 500;
-  background: var(--bg-secondary); border-bottom: 1px solid var(--border);
+  padding: 8px 16px; text-align: left;
+  font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
+  background: var(--bg-page); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
 }
-.problem-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); }
+.problem-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; }
 .problem-table tr:last-child td { border-bottom: none; }
-.problem-table tr:hover td { background: var(--bg-secondary); }
+.problem-table tr:hover td { background: var(--bg-hover); }
 
 .status-cell { text-align: center; }
 .status-dot {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; border-radius: 50%;
-  font-size: 0.7rem; font-weight: 700; color: #fff;
+  font-size: 11px; font-weight: 700;
 }
-.id-cell { color: var(--text-muted); font-size: 0.85rem; }
-.problem-link { color: var(--accent); text-decoration: none; font-size: 0.95rem; }
-.problem-link:hover { color: var(--accent-deep); text-decoration: underline; }
-.rate-cell { color: var(--text-muted); font-size: 0.85rem; }
+.id-cell { color: var(--text-muted); font-size: 13px; font-family: var(--font-mono); }
+.problem-link { color: var(--text-primary); text-decoration: none; font-size: 14px; }
+.problem-link:hover { color: var(--accent-text); }
+.rate-cell { color: var(--text-muted); font-size: 13px; font-family: var(--font-mono); }
 .empty { text-align: center; padding: 3rem; color: var(--text-muted); }
 
 .tag-chip {
-  display: inline-block; margin: 0.1rem 0.2rem;
-  padding: 0.1rem 0.5rem; border-radius: 4px;
-  background: var(--bg-input); border: 1px solid var(--border);
-  color: var(--text-secondary); font-size: 0.75rem; cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  display: inline-block; margin: 1px 2px;
+  padding: 1px 7px; border-radius: 6px;
+  background: var(--bg-hover); color: var(--text-secondary); font-size: 12px; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
 }
-.tag-chip:hover { border-color: var(--accent); color: var(--text-primary); }
-.tag-chip.active { background: rgba(124,106,247,0.15); border-color: var(--accent); color: var(--accent); }
+.tag-chip:hover { background: var(--bg-active); color: var(--accent-text); }
+.tag-chip.active { background: var(--accent-light); color: var(--accent-text); }
 
 .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
 .pagination button {

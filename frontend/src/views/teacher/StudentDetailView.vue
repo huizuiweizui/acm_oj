@@ -35,11 +35,11 @@ const acProblems = computed(() => data.value?.ac_problems ?? [])
 
 // ── 难度分布饼图 ──────────────────────────────────────────────────
 const DIFF_COLORS = {
-  '入门': '#10b981',
-  '普及': '#3b82f6',
-  '提高': '#8b5cf6',
-  'NOI': '#f59e0b',
-  '其他': '#6b7280',
+  '入门': '#fe4c61',
+  '普及': '#f39c11',
+  '提高': '#3498db',
+  'NOI': '#0e1d69',
+  '其他': '#bfbfbf',
 }
 
 const pieOption = computed(() => {
@@ -51,17 +51,17 @@ const pieOption = computed(() => {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
-      backgroundColor: '#1e2030',
-      borderColor: '#3a3f5c',
-      textStyle: { color: '#c8cce8' },
+      backgroundColor: '#fff',
+      borderColor: '#e5e7eb',
+      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
       formatter: '{b}: {c} 题 ({d}%)',
     },
     series: [{
       type: 'pie',
       radius: ['45%', '75%'],
       center: ['50%', '52%'],
-      data: series_data.length ? series_data : [{ value: 1, name: '暂无数据', itemStyle: { color: '#2a2d3e' } }],
-      label: { show: true, color: '#9ca3af', fontSize: 12, formatter: '{b}\n{c}' },
+      data: series_data.length ? series_data : [{ value: 1, name: '暂无数据', itemStyle: { color: '#e5e7eb' } }],
+      label: { show: true, color: '#52525b', fontSize: 12, formatter: '{b}\n{c}' },
       emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' } },
     }],
   }
@@ -73,22 +73,22 @@ const lineOption = computed(() => ({
   grid: { top: 20, right: 20, bottom: 40, left: 40 },
   tooltip: {
     trigger: 'axis',
-    backgroundColor: '#1e2030',
-    borderColor: '#3a3f5c',
-    textStyle: { color: '#c8cce8' },
+    backgroundColor: '#fff',
+    borderColor: '#e5e7eb',
+    textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
     formatter: (params) => `${params[0].axisValue}<br/>AC 数：<b>${params[0].value}</b>`,
   },
   xAxis: {
     type: 'category',
     data: trend.value.map(t => t.date.slice(5)),
-    axisLine: { lineStyle: { color: '#3a3f5c' } },
-    axisLabel: { color: '#6b7280', fontSize: 11, interval: 4 },
+    axisLine: { lineStyle: { color: '#e5e7eb' } },
+    axisLabel: { color: '#a1a1aa', fontSize: 11, interval: 4 },
   },
   yAxis: {
     type: 'value',
     minInterval: 1,
-    splitLine: { lineStyle: { color: '#2a2d3e', type: 'dashed' } },
-    axisLabel: { color: '#6b7280', fontSize: 11 },
+    splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
+    axisLabel: { color: '#a1a1aa', fontSize: 11 },
   },
   series: [{
     type: 'line',
@@ -122,24 +122,24 @@ const calOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
     trigger: 'item',
-    backgroundColor: '#1e2030',
-    borderColor: '#3a3f5c',
-    textStyle: { color: '#c8cce8' },
+    backgroundColor: '#fff',
+    borderColor: '#e5e7eb',
+    textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
     formatter: (p) => `${p.data[0]}<br/>AC 数：<b>${p.data[1]}</b>`,
   },
   visualMap: {
     min: 0, max: 8, show: false,
-    inRange: { color: ['#1e2030', '#3730a3', '#6366f1', '#a5b4fc'] },
+    inRange: { color: ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a'] },
   },
   calendar: {
     range: heatmapYear.value,
     left: 50, right: 20, top: 20,
     cellSize: ['auto', 14],
-    dayLabel: { nameMap: 'ZH', color: '#6b7280', fontSize: 11 },
-    monthLabel: { color: '#6b7280', fontSize: 11 },
+    dayLabel: { nameMap: 'ZH', color: '#a1a1aa', fontSize: 11 },
+    monthLabel: { color: '#a1a1aa', fontSize: 11 },
     yearLabel: { show: false },
     splitLine: { show: false },
-    itemStyle: { borderColor: '#12141f', color: '#1e2030' },
+    itemStyle: { borderColor: 'transparent', color: '#f3f4f6' },
   },
   series: [{
     type: 'heatmap',
@@ -304,11 +304,11 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
   display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px;
   font-size: 0.75rem; font-weight: 500;
 }
-.diff-easy { background: #10b98122; color: #10b981; }
-.diff-normal { background: #3b82f622; color: #3b82f6; }
-.diff-hard { background: #8b5cf622; color: #8b5cf6; }
-.diff-noi { background: #f59e0b22; color: #f59e0b; }
-.diff-none { background: rgba(107,114,128,0.15); color: var(--text-muted); }
+.diff-easy { background: rgba(254,76,97,.15); color: #fe4c61; }
+.diff-normal { background: rgba(243,156,17,.15); color: #f39c11; }
+.diff-hard { background: rgba(52,152,219,.15); color: #3498db; }
+.diff-noi { background: rgba(14,29,105,.2); color: #0e1d69; }
+.diff-none { background: rgba(191,191,191,0.2); color: var(--text-muted); }
 
 .loading-tip { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
 </style>

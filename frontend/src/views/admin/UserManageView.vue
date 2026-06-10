@@ -194,7 +194,7 @@ async function changeRole(user, newRole) {
   font-size: 0.78rem; font-weight: 500; cursor: pointer; border: 1px solid transparent;
   outline: none; transition: all 0.15s;
 }
-.inline-role-select.role-student { background: #6366f122; color: #818cf8; border-color: #6366f144; }
+.inline-role-select.role-student { background: var(--accent-light); color: var(--accent-text); border-color: rgba(99,102,241,0.3); }
 .inline-role-select.role-teacher { background: #10b98122; color: #10b981; border-color: #10b98144; }
 .inline-role-select.role-admin { background: #f59e0b22; color: #f59e0b; border-color: #f59e0b44; }
 .inline-role-select:disabled { opacity: 0.5; cursor: default; }

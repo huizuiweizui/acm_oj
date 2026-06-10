@@ -13,14 +13,14 @@ const DIFFICULTY_ORDER = [
   '提高+/省选-', '省选/NOI-', 'NOI/NOI+/CTSC', '暂无评定',
 ]
 const DIFF_COLORS = {
-  '入门':          '#5cb85c',
-  '普及-':         '#2185d0',
-  '普及/提高-':    '#2185d0',
-  '普及+/提高':    '#a0a0f0',
-  '提高+/省选-':   '#ffcc00',
-  '省选/NOI-':     '#ff8800',
-  'NOI/NOI+/CTSC': '#e03131',
-  '暂无评定':      '#666',
+  '暂无评定':      '#bfbfbf',
+  '入门':          '#fe4c61',
+  '普及-':         '#f39c11',
+  '普及/提高-':    '#ffc116',
+  '普及+/提高':    '#52c41a',
+  '提高+/省选-':   '#3498db',
+  '省选/NOI-':     '#9d3dcf',
+  'NOI/NOI+/CTSC': '#0e1d69',
 }
 
 const props = defineProps({
@@ -33,17 +33,21 @@ const option = computed(() => {
 
   return {
     backgroundColor: 'transparent',
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     grid: { left: 40, right: 10, top: 10, bottom: 50 },
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
+      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
+    },
     xAxis: {
       type: 'category', data: keys,
-      axisLabel: { color: '#888', fontSize: 9, rotate: 20 },
-      axisLine: { lineStyle: { color: '#2d2d4e' } },
+      axisLabel: { color: '#a1a1aa', fontSize: 9, rotate: 20 },
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
     },
     yAxis: {
       type: 'value', minInterval: 1,
-      axisLabel: { color: '#666', fontSize: 10 },
-      splitLine: { lineStyle: { color: '#1e1e38' } },
+      axisLabel: { color: '#a1a1aa', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
     },
     series: [{
       type: 'bar',

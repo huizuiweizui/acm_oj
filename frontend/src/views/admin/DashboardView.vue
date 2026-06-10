@@ -193,7 +193,7 @@ const ROLE_CLS = { student: 'role-student', teacher: 'role-teacher', admin: 'rol
 
 .role-rows { display: flex; flex-direction: column; gap: 0.8rem; }
 .role-row { display: flex; align-items: center; gap: 0.75rem; }
-.role-bar-wrap { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+.role-bar-wrap { flex: 1; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
 .role-bar { height: 100%; border-radius: 4px; transition: width 0.4s; }
 .role-student .role-bar, .role-bar.role-student { background: #6366f1; }
 .role-teacher .role-bar, .role-bar.role-teacher { background: #10b981; }
@@ -204,18 +204,18 @@ const ROLE_CLS = { student: 'role-student', teacher: 'role-teacher', admin: 'rol
   display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px;
   font-size: 0.75rem; font-weight: 500; white-space: nowrap;
 }
-.role-student { background: #6366f122; color: #818cf8; }
+.role-student { background: var(--accent-light); color: var(--accent-text); }
 .role-teacher { background: #10b98122; color: #10b981; }
 .role-admin { background: #f59e0b22; color: #f59e0b; }
 
 .quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .ql-btn {
   display: flex; align-items: center; gap: 0.6rem;
-  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  background: var(--bg-secondary); border: 1px solid var(--border);
   border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer;
   color: var(--text-secondary); font-size: 0.875rem; transition: all 0.15s; text-align: left;
 }
-.ql-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.06); }
+.ql-btn:hover { border-color: var(--accent); color: var(--accent-text); background: var(--accent-light); }
 .ql-icon { font-size: 1.1rem; }
 
 .table-wrap { overflow-x: auto; }
@@ -235,7 +235,7 @@ const ROLE_CLS = { student: 'role-student', teacher: 'role-teacher', admin: 'rol
   display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0.5rem;
   border-radius: 6px; font-size: 0.875rem; transition: background 0.1s;
 }
-.sub-row:hover { background: rgba(255,255,255,0.03); }
+.sub-row:hover { background: var(--bg-hover); }
 .sub-user { color: var(--accent); cursor: pointer; min-width: 80px; }
 .sub-user:hover { text-decoration: underline; }
 .sub-problem { flex: 1; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -56,19 +56,6 @@ onUnmounted(() => { if (onScroll) window.removeEventListener('scroll', onScroll)
       <div class="learn-hero" ref="heroRef">
         <div class="hero-parallax-bg">
           <div class="hero-grad"></div>
-          <svg class="deco-hex" style="left:-4%;top:-30%;width:50%;" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
-            <defs><pattern id="hexA" x="0" y="0" width="52" height="60" patternUnits="userSpaceOnUse"><polygon points="26,2 50,15 50,45 26,58 2,45 2,15" fill="none" stroke="#7c6af7" stroke-width="1.2"/></pattern></defs>
-            <rect width="400" height="400" fill="url(#hexA)"/>
-          </svg>
-          <svg class="deco-hex" style="right:-6%;bottom:-40%;width:42%;opacity:0.05;" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
-            <defs><pattern id="hexB" x="0" y="0" width="52" height="60" patternUnits="userSpaceOnUse"><polygon points="26,2 50,15 50,45 26,58 2,45 2,15" fill="none" stroke="#22d3ee" stroke-width="1.2"/></pattern></defs>
-            <rect width="300" height="300" fill="url(#hexB)"/>
-          </svg>
-          <span class="code-float" style="left:7%;top:22%">O(n log n)</span>
-          <span class="code-float" style="right:14%;top:28%">dp[i][j] = dp[i-1][j-1] + 1</span>
-          <span class="code-float" style="left:22%;bottom:26%">BFS / DFS</span>
-          <span class="code-float" style="right:9%;bottom:32%">while (l &lt;= r)</span>
-          <span class="code-float" style="left:48%;top:18%">Dijkstra</span>
         </div>
         <div class="hero-content">
           <h1 class="learn-hero-title">算法学习</h1>
@@ -146,18 +133,6 @@ onUnmounted(() => { if (onScroll) window.removeEventListener('scroll', onScroll)
   position: absolute; inset: 0;
   background: linear-gradient(180deg, rgba(124,106,247,0.14) 0%, rgba(34,211,238,0.07) 50%, transparent 100%);
 }
-.deco-hex { position: absolute; opacity: 0.07; }
-.code-float {
-  position: absolute; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
-  color: #7c6af7; opacity: 0.22; white-space: nowrap;
-  animation: floatY 7s ease-in-out infinite;
-}
-.code-float:nth-child(2) { animation-delay: -2.5s; animation-duration: 9s; }
-.code-float:nth-child(3) { animation-delay: -5s;   animation-duration: 6.5s; }
-.code-float:nth-child(4) { animation-delay: -1s;   animation-duration: 8.5s; }
-.code-float:nth-child(5) { animation-delay: -3.5s; animation-duration: 7.5s; }
-@keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
-
 .hero-content { position: relative; z-index: 2; padding: 0 24px; }
 .learn-hero-title {
   font-size: 2.8rem; font-weight: 800;
@@ -194,7 +169,7 @@ onUnmounted(() => { if (onScroll) window.removeEventListener('scroll', onScroll)
   cursor: pointer; transition: all 0.15s; white-space: nowrap;
 }
 .cat-tag:hover  { border-color: var(--accent); color: var(--accent); }
-.cat-tag.active { border-color: var(--accent); color: var(--accent); background: rgba(124,106,247,0.12); font-weight: 600; }
+.cat-tag.active { border-color: var(--accent); color: var(--accent-text); background: var(--accent-light); font-weight: 600; }
 
 /* ── 卡片网格 ────────────────────────────────── */
 .algo-section { padding: 0 0 4rem; }

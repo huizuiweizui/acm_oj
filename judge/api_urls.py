@@ -28,7 +28,7 @@ from .api_views import (
     LoginAPIView, LogoutAPIView, MeAPIView, PlatformStatsAPIView, ProblemDetailAPIView,
     ProblemListAPIView, RegisterAPIView,
     SubmissionListAPIView, SubmissionDetailAPIView,
-    SubmitCodeAPIView, UserProfileAPIView, UserStatsAPIView,
+    SubmitCodeAPIView, CustomRunAPIView, UserProfileAPIView, UserStatsAPIView,
 )
 
 urlpatterns = [
@@ -50,6 +50,7 @@ urlpatterns = [
     path('problems/', ProblemListAPIView.as_view(), name='api-problem-list'),
     path('problems/<int:pk>/', ProblemDetailAPIView.as_view(), name='api-problem-detail'),
     path('problems/<int:pk>/submit/', SubmitCodeAPIView.as_view(), name='api-submit-code'),
+    path('problems/<int:pk>/run/', CustomRunAPIView.as_view(), name='api-problem-run'),
 
     # 提交记录
     path('submissions/', SubmissionListAPIView.as_view(), name='api-submission-list'),

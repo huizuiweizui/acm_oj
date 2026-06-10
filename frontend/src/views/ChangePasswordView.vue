@@ -95,13 +95,13 @@ async function submit() {
 .cp-title { font-size: 1.3rem; font-weight: 700; color: var(--text-primary); text-align: center; margin: 0; }
 .cp-hint { font-size: 0.85rem; color: var(--text-muted); text-align: center; margin: 0; }
 .cp-error {
-  background: #ef444422; border: 1px solid #f87171; color: #f87171;
+  background: var(--status-wa-bg); border: 1px solid var(--status-wa-text); color: var(--status-wa-text);
   border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.875rem;
 }
 .cp-form { display: flex; flex-direction: column; gap: 0.6rem; }
 .cp-label { font-size: 0.82rem; color: var(--text-secondary); }
 .cp-input {
-  background: var(--input-bg, rgba(255,255,255,0.05)); border: 1px solid var(--border);
+  background: var(--bg-input); border: 1px solid var(--border);
   border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary);
   font-size: 0.9rem; width: 100%; box-sizing: border-box;
 }

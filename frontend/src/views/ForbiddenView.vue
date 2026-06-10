@@ -33,5 +33,5 @@ p { margin-bottom: 2rem; }
   font-size: 0.9rem;
   transition: background 0.15s;
 }
-.back-btn:hover { background: var(--accent-deep); }
+.back-btn:hover { background: var(--accent-hover); }
 </style>

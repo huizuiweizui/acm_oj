@@ -218,14 +218,14 @@ onBeforeUnmount(() => {
 }
 .rank-table th {
   padding: 0.7rem 0.9rem; text-align: center;
-  font-size: 0.78rem; color: var(--text-muted); background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border); white-space: nowrap;
+  font-size: 12.5px; font-weight: 500; color: var(--text-secondary); background: var(--bg-page);
+  border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0;
 }
 .th-user { text-align: left; }
 .rank-table td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); text-align: center; }
 .rank-row:last-child td { border-bottom: none; }
-.rank-row:hover td { background: var(--bg-secondary); }
-.rank-row.top3 td { background: var(--bg-secondary); }
+.rank-row:hover td { background: var(--bg-hover); }
+.rank-row.top3 td { background: var(--bg-active); }
 
 /* 名次 */
 .medal {

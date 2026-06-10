@@ -36,9 +36,9 @@ const pinnedAnn = computed(() => announcements.value.filter(a => a.is_pinned))
 const normalAnn = computed(() => announcements.value.filter(a => !a.is_pinned))
 
 const DIFF_COLORS = {
-  '暂无评定': '#6b7280', '入门': '#10b981',
-  '普及-': '#3b82f6', '普及/提高-': '#3b82f6', '普及+/提高': '#3b82f6',
-  '提高+/省选-': '#8b5cf6', '省选/NOI-': '#8b5cf6', 'NOI/NOI+/CTSC': '#f59e0b',
+  '暂无评定': '#bfbfbf', '入门': '#fe4c61',
+  '普及-': '#f39c11', '普及/提高-': '#ffc116', '普及+/提高': '#52c41a',
+  '提高+/省选-': '#3498db', '省选/NOI-': '#9d3dcf', 'NOI/NOI+/CTSC': '#0e1d69',
 }
 function diffColor(d) { return DIFF_COLORS[d] ?? '#6b7280' }
 
@@ -243,7 +243,7 @@ function deadlineClass(dt) {
 .dl-urgent { background: #f59e0b22; color: #f59e0b; }
 .dl-over { background: #f8717122; color: #f87171; }
 
-.progress-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+.progress-bar { height: 4px; background: var(--bg-secondary); border-radius: 2px; overflow: hidden; }
 .progress-fill { height: 100%; background: #10b981; border-radius: 2px; transition: width 0.3s; }
 
 .asgn-desc { font-size: 0.85rem; margin: 0; }
@@ -253,7 +253,7 @@ function deadlineClass(dt) {
   display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0.4rem;
   border-radius: 4px; text-decoration: none; transition: background 0.1s;
 }
-.prob-item:hover { background: rgba(255,255,255,0.04); }
+.prob-item:hover { background: var(--bg-hover); }
 .prob-check { font-size: 0.85rem; width: 1.1rem; text-align: center; color: var(--text-muted); }
 .prob-ac .prob-check { color: #10b981; }
 .prob-ac .prob-title { color: var(--text-secondary); }
