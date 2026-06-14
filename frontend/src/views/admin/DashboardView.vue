@@ -1,252 +1,620 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/index'
 
 const router = useRouter()
-const loading = ref(true)
-const stats = ref(null)   // /api/stats/
-const admin = ref(null)   // /api/admin/stats/
+const loading     = ref(true)
+const refreshing  = ref(false)
+const lastUpdated = ref(null)
+const errorMsg    = ref('')   // 空字符串 = 无错误；否则显示具体信息
 
-onMounted(async () => {
-  try {
-    const [s, a] = await Promise.all([
-      api.get('/stats/'),
-      api.get('/admin/stats/'),
-    ])
-    stats.value = s.data
-    admin.value = a.data
-  } finally {
-    loading.value = false
-  }
-})
+const stats = ref(null)
+const admin = ref(null)
 
-const roles = computed(() => admin.value?.roles ?? {})
-const totalUsers = computed(() => stats.value?.total_users ?? 0)
-const totalProblems = computed(() => stats.value?.total_problems ?? 0)
-const totalSubmissions = computed(() => stats.value?.total_submissions ?? 0)
-const totalTeams = computed(() => admin.value?.total_teams ?? 0)
-const todayReg = computed(() => admin.value?.today_reg ?? 0)
-const weekReg = computed(() => admin.value?.week_reg ?? 0)
-const recentUsers = computed(() => admin.value?.recent_users ?? [])
-const recentSubs = computed(() => stats.value?.recent_submissions ?? [])
+let pollTimer = null
+const POLL_MS = 20_000
 
-const STATUS_MAP = {
-  AC: { label: 'AC', cls: 'st-ac' },
-  WA: { label: 'WA', cls: 'st-wa' },
-  TLE: { label: 'TLE', cls: 'st-tle' },
-  MLE: { label: 'MLE', cls: 'st-tle' },
-  RE: { label: 'RE', cls: 'st-wa' },
-  CE: { label: 'CE', cls: 'st-ce' },
-  PE: { label: 'PE', cls: 'st-ce' },
-  Pending: { label: '评测中', cls: 'st-pend' },
+function _httpErr(e) {
+  const status = e.response?.status
+  if (!status)         return '网络错误（无法连接服务器）'
+  if (status === 401)  return '401 登录已过期，请重新登录'
+  if (status === 403)  return '403 无权限（当前账号可能不是管理员角色）'
+  if (status === 404)  return '404 接口不存在'
+  if (status >= 500)   return `${status} 服务器内部错误`
+  return `HTTP ${status}`
 }
-function statusInfo(s) { return STATUS_MAP[s] ?? { label: s, cls: 'st-pend' } }
+
+async function fetchData(initial = false) {
+  if (!initial) refreshing.value = true
+  errorMsg.value = ''
+
+  // 两个接口分开请求，互不影响
+  const [sRes, aRes] = await Promise.allSettled([
+    api.get('/stats/'),
+    api.get('/admin/stats/'),
+  ])
+
+  if (sRes.status === 'fulfilled') {
+    stats.value = sRes.value.data
+  } else {
+    errorMsg.value = '/stats/: ' + _httpErr(sRes.reason)
+  }
+
+  if (aRes.status === 'fulfilled') {
+    admin.value = aRes.value.data
+  } else {
+    const msg = '/admin/stats/: ' + _httpErr(aRes.reason)
+    errorMsg.value = errorMsg.value ? errorMsg.value + ' | ' + msg : msg
+  }
+
+  lastUpdated.value = new Date()
+  if (initial) loading.value = false
+  refreshing.value = false
+}
+
+onMounted(() => {
+  fetchData(true)
+  pollTimer = setInterval(() => fetchData(false), POLL_MS)
+})
+onUnmounted(() => clearInterval(pollTimer))
+
+// ── Derived values ────────────────────────────────────────────────────────
+const totalUsers       = computed(() => stats.value?.total_users       ?? 0)
+const totalProblems    = computed(() => stats.value?.total_problems     ?? 0)
+const totalSubmissions = computed(() => stats.value?.total_submissions  ?? 0)
+const totalTeams       = computed(() => admin.value?.total_teams        ?? 0)
+const todayReg         = computed(() => admin.value?.today_reg          ?? 0)
+const weekReg          = computed(() => admin.value?.week_reg           ?? 0)
+const roles            = computed(() => admin.value?.roles              ?? {})
+const recentUsers      = computed(() => admin.value?.recent_users       ?? [])
+const recentSubs       = computed(() => stats.value?.recent_submissions ?? [])
+
+// Role distribution bar widths
+function rolePct(key) {
+  if (!totalUsers.value) return 0
+  return Math.round(((roles.value[key] ?? 0) / totalUsers.value) * 100)
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function fmtTime(d) {
+  return d ? d.toLocaleTimeString('zh-CN', { hour12: false }) : ''
+}
+function timeAgo(iso) {
+  if (!iso) return ''
+  const m = Math.floor((Date.now() - new Date(iso)) / 60000)
+  if (m < 1)  return '刚刚'
+  if (m < 60) return `${m} 分钟前`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h} 小时前`
+  return new Date(iso).toLocaleDateString('zh-CN')
+}
+function fmtJoinDate(s) {
+  if (!s) return '—'
+  return s.slice(0, 10)
+}
+
+const STATUS_CLS = {
+  AC: 'st-ac', WA: 'st-wa', TLE: 'st-tle', MLE: 'st-tle',
+  RE: 'st-wa', CE: 'st-ce', PE: 'st-ce', Pending: 'st-pend', Judging: 'st-pend',
+}
+function stCls(s) { return STATUS_CLS[s] ?? 'st-pend' }
 
 const ROLE_LABEL = { student: '学生', teacher: '教师', admin: '管理员' }
-const ROLE_CLS = { student: 'role-student', teacher: 'role-teacher', admin: 'role-admin' }
 </script>
 
 <template>
-  <div class="adm-dash" v-if="!loading">
-    <h1 class="page-title">管理后台</h1>
+  <!-- Loading -->
+  <div v-if="loading" class="loading-screen">
+    <div class="spinner"></div>
+    <span>加载中…</span>
+  </div>
 
-    <!-- 统计卡片 -->
-    <div class="stat-grid">
-      <div class="stat-card">
-        <div class="sc-val">{{ totalUsers }}</div>
-        <div class="sc-lbl">注册用户</div>
-        <div class="sc-sub">今日 +{{ todayReg }} · 本周 +{{ weekReg }}</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-val accent">{{ totalProblems }}</div>
-        <div class="sc-lbl">题目总数</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-val">{{ totalSubmissions }}</div>
-        <div class="sc-lbl">提交总数</div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-val green">{{ totalTeams }}</div>
-        <div class="sc-lbl">团队总数</div>
+  <div v-else class="dash">
+
+    <!-- ── 页头 ── -->
+    <div class="page-head">
+      <h1 class="page-title">管理后台</h1>
+      <div class="head-right">
+        <span v-if="errorMsg" class="err-badge" :title="errorMsg">{{ errorMsg }}</span>
+        <span v-if="lastUpdated && !errorMsg" class="updated-at">{{ fmtTime(lastUpdated) }} 更新</span>
+        <button
+          class="icon-btn"
+          :class="{ spin: refreshing }"
+          title="立即刷新"
+          @click="fetchData(false)"
+        >
+          <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+            <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+          </svg>
+        </button>
       </div>
     </div>
 
-    <!-- 角色分布 + 快捷入口 -->
+    <!-- ── 4 个统计卡 ── -->
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-top">
+          <span class="stat-num">{{ totalUsers }}</span>
+          <span class="stat-label">注册用户</span>
+        </div>
+        <div class="stat-sub">今日 +{{ todayReg }} · 本周 +{{ weekReg }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <span class="stat-num accent">{{ totalProblems }}</span>
+          <span class="stat-label">题目总数</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <span class="stat-num">{{ totalSubmissions }}</span>
+          <span class="stat-label">提交总数</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top">
+          <span class="stat-num green">{{ totalTeams }}</span>
+          <span class="stat-label">团队总数</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 角色分布 + 快捷入口 ── -->
     <div class="two-col">
-      <!-- 角色分布 -->
-      <div class="section-card">
-        <h2 class="sec-title">用户角色分布</h2>
+
+      <div class="card">
+        <h2 class="card-title">用户角色分布</h2>
         <div class="role-rows">
-          <div v-for="(key, i) in ['student','teacher','admin']" :key="key" class="role-row">
-            <span :class="['role-badge', ROLE_CLS[key]]">{{ ROLE_LABEL[key] }}</span>
-            <div class="role-bar-wrap">
-              <div
-                class="role-bar"
-                :class="ROLE_CLS[key]"
-                :style="{ width: totalUsers ? (roles[key] ?? 0) / totalUsers * 100 + '%' : '0%' }"
-              ></div>
+          <div v-for="key in ['student','teacher','admin']" :key="key" class="role-row">
+            <span class="role-name">{{ ROLE_LABEL[key] }}</span>
+            <div class="bar-track">
+              <div class="bar-fill" :class="`bar-${key}`" :style="{ width: rolePct(key) + '%' }"></div>
             </div>
             <span class="role-cnt">{{ roles[key] ?? 0 }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 快捷入口 -->
-      <div class="section-card">
-        <h2 class="sec-title">快捷管理</h2>
-        <div class="quick-links">
-          <button class="ql-btn" @click="router.push('/admin/users')">
-            <span class="ql-icon">👥</span>
-            <span>用户管理</span>
+      <div class="card">
+        <h2 class="card-title">快捷管理</h2>
+        <div class="quick-grid">
+          <button class="ql" @click="router.push('/admin/users')">
+            <span class="ql-icon">👥</span>用户管理
           </button>
-          <button class="ql-btn" @click="router.push('/problems')">
-            <span class="ql-icon">📝</span>
-            <span>题目列表</span>
+          <button class="ql" @click="router.push('/problems')">
+            <span class="ql-icon">📝</span>题目列表
           </button>
-          <button class="ql-btn" @click="router.push('/contests')">
-            <span class="ql-icon">🏆</span>
-            <span>比赛管理</span>
+          <button class="ql" @click="router.push('/contests')">
+            <span class="ql-icon">🏆</span>比赛管理
           </button>
-          <button class="ql-btn" @click="router.push('/teacher')">
-            <span class="ql-icon">🏫</span>
-            <span>团队管理</span>
+          <button class="ql" @click="router.push('/teacher')">
+            <span class="ql-icon">🏫</span>团队管理
           </button>
         </div>
       </div>
+
     </div>
 
-    <!-- 最近注册用户 -->
-    <div class="section-card">
-      <div class="sec-head">
-        <h2 class="sec-title">最近注册</h2>
-        <button class="btn-link" @click="router.push('/admin/users')">查看全部 →</button>
+    <!-- ── 最近注册 ── -->
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title" style="margin:0">最近注册</h2>
+        <button class="link-btn" @click="router.push('/admin/users')">查看全部 →</button>
       </div>
       <div class="table-wrap">
-        <table class="adm-table">
+        <table class="data-table">
           <thead>
             <tr>
-              <th>用户名</th><th>姓名</th><th>学号</th><th>角色</th><th>注册时间</th>
+              <th>用户名</th>
+              <th>姓名</th>
+              <th>学号</th>
+              <th>角色</th>
+              <th>注册时间</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in recentUsers" :key="u.id">
+            <tr v-if="!recentUsers.length">
+              <td colspan="5" class="empty-cell">暂无数据</td>
+            </tr>
+            <tr v-for="u in recentUsers" :key="u.id" class="data-row">
               <td>
                 <span class="user-link" @click="router.push(`/users/${u.id}`)">{{ u.username }}</span>
               </td>
-              <td class="text-muted">{{ u.display_name || '—' }}</td>
-              <td class="text-muted">{{ u.student_id || '—' }}</td>
+              <td class="muted">{{ u.display_name || '—' }}</td>
+              <td class="muted mono">{{ u.student_id || '—' }}</td>
               <td>
-                <span :class="['role-badge', ROLE_CLS[u.role]]">{{ ROLE_LABEL[u.role] ?? u.role }}</span>
+                <span class="role-pill" :class="`rp-${u.role}`">{{ ROLE_LABEL[u.role] ?? u.role }}</span>
               </td>
-              <td class="text-muted">{{ u.date_joined }}</td>
+              <td class="muted">{{ fmtJoinDate(u.date_joined) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- 最近提交 -->
-    <div class="section-card">
-      <h2 class="sec-title">最近提交</h2>
-      <div class="sub-list">
+    <!-- ── 最近提交 ── -->
+    <div class="card">
+      <div class="card-head">
+        <h2 class="card-title" style="margin:0">
+          <span class="live-dot" :class="{ pulse: refreshing }"></span>最近提交
+        </h2>
+      </div>
+      <div v-if="!recentSubs.length" class="empty-msg">暂无提交记录</div>
+      <div v-else class="sub-list">
         <div v-for="s in recentSubs" :key="s.id" class="sub-row">
-          <span class="sub-user" @click="router.push(`/users/${s.username}`)">{{ s.username }}</span>
-          <span class="sub-problem">{{ s.problem_title }}</span>
-          <span :class="['sub-status', statusInfo(s.status).cls]">{{ statusInfo(s.status).label }}</span>
-          <span class="sub-time text-muted">{{ new Date(s.submitted_at).toLocaleString('zh-CN', { hour12: false }).slice(5) }}</span>
+          <span class="sub-user" @click="router.push(`/users/${s.user_id ?? s.username}`)">
+            {{ s.username }}
+          </span>
+          <span class="sub-arrow muted">→</span>
+          <span class="sub-prob">
+            <span class="mono muted">#{{ s.problem_id ?? s.problem }}</span>
+            {{ s.problem_title }}
+          </span>
+          <span class="sub-status mono" :class="stCls(s.status)">{{ s.status }}</span>
+          <span v-if="s.time_used" class="sub-meta mono muted">{{ s.time_used }} ms</span>
+          <span v-if="s.language" class="sub-meta mono muted">{{ s.language }}</span>
+          <span class="sub-ago muted">{{ timeAgo(s.submitted_at) }}</span>
         </div>
       </div>
     </div>
+
   </div>
-  <div v-else class="loading-tip">加载中…</div>
 </template>
 
 <style scoped>
-.adm-dash { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
-.page-title { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+/* ── Layout ──────────────────────────────────────────── */
+.dash {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-@media (max-width: 760px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+/* ── Loading ─────────────────────────────────────────── */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40vh;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.spinner {
+  width: 22px; height: 22px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Page head ───────────────────────────────────────── */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 24px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0;
+}
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.updated-at {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.err-badge {
+  font-size: 12px;
+  color: #b91c1c;
+  background: #fee2e2;
+  padding: 1px 8px;
+  border-radius: 4px;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+}
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  padding: 0;
+}
+.icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+.icon-btn.spin svg { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Shared card ─────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin: 0 0 14px;
+}
+.link-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+}
+.link-btn:hover { text-decoration: underline; }
+
+/* ── Stat row ────────────────────────────────────────── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
 .stat-card {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-  padding: 1.2rem 1rem; text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 16px 20px;
 }
-.sc-val { font-size: 2rem; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
-.sc-val.accent { color: var(--accent); }
-.sc-val.green { color: #10b981; }
-.sc-lbl { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
-.sc-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; }
-
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-@media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
-
-.section-card {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-  padding: 1.25rem;
+.stat-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
 }
-.sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-.sec-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin: 0 0 1rem; }
-.sec-head .sec-title { margin: 0; }
-.btn-link { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.82rem; padding: 0; }
-.btn-link:hover { text-decoration: underline; }
-
-.role-rows { display: flex; flex-direction: column; gap: 0.8rem; }
-.role-row { display: flex; align-items: center; gap: 0.75rem; }
-.role-bar-wrap { flex: 1; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; }
-.role-bar { height: 100%; border-radius: 4px; transition: width 0.4s; }
-.role-student .role-bar, .role-bar.role-student { background: #6366f1; }
-.role-teacher .role-bar, .role-bar.role-teacher { background: #10b981; }
-.role-admin .role-bar, .role-bar.role-admin { background: #f59e0b; }
-.role-cnt { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); min-width: 2rem; text-align: right; }
-
-.role-badge {
-  display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px;
-  font-size: 0.75rem; font-weight: 500; white-space: nowrap;
+.stat-num {
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
-.role-student { background: var(--accent-light); color: var(--accent-text); }
-.role-teacher { background: #10b98122; color: #10b981; }
-.role-admin { background: #f59e0b22; color: #f59e0b; }
-
-.quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-.ql-btn {
-  display: flex; align-items: center; gap: 0.6rem;
-  background: var(--bg-secondary); border: 1px solid var(--border);
-  border-radius: 8px; padding: 0.75rem 1rem; cursor: pointer;
-  color: var(--text-secondary); font-size: 0.875rem; transition: all 0.15s; text-align: left;
+.stat-num.accent { color: var(--accent); }
+.stat-num.green  { color: #059669; }
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
 }
-.ql-btn:hover { border-color: var(--accent); color: var(--accent-text); background: var(--accent-light); }
-.ql-icon { font-size: 1.1rem; }
+.stat-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
 
+/* ── Two-col ─────────────────────────────────────────── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Role distribution ───────────────────────────────── */
+.role-rows { display: flex; flex-direction: column; gap: 10px; }
+.role-row  { display: flex; align-items: center; gap: 10px; }
+.role-name {
+  width: 40px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.bar-track {
+  flex: 1;
+  height: 7px;
+  background: var(--bg-secondary);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+.bar-student { background: var(--accent); }
+.bar-teacher { background: #059669; }
+.bar-admin   { background: #d97706; }
+.role-cnt {
+  width: 28px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Quick links ─────────────────────────────────────── */
+.quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.ql {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  text-align: left;
+}
+.ql:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-light);
+}
+.ql-icon { font-size: 15px; }
+
+/* ── Data table ──────────────────────────────────────── */
 .table-wrap { overflow-x: auto; }
-.adm-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-.adm-table th {
-  padding: 0.5rem 0.75rem; text-align: left; color: var(--text-muted);
-  font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap;
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
 }
-.adm-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
-.adm-table tr:last-child td { border-bottom: none; }
-.user-link { color: var(--accent); cursor: pointer; }
+.data-table th {
+  padding: 6px 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.data-row:last-child td { border-bottom: none; }
+.data-row:hover td { background: var(--bg-hover); }
+.user-link {
+  color: var(--accent);
+  cursor: pointer;
+  font-weight: 500;
+}
 .user-link:hover { text-decoration: underline; }
-.text-muted { color: var(--text-muted); }
-
-.sub-list { display: flex; flex-direction: column; gap: 0.4rem; }
-.sub-row {
-  display: flex; align-items: center; gap: 0.75rem; padding: 0.4rem 0.5rem;
-  border-radius: 6px; font-size: 0.875rem; transition: background 0.1s;
+.empty-cell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px;
+  font-size: 13px;
 }
-.sub-row:hover { background: var(--bg-hover); }
-.sub-user { color: var(--accent); cursor: pointer; min-width: 80px; }
-.sub-user:hover { text-decoration: underline; }
-.sub-problem { flex: 1; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub-status { min-width: 50px; font-weight: 600; font-size: 0.8rem; text-align: center; }
-.sub-time { font-size: 0.78rem; white-space: nowrap; }
 
-.st-ac { color: #10b981; }
-.st-wa { color: #f87171; }
-.st-tle { color: #f59e0b; }
-.st-ce { color: #94a3b8; }
+/* Role pills */
+.role-pill {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+.rp-student { background: var(--accent-light);  color: var(--accent-text); }
+.rp-teacher { background: #d1fae5; color: #065f46; }
+.rp-admin   { background: #fef3c7; color: #92400e; }
+
+/* ── Submission list ─────────────────────────────────── */
+.empty-msg {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24px 0;
+}
+.sub-list { display: flex; flex-direction: column; gap: 1px; }
+.sub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  transition: background 0.1s;
+}
+.sub-row:last-child { border-bottom: none; }
+.sub-row:hover { background: var(--bg-hover); border-radius: 4px; }
+.sub-user {
+  color: var(--accent);
+  cursor: pointer;
+  min-width: 64px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.sub-user:hover { text-decoration: underline; }
+.sub-arrow { font-size: 11px; flex-shrink: 0; }
+.sub-prob {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.sub-status {
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.sub-meta {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.sub-ago {
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Status colours */
+.st-ac   { color: var(--home-ac);  }
+.st-wa   { color: var(--home-wa);  }
+.st-tle  { color: var(--home-tle); }
+.st-ce   { color: var(--status-ce-text); }
 .st-pend { color: var(--text-muted); }
 
-.loading-tip { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+/* ── Live dot ────────────────────────────────────────── */
+.live-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #059669;
+  margin-right: 7px;
+  vertical-align: middle;
+  position: relative; top: -1px;
+}
+.live-dot.pulse { animation: livePulse 1s ease-in-out infinite; }
+@keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* Utility */
+.muted { color: var(--text-muted); }
+.mono  { font-family: var(--font-mono); }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 860px) {
+  .stat-row  { grid-template-columns: repeat(2, 1fr); }
+  .two-col   { grid-template-columns: 1fr; }
+}
+@media (max-width: 540px) {
+  .dash { padding: 0 14px 40px; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+  .sub-meta { display: none; }
+}
 </style>

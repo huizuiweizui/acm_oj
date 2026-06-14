@@ -7,7 +7,7 @@ const userStore = useUserStore()
 const router = useRouter()
 const route = useRoute()
 
-const isAuthPage = computed(() => route.name === 'login' || route.name === 'register')
+const isAuthPage = computed(() => ['login', 'teacher-login', 'admin-login', 'register'].includes(route.name))
 const isFullPage = computed(() => route.name === 'problem-detail')
 const isDark = ref(false)
 

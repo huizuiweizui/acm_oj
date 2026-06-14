@@ -32,6 +32,7 @@ class UserProfile(models.Model):
     grade = models.CharField('年级', max_length=20, blank=True, default='')
     must_change_password = models.BooleanField('首次登录需改密', default=False)
     can_create_contest = models.BooleanField('可创建比赛', default=False)
+    is_super_admin = models.BooleanField('总管理员', default=False)
 
     class Meta:
         db_table = 'judge_userprofile'

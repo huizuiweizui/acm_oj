@@ -11,6 +11,7 @@ export const useUserStore = defineStore('user', () => {
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isTeacher = computed(() => user.value?.role === 'teacher')
   const isTeacherOrAdmin = computed(() => ['teacher', 'admin'].includes(user.value?.role))
+  const isSuperAdmin = computed(() => isAdmin.value && !!user.value?.is_super_admin)
   const canCreateContest = computed(() =>
     isTeacherOrAdmin.value || !!user.value?.can_create_contest
   )
@@ -52,5 +53,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('refresh_token')
   }
 
-  return { user, accessToken, isLoggedIn, isAdmin, isTeacher, isTeacherOrAdmin, canCreateContest, login, register, fetchMe, logout }
+  return { user, accessToken, isLoggedIn, isAdmin, isTeacher, isTeacherOrAdmin, isSuperAdmin, canCreateContest, login, register, fetchMe, logout }
 })

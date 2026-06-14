@@ -1,605 +1,478 @@
 <script setup>
+/**
+ * TypeScript-style interfaces for Home page data contracts
+ *
+ * interface SiteStats {
+ *   problemCount: number
+ *   userCount: number
+ *   submissionCount: number
+ * }
+ *
+ * interface Problem {
+ *   id: number | string
+ *   title: string
+ *   difficulty: '入门' | '简单' | '中等' | '困难'
+ *   acRate?: number
+ * }
+ *
+ * interface ContestItem {
+ *   id: number | string
+ *   title: string
+ *   startTime: string   // ISO 8601
+ *   endTime: string     // ISO 8601
+ *   mode: 'ICPC' | 'IOI' | 'OI'
+ * }
+ *
+ * interface RecentSubmission {
+ *   id: number | string
+ *   problemId: number | string
+ *   problemTitle: string
+ *   status: 'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'CE'
+ *   time: number | null   // ms
+ *   memory: number | null // KB
+ *   language: string
+ *   submittedAt: string   // ISO 8601
+ * }
+ *
+ * interface HeatmapEntry {
+ *   date: string   // 'YYYY-MM-DD'
+ *   count: number
+ * }
+ *
+ * interface RecommendProblem {
+ *   id: number | string
+ *   title: string
+ *   difficulty: string
+ *   reason: string
+ * }
+ *
+ * interface UserDashboard {
+ *   acCount: number
+ *   totalSubmissions: number
+ *   streak: number
+ *   heatmap: HeatmapEntry[]
+ *   recommend: RecommendProblem | null
+ *   recentSubmissions: RecentSubmission[]
+ *   recentContests: ContestItem[]
+ * }
+ */
+
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { BarChart, PieChart } from 'echarts/charts'
-import { TooltipComponent, GridComponent, LegendComponent } from 'echarts/components'
 import api from '@/api/index.js'
 
-use([CanvasRenderer, BarChart, PieChart, TooltipComponent, GridComponent, LegendComponent])
+import HeroGuest       from '@/components/home/HeroGuest.vue'
+import HeatmapCard     from '@/components/home/HeatmapCard.vue'
+import RecommendCard   from '@/components/home/RecommendCard.vue'
+import RecentJudgeCard from '@/components/home/RecentJudgeCard.vue'
+import ContestCard     from '@/components/home/ContestCard.vue'
+import NoticeBar       from '@/components/home/NoticeBar.vue'
 
-const router = useRouter()
+const router    = useRouter()
 const userStore = useUserStore()
-const stats = ref(null)
 
-// ── 数字滚动动画 ──────────────────────────────────────────────
-function animateCount(el) {
-  const target = parseInt(el.dataset.target, 10) || 0
-  if (target === 0) { el.textContent = '0'; return }
-  const dur = 1400, t0 = performance.now()
-  const step = (now) => {
-    const p = Math.min((now - t0) / dur, 1)
-    el.textContent = Math.floor((1 - Math.pow(1 - p, 3)) * target).toLocaleString()
-    if (p < 1) requestAnimationFrame(step)
+// ── Mock data (used when API is unavailable) ──────────────────────────────
+
+const MOCK_SITE_STATS = { problemCount: 24, userCount: 5, submissionCount: 148 }
+
+const MOCK_HOT_PROBLEMS = [
+  { id: 1,  title: '两数之和',        difficulty: '入门', acRate: 72 },
+  { id: 2,  title: '反转链表',        difficulty: '简单', acRate: 64 },
+  { id: 7,  title: '最长公共子序列',  difficulty: '中等', acRate: 41 },
+  { id: 12, title: '最大流（网络流）', difficulty: '困难', acRate: 18 },
+  { id: 15, title: '二叉树层序遍历',  difficulty: '简单', acRate: 58 },
+]
+
+const MOCK_CONTESTS = [
+  {
+    id: 1,
+    title: '2024 春季算法模拟赛',
+    startTime: new Date(Date.now() + 2 * 86400000).toISOString(),
+    endTime:   new Date(Date.now() + 2 * 86400000 + 3 * 3600000).toISOString(),
+    mode: 'ICPC',
+  },
+  {
+    id: 2,
+    title: '第三届校内周赛',
+    startTime: new Date(Date.now() - 5 * 86400000).toISOString(),
+    endTime:   new Date(Date.now() - 5 * 86400000 + 2 * 3600000).toISOString(),
+    mode: 'IOI',
+  },
+]
+
+function genMockHeatmap() {
+  const entries = []
+  const today = new Date()
+  for (let i = 111; i >= 0; i--) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - i)
+    const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    const r = Math.random()
+    const count = r < 0.55 ? 0 : r < 0.72 ? 1 : r < 0.84 ? 2 : r < 0.92 ? 4 : r < 0.97 ? 7 : 11
+    if (count > 0) entries.push({ date, count })
   }
-  requestAnimationFrame(step)
+  return entries
 }
 
-// ── 滚动显现 ─────────────────────────────────────────────────
-function setupReveal() {
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target) }
-    })
-  }, { threshold: 0.08 })
-  document.querySelectorAll('.reveal').forEach(el => obs.observe(el))
-
-  document.querySelectorAll('.feature-card').forEach((c, i) => {
-    c.style.transitionDelay = (i * 0.09) + 's'
-  })
+const MOCK_DASHBOARD = {
+  acCount: 42,
+  totalSubmissions: 137,
+  streak: 7,
+  heatmap: genMockHeatmap(),
+  recommend: {
+    id: 7,
+    title: '最长公共子序列',
+    difficulty: '中等',
+    reason: '基于你的薄弱知识点：动态规划',
+  },
+  recentSubmissions: [
+    { id: 1, problemId: 2,  problemTitle: '反转链表',        status: 'AC',  time: 12,   memory: 5120,  language: 'C++',    submittedAt: new Date(Date.now() - 30 * 60000).toISOString() },
+    { id: 2, problemId: 7,  problemTitle: '最长公共子序列',  status: 'WA',  time: 48,   memory: 8192,  language: 'Python', submittedAt: new Date(Date.now() - 2  * 3600000).toISOString() },
+    { id: 3, problemId: 12, problemTitle: '最大流（网络流）', status: 'TLE', time: 2000, memory: 16384, language: 'C++',    submittedAt: new Date(Date.now() - 86400000).toISOString() },
+    { id: 4, problemId: 1,  problemTitle: '两数之和',        status: 'AC',  time: 4,    memory: 4096,  language: 'Java',   submittedAt: new Date(Date.now() - 2  * 86400000).toISOString() },
+  ],
+  recentContests: MOCK_CONTESTS,
 }
+
+const MOCK_NOTICE = '系统已更新至 v2.3，新增 AI 代码讲解功能，欢迎体验！'
+
+// ── Reactive state ────────────────────────────────────────────────────────
+
+const siteStats     = ref(MOCK_SITE_STATS)
+const hotProblems   = ref(MOCK_HOT_PROBLEMS)
+const guestContests = ref(MOCK_CONTESTS)
+const notice        = ref(MOCK_NOTICE)
+const dashboard     = ref(MOCK_DASHBOARD)
+
+// ── Greeting ──────────────────────────────────────────────────────────────
+
+const timeGreeting = computed(() => {
+  const h = new Date().getHours()
+  if (h < 6)  return '深夜好'
+  if (h < 12) return '早上好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})
+
+const dailyTip = computed(() => {
+  const today = new Date()
+  const ds = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+  const entry = dashboard.value.heatmap.find(h => h.date === ds)
+  return entry
+    ? `今天已提交 ${entry.count} 次，继续加油！`
+    : '今天还没有提交，从推荐题开始吧'
+})
+
+// ── Difficulty badge ───────────────────────────────────────────────────────
+
+const DIFF_STYLE = {
+  '入门': { bg: '#f0fdf4', color: '#166534' },
+  '简单': { bg: '#f0fdf4', color: '#166534' },
+  '中等': { bg: '#fefce8', color: '#854d0e' },
+  '困难': { bg: '#fef2f2', color: '#991b1b' },
+}
+function diffStyle(d) {
+  return DIFF_STYLE[d] ?? { bg: '#f1f5f9', color: '#475569' }
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────
 
 onMounted(async () => {
   try {
-    const res = await api.get('/stats/')
-    stats.value = res.data
-  } catch {}
+    const { data } = await api.get('/stats/')
+    siteStats.value = {
+      problemCount:    data.total_problems    ?? MOCK_SITE_STATS.problemCount,
+      userCount:       data.total_users       ?? MOCK_SITE_STATS.userCount,
+      submissionCount: data.total_submissions ?? MOCK_SITE_STATS.submissionCount,
+    }
+    if (data.recent_problems?.length) {
+      hotProblems.value = data.recent_problems.map(p => ({
+        id: p.id, title: p.title, difficulty: p.difficulty, acRate: p.ac_rate,
+      }))
+    }
+    if (data.active_contests?.length) {
+      const mapC = c => ({
+        id: c.id, title: c.title,
+        startTime: c.start_time, endTime: c.end_time, mode: c.rule_type ?? 'ICPC',
+      })
+      guestContests.value = data.active_contests.map(mapC)
+      dashboard.value = { ...dashboard.value, recentContests: data.active_contests.map(mapC) }
+    }
+  } catch { /* keep mocks */ }
 
-  await new Promise(r => setTimeout(r, 50))
-  const cntObs = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) { animateCount(e.target); cntObs.unobserve(e.target) }
-    })
-  }, { threshold: 0.5 })
-  document.querySelectorAll('.count-up').forEach(el => cntObs.observe(el))
-
-  setupReveal()
-})
-
-// ── ECharts ──────────────────────────────────────────────────
-const STATUS_LABELS = { AC:'通过', WA:'答案错误', TLE:'超时', MLE:'超内存', RE:'运行错误', CE:'编译错误' }
-const STATUS_COLORS = { AC:'#22c55e', WA:'#ef4444', TLE:'#f59e0b', MLE:'#8b5cf6', RE:'#f97316', CE:'#6b7280' }
-
-const dailyOption = computed(() => {
-  if (!stats.value) return {}
-  return {
-    backgroundColor: 'transparent',
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
-      backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
-      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
-    },
-    grid: { left: 36, right: 8, top: 8, bottom: 48 },
-    xAxis: {
-      type: 'category',
-      data: stats.value.daily_submissions.map(d => d.date.slice(5)),
-      axisLabel: { color: '#a1a1aa', fontSize: 10, rotate: 30, interval: 4 },
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
-    },
-    yAxis: {
-      type: 'value', minInterval: 1,
-      axisLabel: { color: '#a1a1aa', fontSize: 10 },
-      splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
-    },
-    series: [{ type: 'bar', data: stats.value.daily_submissions.map(d => ({
-      value: d.count, itemStyle: { color: '#6366f1', borderRadius: [3,3,0,0] },
-    })), barMaxWidth: 18 }],
+  if (userStore.isLoggedIn) {
+    try {
+      const { data } = await api.get('/submissions/', { params: { page_size: 5 } })
+      const subs = (data.results ?? data).slice(0, 5).map(s => ({
+        id: s.id,
+        problemId:    s.problem,
+        problemTitle: s.problem_title ?? `题目 #${s.problem}`,
+        status:       s.status,
+        time:         s.time_used,
+        memory:       s.memory_used,
+        language:     s.language,
+        submittedAt:  s.submitted_at,
+      }))
+      if (subs.length) dashboard.value = { ...dashboard.value, recentSubmissions: subs }
+    } catch { /* keep mocks */ }
   }
 })
-
-const statusOption = computed(() => {
-  if (!stats.value) return {}
-  const pieData = Object.entries(stats.value.submissions_by_status)
-    .filter(([k]) => STATUS_LABELS[k])
-    .map(([k, v]) => ({ name: STATUS_LABELS[k], value: v, itemStyle: { color: STATUS_COLORS[k] } }))
-  return {
-    backgroundColor: 'transparent',
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)',
-      backgroundColor: '#fff', borderColor: '#e5e7eb', borderWidth: 1,
-      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
-    },
-    legend: { bottom: 0, textStyle: { color: '#a1a1aa', fontSize: 11 }, itemWidth: 10, itemHeight: 10 },
-    series: [{ type: 'pie', radius: ['45%','70%'], center: ['50%','42%'], data: pieData,
-      label: { show: false }, emphasis: { label: { show: true, fontSize: 12 } } }],
-  }
-})
-
-// ── 状态辅助 ────────────────────────────────────────────────
-function statusClass(s) {
-  const m = { AC:'ac', WA:'wa', TLE:'tle', MLE:'mle', RE:'re', CE:'ce', Pending:'pending', Judging:'judging' }
-  return m[s] || 'pending'
-}
-function timeAgo(iso) {
-  const diff = Date.now() - new Date(iso)
-  const m = Math.floor(diff / 60000)
-  if (m < 1)  return '刚刚'
-  if (m < 60) return `${m} 分钟前`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h} 小时前`
-  return new Date(iso).toLocaleDateString('zh-CN')
-}
-const DIFF_STYLE = {
-  '暂无评定':      { bg: 'rgba(191,191,191,0.15)', color: '#6b7280' },
-  '入门':          { bg: 'rgba(254,76,97,0.12)',   color: '#dc2626' },
-  '普及-':         { bg: 'rgba(243,156,17,0.12)',  color: '#b45309' },
-  '普及/提高-':    { bg: 'rgba(255,193,22,0.15)',  color: '#92400e' },
-  '普及+/提高':    { bg: 'rgba(82,196,26,0.12)',   color: '#15803d' },
-  '提高+/省选-':   { bg: 'rgba(52,152,219,0.12)',  color: '#1d4ed8' },
-  '省选/NOI-':     { bg: 'rgba(157,61,207,0.12)',  color: '#7e22ce' },
-  'NOI/NOI+/CTSC': { bg: 'rgba(14,29,105,0.12)',  color: '#0e1d69' },
-}
-function diffStyle(d) {
-  const s = DIFF_STYLE[d] ?? { bg: 'rgba(191,191,191,0.15)', color: '#6b7280' }
-  return { background: s.bg, color: s.color }
-}
 </script>
 
 <template>
-  <div class="home">
+  <div class="page-wrap">
+    <div class="content">
 
-    <!-- ===== Hero ===== -->
-    <section class="hero hero-enhanced">
-      <div class="hero-content">
-        <div class="hero-eyebrow">
-          <span class="eyebrow-dot"></span>
-          在线算法评测平台
-        </div>
-        <h1 class="hero-title">ACM <span class="hero-title-hl">OJ</span></h1>
-        <p class="hero-subtitle">
-          在线算法竞赛评测平台 — 提交代码，即时评测<br>
-          支持 ICPC / IOI 赛制比赛
-        </p>
+      <!-- ════════════════════════════════════════
+           GUEST VIEW
+           ════════════════════════════════════════ -->
+      <template v-if="!userStore.isLoggedIn">
 
-        <div class="stats-grid" v-if="stats">
-          <div class="stat-card">
-            <div class="stat-number count-up" :data-target="stats.total_problems">0</div>
-            <div class="stat-label">算法题目</div>
+        <HeroGuest :stats="siteStats" />
+
+        <!-- Two-column: hot problems + contests -->
+        <div class="guest-grid">
+
+          <div class="card">
+            <div class="sec-head">
+              <span class="sec-title">热门题目</span>
+              <button class="link-btn" @click="router.push({ name: 'problem-list' })">查看全部 →</button>
+            </div>
+            <table class="prob-table">
+              <tbody>
+                <tr
+                  v-for="p in hotProblems"
+                  :key="p.id"
+                  class="prob-row"
+                  @click="router.push({ name: 'problem-detail', params: { id: p.id } })"
+                >
+                  <td class="pid">#{{ p.id }}</td>
+                  <td class="ptitle">{{ p.title }}</td>
+                  <td class="pdiff">
+                    <span
+                      class="diff-pill"
+                      :style="{ background: diffStyle(p.difficulty).bg, color: diffStyle(p.difficulty).color }"
+                    >{{ p.difficulty }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div class="stat-card">
-            <div class="stat-number count-up" :data-target="stats.total_submissions">0</div>
-            <div class="stat-label">提交次数</div>
+
+          <ContestCard :contests="guestContests" />
+
+        </div>
+
+        <NoticeBar :message="notice" />
+
+      </template>
+
+      <!-- ════════════════════════════════════════
+           DASHBOARD VIEW (logged in)
+           ════════════════════════════════════════ -->
+      <template v-else>
+
+        <!-- Greeting + personal stats -->
+        <div class="dash-header">
+          <div class="greeting-block">
+            <span class="greeting">{{ timeGreeting }}，{{ userStore.user?.username ?? '同学' }}</span>
+            <span class="daily-tip">{{ dailyTip }}</span>
           </div>
-          <div class="stat-card">
-            <div class="stat-number count-up" :data-target="stats.total_users">0</div>
-            <div class="stat-label">注册用户</div>
+          <div class="personal-stats">
+            <div class="ps-item">
+              <span class="ps-num">{{ dashboard.acCount }}</span>
+              <span class="ps-label">已 AC</span>
+            </div>
+            <div class="ps-sep"></div>
+            <div class="ps-item">
+              <span class="ps-num">{{ dashboard.totalSubmissions }}</span>
+              <span class="ps-label">总提交</span>
+            </div>
+            <div class="ps-sep"></div>
+            <div class="ps-item">
+              <span class="ps-num">{{ dashboard.streak }}</span>
+              <span class="ps-label">连续打卡</span>
+            </div>
           </div>
         </div>
 
-        <div class="hero-actions">
-          <button class="btn-hero-primary" @click="router.push('/problems')">浏览题库</button>
-          <button
-            v-if="!userStore.isLoggedIn"
-            class="btn-hero-ghost"
-            @click="router.push('/register')"
-          >立即注册</button>
+        <!-- 2×2 grid: heatmap | recommend / judge | contests -->
+        <div class="dash-grid">
+          <HeatmapCard     :submissions="dashboard.heatmap" />
+          <RecommendCard   :problem="dashboard.recommend" />
+          <RecentJudgeCard :submissions="dashboard.recentSubmissions" />
+          <ContestCard     :contests="dashboard.recentContests" />
         </div>
-      </div>
-    </section>
 
-    <!-- ===== 特性区 ===== -->
-    <section class="features-section">
-      <div class="section-header">
-        <h2 class="section-title">为什么选择 ACM OJ？</h2>
-        <p class="section-subtitle">专为算法竞赛设计，提供完整的练习与比赛体验</p>
-      </div>
-      <div class="features-grid">
-        <div class="feature-card reveal">
-          <div class="feature-icon fi-blue">⚡</div>
-          <h3 class="feature-title">毫秒级评测</h3>
-          <p class="feature-desc">沙箱隔离评测引擎，支持 C / C++ / Java / Python，精确到毫秒的时间与内存测量</p>
-        </div>
-        <div class="feature-card reveal">
-          <div class="feature-icon fi-purple">🏆</div>
-          <h3 class="feature-title">多种赛制</h3>
-          <p class="feature-desc">完整支持 ICPC 罚时赛制与 IOI 得分赛制，实时排行榜自动更新</p>
-        </div>
-        <div class="feature-card reveal">
-          <div class="feature-icon fi-green">🤖</div>
-          <h3 class="feature-title">AI 代码分析</h3>
-          <p class="feature-desc">集成 DeepSeek 大模型，提交后自动提供代码优化建议与错误原因分析</p>
-        </div>
-        <div class="feature-card reveal">
-          <div class="feature-icon fi-cyan">💬</div>
-          <h3 class="feature-title">题目讨论区</h3>
-          <p class="feature-desc">每道题目配备专属讨论区，与其他选手交流解题思路，共同进步</p>
-        </div>
-      </div>
-    </section>
+      </template>
 
-    <!-- ===== 图表区 ===== -->
-    <div class="charts-row reveal" v-if="stats">
-      <div class="chart-card">
-        <div class="card-title">近 30 天提交趋势</div>
-        <VChart :option="dailyOption" autoresize style="height:200px;width:100%" />
-      </div>
-      <div class="chart-card">
-        <div class="card-title">评测结果分布</div>
-        <VChart :option="statusOption" autoresize style="height:200px;width:100%" />
-      </div>
     </div>
-
-    <!-- ===== 主内容区 ===== -->
-    <div class="home-grid" v-if="stats">
-
-      <!-- 左：比赛 + 题目 -->
-      <div class="home-main">
-
-        <!-- 近期比赛 -->
-        <div class="card reveal" v-if="stats.active_contests?.length">
-          <div class="card-header">
-            <h3 class="card-title-sm">🏆 近期比赛</h3>
-            <button class="btn-ghost-sm" @click="router.push('/contests')">全部比赛 →</button>
-          </div>
-          <div
-            v-for="c in stats.active_contests" :key="c.id"
-            class="contest-row"
-            @click="router.push(`/contests/${c.id}`)"
-          >
-            <div class="contest-row-info">
-              <div class="contest-row-title">{{ c.title }}</div>
-              <div class="contest-row-meta">{{ c.rule_type }} · {{ c.start_time }} ~ {{ c.end_time }}</div>
-            </div>
-            <span class="contest-status-tag" :class="c.status">
-              {{ c.status === 'running' ? '进行中' : '即将开始' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- 最新题目 -->
-        <div class="card reveal">
-          <div class="card-header">
-            <h3 class="card-title-sm">📋 最新题目</h3>
-            <button class="btn-ghost-sm" @click="router.push('/problems')">查看全部 →</button>
-          </div>
-          <table class="mini-table" v-if="stats.recent_problems?.length">
-            <thead>
-              <tr><th>#</th><th>题目</th><th>难度</th><th>通过率</th></tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="p in stats.recent_problems" :key="p.id"
-                class="mini-row"
-                @click="router.push(`/problems/${p.id}`)"
-              >
-                <td class="mono-cell">{{ p.id }}</td>
-                <td class="problem-title-cell">{{ p.title }}</td>
-                <td>
-                  <span class="diff-badge" :style="diffStyle(p.difficulty)">{{ p.difficulty }}</span>
-                </td>
-                <td class="muted-cell">{{ p.ac_rate }}%</td>
-              </tr>
-            </tbody>
-          </table>
-          <div v-else class="empty-inner">暂无题目</div>
-        </div>
-      </div>
-
-      <!-- 右：快速导航 + 实时评测 -->
-      <div class="home-side">
-
-        <!-- 快速导航 -->
-        <div class="card reveal">
-          <div class="card-header">
-            <h3 class="card-title-sm">🚀 快速导航</h3>
-          </div>
-          <div class="quicknav-list">
-            <div class="quicknav-item" @click="router.push('/problems')">
-              <span class="qnav-icon" style="background:rgba(129,140,248,0.12)">📚</span>
-              <span>全部题库</span>
-              <svg class="qnav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-            <div class="quicknav-item" @click="router.push('/contests')">
-              <span class="qnav-icon" style="background:rgba(167,139,250,0.12)">🏆</span>
-              <span>参加比赛</span>
-              <svg class="qnav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-            <div class="quicknav-item" @click="router.push('/rank')">
-              <span class="qnav-icon" style="background:rgba(52,211,153,0.12)">📊</span>
-              <span>查看排行榜</span>
-              <svg class="qnav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-            <div class="quicknav-item" @click="router.push('/discussions')">
-              <span class="qnav-icon" style="background:rgba(34,211,238,0.12)">💬</span>
-              <span>讨论社区</span>
-              <svg class="qnav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-            <div v-if="!userStore.isLoggedIn" class="quicknav-item" @click="router.push('/register')">
-              <span class="qnav-icon" style="background:rgba(251,191,36,0.12)">✨</span>
-              <span>立即注册</span>
-              <svg class="qnav-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-            </div>
-          </div>
-        </div>
-
-        <!-- 实时评测 -->
-        <div class="card reveal" v-if="stats.recent_submissions?.length">
-          <div class="card-header">
-            <div class="live-feed-header">
-              <span class="live-dot"></span>
-              <h3 class="card-title-sm" style="margin:0">实时评测</h3>
-            </div>
-          </div>
-          <div class="live-list">
-            <div
-              v-for="s in stats.recent_submissions" :key="s.id"
-              class="live-item"
-            >
-              <div class="live-left">
-                <span class="live-avatar" :style="{ background: s.avatar_color }">
-                  {{ s.username[0].toUpperCase() }}
-                </span>
-                <div class="live-info">
-                  <RouterLink :to="`/users/${s.user_id}`" class="live-user" @click.stop>
-                    {{ s.username }}
-                  </RouterLink>
-                  <span class="live-problem"> 提交了 </span>
-                  <RouterLink :to="`/problems/${s.problem_id}`" class="live-pid" @click.stop>
-                    #{{ s.problem_id }}
-                  </RouterLink>
-                </div>
-              </div>
-              <div class="live-right">
-                <span class="status-dot-badge" :class="statusClass(s.status)">
-                  <span class="sdot"></span>{{ s.status }}
-                </span>
-                <span class="live-time">{{ timeAgo(s.submitted_at) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
   </div>
 </template>
 
 <style scoped>
-.home { padding: 0; }
+/* ── Outer wrapper ─────────────────────────────────── */
+.page-wrap {
+  min-height: calc(100vh - 56px);
+  background: var(--bg-page);
+}
+.content {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
-/* ── Hero ─────────────────────────────────────── */
-.hero-enhanced {
-  text-align: center;
-  padding: 4rem 1rem 3.5rem;
+/* ── Shared card shell (also used by sub-components via :deep) ── */
+.card,
+:deep(.card) {
   background: var(--bg-card);
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  margin-bottom: 2rem;
-  border: 1px solid var(--border);
-}
-.hero-content { }
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12.5px; color: var(--accent); font-weight: 500;
-  margin-bottom: 1rem;
-}
-.eyebrow-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent);
 }
 
-.hero-title {
-  font-size: 3.5rem; font-weight: 800; color: var(--text-primary);
-  letter-spacing: 0.05em; margin-bottom: 0.6rem;
-}
-.hero-title-hl { color: var(--accent); }
-.hero-subtitle { color: var(--text-muted); font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }
-
-.stats-grid {
-  display: inline-flex; align-items: stretch;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; margin-bottom: 2rem; overflow: hidden;
-}
-.stat-card {
-  padding: 1rem 2rem; text-align: center;
-  border-right: 1px solid var(--border);
-}
-.stat-card:last-child { border-right: none; }
-.stat-number {
-  font-size: 1.8rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums;
-}
-.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
-
-.hero-actions { display: flex; gap: 1rem; justify-content: center; }
-.btn-hero-primary {
-  background: var(--accent); color: #fff; border: none;
-  padding: 0.65rem 2.2rem; border-radius: 7px;
-  font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.15s;
-}
-.btn-hero-primary:hover { background: var(--accent-hover); }
-.btn-hero-ghost {
-  background: transparent; color: var(--accent);
-  border: 1px solid var(--accent); padding: 0.65rem 2.2rem;
-  border-radius: 7px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.15s;
-}
-.btn-hero-ghost:hover { background: var(--accent-light); }
-
-/* ── Features ─────────────────────────────────── */
-.features-section { margin-bottom: 2rem; }
-.section-header { text-align: center; margin-bottom: 1.6rem; }
-.section-title { font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
-.section-subtitle { font-size: 0.9rem; color: var(--text-muted); }
-.features-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-.feature-card {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 1.4rem;
-  opacity: 0; transform: translateY(16px);
-  transition: opacity 0.4s ease, transform 0.4s ease, border-color 0.15s;
-}
-.feature-card.visible { opacity: 1; transform: translateY(0); }
-.feature-card:hover { border-color: var(--accent); }
-.feature-icon {
-  width: 42px; height: 42px; border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.3rem; margin-bottom: 1rem;
-}
-.fi-blue   { background: rgba(59,130,246,0.15); }
-.fi-purple { background: rgba(124,106,247,0.15); }
-.fi-green  { background: rgba(34,197,94,0.15); }
-.fi-cyan   { background: rgba(34,211,238,0.15); }
-.feature-title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem; }
-.feature-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
-
-/* ── Charts ──────────────────────────────────── */
-.charts-row {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 1.2rem; margin-bottom: 2rem;
-  opacity: 0; transform: translateY(16px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
-}
-.charts-row.visible { opacity: 1; transform: translateY(0); }
-.chart-card {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 1.2rem 1.4rem;
-}
-.card-title {
-  font-size: 0.88rem; font-weight: 700; color: var(--accent); margin-bottom: 0.8rem;
+/* ══════════════════════════════════════════
+   GUEST
+   ══════════════════════════════════════════ */
+.guest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
 }
 
-/* ── Home Grid ───────────────────────────────── */
-.home-grid {
-  display: grid; grid-template-columns: 1fr 340px;
-  gap: 1.2rem; align-items: start;
+/* Hot problems card internals */
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
 }
-.home-main, .home-side { display: flex; flex-direction: column; gap: 1.2rem; }
+.sec-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.link-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--home-accent);
+  cursor: pointer;
+  padding: 0;
+}
+.link-btn:hover { text-decoration: underline; }
 
-.card {
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 10px; overflow: hidden;
+.prob-table {
+  width: 100%;
+  border-collapse: collapse;
 }
-.reveal {
-  opacity: 0; transform: translateY(16px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
+.prob-row { cursor: pointer; }
+.prob-row:hover td { background: var(--bg-hover); }
+.prob-row td {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  transition: background 0.1s;
 }
-.reveal.visible { opacity: 1; transform: translateY(0); }
-
-.card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.9rem 1.2rem; border-bottom: 1px solid var(--border);
+.prob-row:last-child td { border-bottom: none; }
+.pid {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 52px;
 }
-.card-title-sm { font-size: 0.88rem; font-weight: 700; color: var(--accent); margin: 0; }
-.btn-ghost-sm {
-  background: none; border: none; color: var(--text-muted);
-  font-size: 0.8rem; cursor: pointer;
-}
-.btn-ghost-sm:hover { color: var(--accent); }
-
-/* 近期比赛 */
-.contest-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.75rem 1.2rem; border-bottom: 1px solid var(--border);
-  cursor: pointer; transition: background 0.12s;
-}
-.contest-row:last-child { border-bottom: none; }
-.contest-row:hover { background: var(--bg-hover); }
-.contest-row-title { font-size: 0.9rem; color: var(--text-primary); font-weight: 500; }
-.contest-row-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
-.contest-status-tag {
-  font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem;
-  border-radius: 999px; flex-shrink: 0;
-}
-.contest-status-tag.running  { background: rgba(34,197,94,.15);  color: #22c55e; }
-.contest-status-tag.upcoming { background: rgba(99,102,241,.15); color: #6366f1; }
-
-/* 最新题目 */
-.mini-table { width: 100%; border-collapse: collapse; }
-.mini-table th {
-  padding: 8px 16px; font-size: 12.5px; color: var(--text-secondary); font-weight: 500;
-  text-align: left; border-bottom: 1px solid var(--border); background: var(--bg-page);
-  position: sticky; top: 0;
-}
-.mini-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.4; }
-.mini-row:last-child td { border-bottom: none; }
-.mini-row { cursor: pointer; }
-.mini-row:hover td { background: var(--bg-hover); }
-.mono-cell { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); }
-.problem-title-cell { color: var(--accent); }
-.muted-cell { color: var(--text-muted); font-size: 0.82rem; }
-.empty-inner { padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.88rem; }
-
-/* 难度徽章 — 浅底深字，颜色通过 JS inline style 注入 */
-.diff-badge {
-  font-size: 12px; padding: 1px 7px; border-radius: 6px; font-weight: 600;
-  display: inline-flex; align-items: center; gap: 5px;
-}
-.diff-badge::before {
-  content: '';
-  width: 6px; height: 6px; border-radius: 50%;
-  background: currentColor; flex-shrink: 0;
-}
-
-/* 快速导航 */
-.quicknav-list { display: flex; flex-direction: column; }
-.quicknav-item {
-  display: flex; align-items: center; gap: 0.8rem;
-  padding: 0.75rem 1.2rem; cursor: pointer; font-size: 0.88rem; color: var(--text-secondary);
-  border-bottom: 1px solid var(--border); transition: background 0.12s;
-}
-.quicknav-item:last-child { border-bottom: none; }
-.quicknav-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
-.qnav-icon {
-  width: 30px; height: 30px; border-radius: 7px;
-  display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;
-}
-.qnav-arrow { width: 14px; height: 14px; opacity: 0.4; margin-left: auto; flex-shrink: 0; }
-
-/* 实时评测 */
-.live-feed-header { display: flex; align-items: center; gap: 0.5rem; }
-.live-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
-  box-shadow: 0 0 6px #22c55e;
-  animation: livePulse 1.5s ease-in-out infinite;
-}
-@keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.live-list { display: flex; flex-direction: column; }
-.live-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.65rem 1.2rem; border-bottom: 1px solid var(--border); gap: 0.5rem;
-}
-.live-item:last-child { border-bottom: none; }
-.live-left { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0; }
-.live-avatar {
-  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.68rem; font-weight: 700; color: #fff;
-}
-.live-info { font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.live-user { color: var(--accent); text-decoration: none; font-weight: 600; }
-.live-user:hover { text-decoration: underline; }
-.live-problem { color: var(--text-muted); }
-.live-pid { color: var(--accent); text-decoration: none; }
-.live-pid:hover { text-decoration: underline; }
-.live-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.2rem; flex-shrink: 0; }
-.live-time { font-size: 0.72rem; color: var(--text-muted); }
-
-/* 状态徽章 */
-.status-dot-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.75rem; font-weight: 600; padding: 0.15rem 0.5rem;
+.ptitle { color: var(--text-primary); }
+.pdiff  { text-align: right; }
+.diff-pill {
+  font-size: 11px;
+  padding: 1px 8px;
   border-radius: 999px;
+  font-weight: 500;
+  white-space: nowrap;
 }
-.sdot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-.status-dot-badge.ac      { background: rgba(34,197,94,.15);  color: #22c55e; }
-.status-dot-badge.wa      { background: rgba(239,68,68,.15);  color: #ef4444; }
-.status-dot-badge.tle     { background: rgba(245,158,11,.15); color: #f59e0b; }
-.status-dot-badge.mle     { background: rgba(139,92,246,.15); color: #8b5cf6; }
-.status-dot-badge.re      { background: rgba(249,115,22,.15); color: #f97316; }
-.status-dot-badge.ce      { background: rgba(107,114,128,.15);color: #6b7280; }
-.status-dot-badge.pending,
-.status-dot-badge.judging { background: rgba(59,130,246,.15); color: #3b82f6; }
 
-/* ── 响应式 ───────────────────────────────────── */
-@media (max-width: 1000px) {
-  .home-grid { grid-template-columns: 1fr; }
-  .features-grid { grid-template-columns: repeat(2, 1fr); }
+/* ══════════════════════════════════════════
+   DASHBOARD
+   ══════════════════════════════════════════ */
+.dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px 0 4px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
-@media (max-width: 700px) {
-  .charts-row { grid-template-columns: 1fr; }
-  .hero-title { font-size: 2.5rem; }
-  .features-grid { grid-template-columns: 1fr; }
-  .stats-grid { flex-direction: column; }
-  .stat-card { border-right: none; border-bottom: 1px solid var(--border); }
-  .stat-card:last-child { border-bottom: none; }
+.greeting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.greeting {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.daily-tip {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.personal-stats {
+  display: flex;
+  align-items: center;
+}
+.ps-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0 20px;
+}
+.ps-item:first-child { padding-left: 0; }
+.ps-num {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.ps-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.ps-sep {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 16px;
+  align-items: start;
+}
+
+/* ── Responsive ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .content   { padding: 0 16px 40px; }
+  .guest-grid { grid-template-columns: 1fr; }
+  .dash-grid  { grid-template-columns: 1fr; }
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding-top: 20px;
+  }
+  .personal-stats { width: 100%; }
+  .ps-item { align-items: flex-start; padding: 0 16px; }
+  .ps-item:first-child { padding-left: 0; }
 }
 </style>

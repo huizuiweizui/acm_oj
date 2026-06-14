@@ -16,21 +16,45 @@ const teamId = Number(route.params.id)
 
 const loading = ref(true)
 const data = ref(null)
+const apiError = ref('')
 const sortKey = ref('total_ac')
+const sortDir = ref('desc')   // 'desc' | 'asc'
 const exporting = ref(false)
 
-onMounted(async () => {
+async function loadDashboard() {
+  loading.value = true
+  apiError.value = ''
   try {
     const { data: d } = await getTeamDashboard(teamId)
     data.value = d
+  } catch (e) {
+    const status = e.response?.status
+    if (status === 401) apiError.value = '登录已过期，请重新登录后再试'
+    else if (status === 403) apiError.value = '无权限查看此团队总览（仅团队创建者、队长和管理员可访问）'
+    else if (status === 404) apiError.value = '团队不存在'
+    else if (status === 500) apiError.value = '服务器内部错误，请刷新重试；若持续出现请联系管理员'
+    else if (status) apiError.value = `请求失败（错误码 ${status}），请稍后重试`
+    else apiError.value = '网络错误，无法连接到服务器，请检查网络连接'
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadDashboard)
+
+function setSort(key) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'desc'
+  }
+}
 
 const sortedRanking = computed(() => {
   if (!data.value) return []
-  return [...data.value.ranking].sort((a, b) => b[sortKey.value] - a[sortKey.value])
+  const mult = sortDir.value === 'desc' ? -1 : 1
+  return [...data.value.ranking].sort((a, b) => mult * (a[sortKey.value] - b[sortKey.value]))
 })
 
 const diffOrder = computed(() => data.value?.diff_order ?? [])
@@ -142,9 +166,9 @@ async function doExport() {
       <div class="section-head">
         <h2 class="section-title">成员排行</h2>
         <div class="sort-tabs">
-          <button :class="['sort-tab', sortKey === 'total_ac' && 'sort-active']" @click="sortKey = 'total_ac'">总排名</button>
-          <button :class="['sort-tab', sortKey === 'week_ac' && 'sort-active']" @click="sortKey = 'week_ac'">本周</button>
-          <button :class="['sort-tab', sortKey === 'month_ac' && 'sort-active']" @click="sortKey = 'month_ac'">本月</button>
+          <button :class="['sort-tab', sortKey === 'total_ac' && 'sort-active']" @click="setSort('total_ac')">总排名</button>
+          <button :class="['sort-tab', sortKey === 'week_ac' && 'sort-active']" @click="setSort('week_ac')">本周</button>
+          <button :class="['sort-tab', sortKey === 'month_ac' && 'sort-active']" @click="setSort('month_ac')">本月</button>
         </div>
       </div>
 
@@ -155,14 +179,14 @@ async function doExport() {
               <th class="col-rank">#</th>
               <th>姓名</th>
               <th>学号</th>
-              <th class="col-num sortable" :class="{ active: sortKey === 'total_ac' }" @click="sortKey = 'total_ac'">
-                总AC <span class="sort-arrow">▾</span>
+              <th class="col-num sortable" :class="{ active: sortKey === 'total_ac' }" @click="setSort('total_ac')">
+                总AC <span class="sort-arrow">{{ sortKey === 'total_ac' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
-              <th class="col-num sortable" :class="{ active: sortKey === 'week_ac' }" @click="sortKey = 'week_ac'">
-                本周 <span class="sort-arrow">▾</span>
+              <th class="col-num sortable" :class="{ active: sortKey === 'week_ac' }" @click="setSort('week_ac')">
+                本周 <span class="sort-arrow">{{ sortKey === 'week_ac' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
-              <th class="col-num sortable" :class="{ active: sortKey === 'month_ac' }" @click="sortKey = 'month_ac'">
-                本月 <span class="sort-arrow">▾</span>
+              <th class="col-num sortable" :class="{ active: sortKey === 'month_ac' }" @click="setSort('month_ac')">
+                本月 <span class="sort-arrow">{{ sortKey === 'month_ac' ? (sortDir === 'asc' ? '▲' : '▼') : '↕' }}</span>
               </th>
               <th v-for="d in diffOrder" :key="d" class="col-num col-diff-head">{{ d }}</th>
             </tr>
@@ -206,6 +230,13 @@ async function doExport() {
 
   </div>
   <div v-else-if="loading" class="loading-tip">加载中…</div>
+  <div v-else class="error-wrap">
+    <p class="error-msg">{{ apiError || '未知错误' }}</p>
+    <div class="error-actions">
+      <button class="btn-retry" @click="loadDashboard">重试</button>
+      <button class="btn-back-err" @click="router.back()">← 返回</button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -270,15 +301,16 @@ async function doExport() {
 .rank-table tr:last-child td { border-bottom: none; }
 
 .col-rank { width: 3rem; text-align: center; }
+.rank-table th.col-num,
 .col-num { text-align: right; }
 .col-diff-head { color: var(--text-muted); font-size: 0.78rem; }
 .col-diff-val { color: var(--text-secondary); font-size: 0.83rem; }
 .col-active-val { color: var(--accent); font-weight: 600; }
 .sortable { cursor: pointer; user-select: none; }
-.sortable.active { color: var(--accent); }
-.sortable:hover { color: var(--text-primary); }
-.sort-arrow { opacity: 0.5; font-size: 0.75rem; }
-.sortable.active .sort-arrow { opacity: 1; }
+.rank-table th.sortable.active { color: var(--accent); }
+.rank-table th.sortable:hover { color: var(--text-primary); }
+.sort-arrow { opacity: 0.45; font-size: 0.72rem; margin-left: 0.15rem; }
+.rank-table th.sortable.active .sort-arrow { opacity: 1; color: var(--accent); }
 
 .rank-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -298,4 +330,17 @@ async function doExport() {
 
 .trend-chart { width: 100%; height: 240px; }
 .loading-tip { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+.error-wrap { text-align: center; padding: 4rem 2rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.error-msg { color: #f87171; font-size: 0.95rem; margin: 0; max-width: 480px; }
+.error-actions { display: flex; gap: 0.75rem; }
+.btn-retry {
+  background: var(--accent); color: #fff; border: none;
+  padding: 0.45rem 1.1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem;
+}
+.btn-retry:hover { opacity: 0.88; }
+.btn-back-err {
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  padding: 0.45rem 1.1rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem;
+}
+.btn-back-err:hover { border-color: var(--text-secondary); }
 </style>

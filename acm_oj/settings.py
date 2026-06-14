@@ -108,6 +108,15 @@ REST_FRAMEWORK = {
     ],
 }
 
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=8),   # 默认 5 分钟太短，开发/生产统一 8 小时
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'ROTATE_REFRESH_TOKENS':  False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
 CORS_ALLOWED_ORIGINS = env('CORS_ORIGINS')
 
 LOGIN_URL = '/login/'

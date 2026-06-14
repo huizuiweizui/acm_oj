@@ -99,15 +99,26 @@ class MeAPIView(APIView):
 
     def patch(self, request):
         profile = request.user.profile
-        allowed = {'bio', 'avatar_color', 'avatar_url'}
-        for field in allowed & set(request.data.keys()):
+        profile_fields = {'bio', 'avatar_color', 'avatar_url', 'real_name', 'student_id'}
+        changed_profile = list(profile_fields & set(request.data.keys()))
+        for field in changed_profile:
             setattr(profile, field, request.data[field])
-        profile.save(update_fields=list(allowed & set(request.data.keys())))
+        if changed_profile:
+            profile.save(update_fields=changed_profile)
 
         email = request.data.get('email', '').strip()
         if email:
             request.user.email = email
             request.user.save(update_fields=['email'])
+
+        new_username = request.data.get('username', '').strip()
+        if new_username and new_username != request.user.username:
+            if len(new_username) < 3 or len(new_username) > 20:
+                return Response({'detail': '用户名长度须在 3~20 位之间'}, status=status.HTTP_400_BAD_REQUEST)
+            if User.objects.filter(username=new_username).exclude(pk=request.user.pk).exists():
+                return Response({'detail': '用户名已被占用'}, status=status.HTTP_400_BAD_REQUEST)
+            request.user.username = new_username
+            request.user.save(update_fields=['username'])
 
         return Response(UserSerializer(request.user).data)
 
@@ -1060,15 +1071,18 @@ class PlatformStatsAPIView(APIView):
             if key in daily_map:
                 daily_map[key] = row['cnt']
 
-        # 近期比赛（进行中 + 即将开始）
+        # 近期比赛（进行中 + 即将开始 + 近14天已结束）
         now = timezone.now()
+        cutoff = now - timedelta(days=14)
         active_contests = list(
-            Contest.objects.filter(end_time__gt=now)
-            .order_by('start_time')[:5]
+            Contest.objects.filter(end_time__gt=cutoff)
+            .order_by('-start_time')[:6]
             .values('id', 'title', 'start_time', 'end_time', 'rule_type', 'is_public')
         )
         for c in active_contests:
-            if c['start_time'] > now:
+            if c['end_time'] < now:
+                c['status'] = 'ended'
+            elif c['start_time'] > now:
                 c['status'] = 'upcoming'
             else:
                 c['status'] = 'running'
@@ -1123,6 +1137,10 @@ def _is_admin(user):
     return hasattr(user, 'profile') and user.profile.role == 'admin'
 
 
+def _is_super_admin(user):
+    return _is_admin(user) and user.profile.is_super_admin
+
+
 # ==================== 管理员 API ====================
 
 class AdminStatsAPIView(APIView):
@@ -1143,15 +1161,14 @@ class AdminStatsAPIView(APIView):
         week_reg = User.objects.filter(date_joined__date__gte=week_start).count()
 
         recent_users = list(
-            User.objects.select_related('profile')
-            .order_by('-date_joined')[:10]
+            User.objects.order_by('-date_joined')
             .values('id', 'username', 'date_joined', 'profile__role',
-                    'profile__display_name', 'profile__student_id')
+                    'profile__real_name', 'profile__student_id')[:10]
         )
         for u in recent_users:
             u['date_joined'] = u['date_joined'].strftime('%Y-%m-%d %H:%M')
             u['role'] = u.pop('profile__role') or 'student'
-            u['display_name'] = u.pop('profile__display_name') or ''
+            u['display_name'] = u.pop('profile__real_name') or ''
             u['student_id'] = u.pop('profile__student_id') or ''
 
         return Response({
@@ -1178,7 +1195,7 @@ class AdminUserListAPIView(APIView):
         if search:
             qs = qs.filter(
                 Q(username__icontains=search) |
-                Q(profile__display_name__icontains=search) |
+                Q(profile__real_name__icontains=search) |
                 Q(profile__student_id__icontains=search)
             )
         if role in ('student', 'teacher', 'admin'):
@@ -1191,18 +1208,20 @@ class AdminUserListAPIView(APIView):
             page = 1
         total = qs.count()
         start = (page - 1) * page_size
-        users = list(qs[start:start + page_size].values(
+        users = list(qs.values(
             'id', 'username', 'date_joined',
-            'profile__role', 'profile__display_name',
+            'profile__role', 'profile__real_name',
             'profile__student_id', 'profile__major', 'profile__grade',
-        ))
+            'profile__is_super_admin',
+        )[start:start + page_size])
         for u in users:
             u['date_joined'] = u['date_joined'].strftime('%Y-%m-%d')
             u['role'] = u.pop('profile__role') or 'student'
-            u['display_name'] = u.pop('profile__display_name') or ''
+            u['display_name'] = u.pop('profile__real_name') or ''
             u['student_id'] = u.pop('profile__student_id') or ''
             u['major'] = u.pop('profile__major') or ''
             u['grade'] = u.pop('profile__grade') or ''
+            u['is_super_admin'] = u.pop('profile__is_super_admin') or False
             ac = Submission.objects.filter(user_id=u['id'], status='AC').values('problem_id').distinct().count()
             u['ac_count'] = ac
 
@@ -1210,24 +1229,85 @@ class AdminUserListAPIView(APIView):
 
 
 class AdminUserUpdateAPIView(APIView):
-    """PATCH /api/admin/users/<id>/ — 修改用户角色"""
+    """PATCH /api/admin/users/<id>/ — 修改用户角色
+
+    权限规则：
+    - 任何管理员都可以将用户在 student / teacher 之间切换
+    - 只有总管理员（is_super_admin）可以授予或撤销 admin 角色
+    - 任何人都不能修改自己的角色
+    - 总管理员的角色不可被普通管理员修改
+    """
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, pk):
         if not _is_admin(request.user):
             return Response({'detail': '无权限'}, status=403)
-        user = User.objects.filter(pk=pk).select_related('profile').first()
-        if not user:
+
+        if request.user.pk == pk:
+            return Response({'detail': '不能修改自己的角色'}, status=403)
+
+        target = User.objects.filter(pk=pk).select_related('profile').first()
+        if not target:
             return Response({'detail': '用户不存在'}, status=404)
-        profile = user.profile
-        role = request.data.get('role')
-        if role in ('student', 'teacher', 'admin'):
-            profile.role = role
-        display_name = request.data.get('display_name')
-        if display_name is not None:
-            profile.display_name = display_name.strip()
-        profile.save()
-        return Response({'ok': True, 'role': profile.role})
+
+        target_profile = target.profile
+        new_role = request.data.get('role')
+
+        if new_role not in ('student', 'teacher', 'admin'):
+            return Response({'detail': '无效的角色值'}, status=400)
+
+        # 总管理员受保护：只有总管理员自己可以操作涉及 admin 角色的变更
+        if target_profile.is_super_admin:
+            return Response({'detail': '总管理员角色受保护，无法通过此接口修改'}, status=403)
+
+        # 非总管理员不能涉及 admin 角色（无论是设置还是从 admin 降级）
+        caller_is_super = _is_super_admin(request.user)
+        if not caller_is_super:
+            if new_role == 'admin':
+                return Response({'detail': '只有总管理员才能授予管理员权限'}, status=403)
+            if target_profile.role == 'admin':
+                return Response({'detail': '只有总管理员才能撤销管理员权限'}, status=403)
+
+        target_profile.role = new_role
+        target_profile.save()
+        return Response({'ok': True, 'role': target_profile.role})
+
+
+class AdminTransferSuperAdminAPIView(APIView):
+    """POST /api/admin/transfer-super-admin/ — 总管理员转让
+
+    body: { user_id: int }
+    目标用户必须已经是 admin 角色。
+    操作成功后：caller.is_super_admin = False, target.is_super_admin = True。
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if not _is_super_admin(request.user):
+            return Response({'detail': '只有总管理员才能执行转让操作'}, status=403)
+
+        target_id = request.data.get('user_id')
+        if not target_id:
+            return Response({'detail': '缺少 user_id'}, status=400)
+
+        if int(target_id) == request.user.pk:
+            return Response({'detail': '不能将总管理员转让给自己'}, status=400)
+
+        target = User.objects.filter(pk=target_id).select_related('profile').first()
+        if not target:
+            return Response({'detail': '目标用户不存在'}, status=404)
+        if target.profile.role != 'admin':
+            return Response({'detail': '目标用户必须先是管理员才能接受总管理员权限'}, status=400)
+
+        # 原子操作：一次性切换
+        my_profile = request.user.profile
+        my_profile.is_super_admin = False
+        my_profile.save(update_fields=['is_super_admin'])
+
+        target.profile.is_super_admin = True
+        target.profile.save(update_fields=['is_super_admin'])
+
+        return Response({'ok': True, 'new_super_admin': target.username})
 
 
 class DiscussionReplyCreateAPIView(APIView):

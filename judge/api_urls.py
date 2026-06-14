@@ -24,7 +24,7 @@ from .api_views import (
     DiscussionCreateAPIView, DiscussionDetailAPIView,
     DiscussionListAPIView, DiscussionReplyCreateAPIView, DiscussionReplyDeleteAPIView,
     LeaderboardAPIView,
-    AdminStatsAPIView, AdminUserListAPIView, AdminUserUpdateAPIView,
+    AdminStatsAPIView, AdminUserListAPIView, AdminUserUpdateAPIView, AdminTransferSuperAdminAPIView,
     LoginAPIView, LogoutAPIView, MeAPIView, PlatformStatsAPIView, ProblemDetailAPIView,
     ProblemListAPIView, RegisterAPIView,
     SubmissionListAPIView, SubmissionDetailAPIView,
@@ -79,6 +79,7 @@ urlpatterns = [
     path('admin/stats/', AdminStatsAPIView.as_view(), name='api-admin-stats'),
     path('admin/users/', AdminUserListAPIView.as_view(), name='api-admin-users'),
     path('admin/users/<int:pk>/', AdminUserUpdateAPIView.as_view(), name='api-admin-user-update'),
+    path('admin/transfer-super-admin/', AdminTransferSuperAdminAPIView.as_view(), name='api-transfer-super-admin'),
 
     # AI 问答（RAG）
     path('ai/ask/', AskAIAPIView.as_view(), name='api-ai-ask'),

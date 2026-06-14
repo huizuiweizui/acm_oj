@@ -55,6 +55,22 @@
   --status-ce-bg:      #f1f5f9; --status-ce-text:      #475569; --status-ce-dot:  #64748b;
   --status-pending-bg: #dbeafe; --status-pending-text: #1d4ed8; --status-pending-dot: #3b82f6;
   --status-nt-bg:      #f1f5f9; --status-nt-text:      #64748b; --status-nt-dot:  #94a3b8;
+
+  /* Home page — accent purple, semantic status, heatmap */
+  --home-accent:        #534AB7;
+  --home-accent-hover:  #4339a0;
+  --home-accent-light:  #ede9ff;
+  --home-ac:            #0F6E56;
+  --home-ac-bg:         #E1F5EE;
+  --home-wa:            #A32D2D;
+  --home-wa-bg:         #FCEAEA;
+  --home-tle:           #854F0B;
+  --home-tle-bg:        #FEF3C7;
+  --heatmap-0:          #ebedf0;
+  --heatmap-1:          #E1F5EE;
+  --heatmap-2:          #9FE1CB;
+  --heatmap-3:          #5DCAA5;
+  --heatmap-4:          #1D9E75;
 }
 
 /* ══════════════════════════════════════════
@@ -85,6 +101,22 @@
   --scrollbar-thumb: #3f3f46;
   --code-bg:    #111113;
   --code-color: #a5b4fc;
+
+  /* Home page dark overrides */
+  --home-accent:        #7b70e0;
+  --home-accent-hover:  #9588f0;
+  --home-accent-light:  #1e1a40;
+  --home-ac:            #4ade80;
+  --home-ac-bg:         #0a2e1a;
+  --home-wa:            #f87171;
+  --home-wa-bg:         #2d0a0a;
+  --home-tle:           #fbbf24;
+  --home-tle-bg:        #2d1f03;
+  --heatmap-0:          #2d333b;
+  --heatmap-1:          #0e3b27;
+  --heatmap-2:          #1a6040;
+  --heatmap-3:          #1f8a59;
+  --heatmap-4:          #26a96e;
 }
 
 /* ══════════════════════════════════════════

@@ -90,13 +90,14 @@ class UserSerializer(serializers.ModelSerializer):
     grade = serializers.CharField(source='profile.grade', default='')
     must_change_password = serializers.BooleanField(source='profile.must_change_password', default=False)
     can_create_contest = serializers.BooleanField(source='profile.can_create_contest', default=False)
+    is_super_admin = serializers.BooleanField(source='profile.is_super_admin', default=False)
 
     class Meta:
         model = User
         fields = ['id', 'username', 'avatar_url', 'avatar_color',
                   'rating', 'ac_count', 'submit_count', 'bio', 'role',
                   'student_id', 'real_name', 'major', 'grade',
-                  'must_change_password', 'can_create_contest']
+                  'must_change_password', 'can_create_contest', 'is_super_admin']
 
 
 class ProblemListSerializer(serializers.ModelSerializer):

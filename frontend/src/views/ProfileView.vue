@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getUser, getUserStats } from '@/api/users'
+import { getUser, getUserStats, updateMe, changePassword } from '@/api/users'
 import { useUserStore } from '@/stores/user'
 import StatusBadge from '@/components/StatusBadge.vue'
 import AcCalendarChart from '@/components/AcCalendarChart.vue'
@@ -18,6 +18,69 @@ const stats = ref(null)
 const acProblems = ref([])
 const contestHistory = ref([])
 const loading = ref(true)
+
+const isOwner = computed(() => userStore.user && profile.value && userStore.user.id === profile.value.id)
+
+// 编辑弹窗
+const showEdit = ref(false)
+const editForm = ref({ username: '', real_name: '', student_id: '' })
+const pwForm = ref({ old_password: '', new_password: '', confirm_password: '' })
+const editError = ref('')
+const pwError = ref('')
+const saving = ref(false)
+
+function openEdit() {
+  editForm.value = {
+    username: profile.value.username,
+    real_name: profile.value.real_name || '',
+    student_id: profile.value.student_id || '',
+  }
+  pwForm.value = { old_password: '', new_password: '', confirm_password: '' }
+  editError.value = ''
+  pwError.value = ''
+  showEdit.value = true
+}
+
+async function saveProfile() {
+  editError.value = ''
+  pwError.value = ''
+  saving.value = true
+  try {
+    // 修改密码（若填写了旧密码则执行）
+    if (pwForm.value.old_password) {
+      if (pwForm.value.new_password !== pwForm.value.confirm_password) {
+        pwError.value = '两次新密码不一致'
+        return
+      }
+      if (pwForm.value.new_password.length < 6) {
+        pwError.value = '新密码至少 6 位'
+        return
+      }
+      await changePassword(pwForm.value.old_password, pwForm.value.new_password)
+    }
+
+    // 修改基本信息
+    const payload = {
+      username: editForm.value.username,
+      real_name: editForm.value.real_name,
+      student_id: editForm.value.student_id,
+    }
+    const res = await updateMe(payload)
+    // 同步 store 和本地 profile
+    userStore.user = res.data
+    profile.value = { ...profile.value, ...res.data }
+    showEdit.value = false
+  } catch (e) {
+    const msg = e.response?.data?.detail || '保存失败，请重试'
+    if (e.config?.url?.includes('password')) {
+      pwError.value = msg
+    } else {
+      editError.value = msg
+    }
+  } finally {
+    saving.value = false
+  }
+}
 
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso)
@@ -61,8 +124,15 @@ onMounted(async () => {
         {{ profile.username[0].toUpperCase() }}
       </div>
       <div class="user-info">
-        <div class="username">{{ profile.username }}</div>
+        <div class="username-row">
+          <span class="username">{{ profile.username }}</span>
+          <span v-if="profile.real_name" class="real-name">{{ profile.real_name }}</span>
+          <button v-if="isOwner" class="edit-btn" @click="openEdit">编辑资料</button>
+        </div>
         <div class="bio" v-if="profile.bio">{{ profile.bio }}</div>
+        <div class="student-id-row" v-if="profile.student_id">
+          <span class="student-id-label">学号：</span>{{ profile.student_id }}
+        </div>
         <div class="stats-row">
           <div class="stat-item">
             <div class="stat-val">{{ profile.rating }}</div>
@@ -188,6 +258,56 @@ onMounted(async () => {
       </div>
     </div>
   </div>
+
+  <!-- 编辑资料弹窗 -->
+  <Teleport to="body">
+    <div v-if="showEdit" class="modal-mask" @click.self="showEdit = false">
+      <div class="modal-box">
+        <div class="modal-header">
+          <span class="modal-title">编辑个人资料</span>
+          <button class="modal-close" @click="showEdit = false">✕</button>
+        </div>
+
+        <div class="modal-section-title">基本信息</div>
+        <div class="form-group">
+          <label>用户名</label>
+          <input v-model="editForm.username" class="form-input" placeholder="3~20 位字母/数字" maxlength="20" />
+        </div>
+        <div class="form-group">
+          <label>姓名</label>
+          <input v-model="editForm.real_name" class="form-input" placeholder="真实姓名（可选）" maxlength="50" />
+        </div>
+        <div class="form-group">
+          <label>学号</label>
+          <input v-model="editForm.student_id" class="form-input" placeholder="学号（可选）" maxlength="30" />
+        </div>
+        <div v-if="editError" class="form-error">{{ editError }}</div>
+
+        <div class="modal-divider"></div>
+        <div class="modal-section-title">修改密码 <span class="optional">（留空则不修改）</span></div>
+        <div class="form-group">
+          <label>当前密码</label>
+          <input v-model="pwForm.old_password" type="password" class="form-input" placeholder="输入当前密码" />
+        </div>
+        <div class="form-group">
+          <label>新密码</label>
+          <input v-model="pwForm.new_password" type="password" class="form-input" placeholder="至少 6 位" />
+        </div>
+        <div class="form-group">
+          <label>确认新密码</label>
+          <input v-model="pwForm.confirm_password" type="password" class="form-input" placeholder="再次输入新密码" />
+        </div>
+        <div v-if="pwError" class="form-error">{{ pwError }}</div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" @click="showEdit = false">取消</button>
+          <button class="btn-save" :disabled="saving" @click="saveProfile">
+            {{ saving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -206,7 +326,17 @@ onMounted(async () => {
   font-size: 2rem; font-weight: 700; color: #fff;
 }
 .user-info { flex: 1; }
-.username { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.3rem; }
+.username-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+.username { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); }
+.real-name { font-size: 0.95rem; color: var(--text-secondary); }
+.edit-btn {
+  margin-left: auto; padding: 0.28rem 0.9rem; border-radius: 6px; font-size: 0.8rem;
+  border: 1px solid var(--accent); color: var(--accent); background: transparent;
+  cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.edit-btn:hover { background: var(--accent); color: #fff; }
+.student-id-row { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+.student-id-label { color: var(--text-muted); }
 .bio { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0.8rem; }
 .stats-row { display: flex; align-items: center; gap: 0; }
 .stat-item { text-align: center; padding: 0 1.2rem; }
@@ -272,4 +402,51 @@ onMounted(async () => {
   .content-grid { grid-template-columns: 1fr; }
   .user-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
 }
+
+/* 编辑弹窗 */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 1.6rem 1.8rem; width: 420px; max-width: 95vw;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+.modal-header { display: flex; align-items: center; margin-bottom: 1.2rem; }
+.modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); flex: 1; }
+.modal-close {
+  background: none; border: none; cursor: pointer; font-size: 1rem;
+  color: var(--text-muted); padding: 0.2rem 0.4rem; border-radius: 4px;
+}
+.modal-close:hover { color: var(--text-primary); background: var(--bg-hover); }
+.modal-section-title {
+  font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.75rem;
+}
+.optional { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.modal-divider { border: none; border-top: 1px solid var(--border); margin: 1.1rem 0; }
+.form-group { margin-bottom: 0.85rem; }
+.form-group label { display: block; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem; }
+.form-input {
+  width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border);
+  border-radius: 7px; font-size: 0.9rem; color: var(--text-primary);
+  background: var(--bg-input); outline: none; transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-error { font-size: 0.82rem; color: #dc2626; margin: 0.3rem 0 0.5rem; }
+.modal-footer { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.2rem; }
+.btn-cancel {
+  padding: 0.45rem 1.1rem; border-radius: 7px; font-size: 0.88rem;
+  border: 1px solid var(--border); color: var(--text-secondary);
+  background: transparent; cursor: pointer;
+}
+.btn-cancel:hover { background: var(--bg-hover); }
+.btn-save {
+  padding: 0.45rem 1.3rem; border-radius: 7px; font-size: 0.88rem;
+  border: none; background: var(--accent); color: #fff; cursor: pointer; font-weight: 500;
+  transition: background 0.15s;
+}
+.btn-save:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

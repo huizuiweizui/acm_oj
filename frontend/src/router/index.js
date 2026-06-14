@@ -23,6 +23,19 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
+      meta: { portal: 'student' },
+    },
+    {
+      path: '/teacher/login',
+      name: 'teacher-login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { portal: 'teacher' },
+    },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: () => import('@/views/LoginView.vue'),
+      meta: { portal: 'admin' },
     },
     {
       path: '/register',
@@ -167,22 +180,41 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+// 根据 requiresRole 决定跳转哪个登录页
+function loginRouteFor(to) {
+  const role = to.meta.requiresRole
+  if (role === 'admin') return { name: 'admin-login', query: { next: to.fullPath } }
+  if (role === 'teacher') return { name: 'teacher-login', query: { next: to.fullPath } }
+  return { name: 'login', query: { next: to.fullPath } }
+}
+
+router.beforeEach(async (to) => {
+  const userStore = useUserStore()
+
+  // fetchMe 前先读一次 token
+  const tokenBefore = localStorage.getItem('access_token')
+
+  // token 存在但用户数据尚未加载（页面刷新场景）——先取回用户信息再做角色判断
+  // fetchMe 失败时会调用 logout() 清除 localStorage，所以之后必须重读 token
+  if (tokenBefore && !userStore.user) {
+    await userStore.fetchMe()
+  }
+
+  // fetchMe 可能调用了 logout()，重新读取最新 token
   const token = localStorage.getItem('access_token')
 
   // 已登录用户不再访问登录/注册页
-  if (token && (to.name === 'login' || to.name === 'register')) {
+  if (token && (to.name === 'login' || to.name === 'teacher-login' || to.name === 'admin-login' || to.name === 'register')) {
     return { name: 'home' }
   }
 
   // 需要登录的页面
   if (to.meta.requiresAuth && !token) {
-    return { name: 'login' }
+    return loginRouteFor(to)
   }
 
   // 已登录时：若 must_change_password，除修改密码页外全部拦截
   if (token && to.name !== 'change-password') {
-    const userStore = useUserStore()
     if (userStore.user?.must_change_password) {
       return { name: 'change-password' }
     }
@@ -190,7 +222,6 @@ router.beforeEach((to) => {
 
   // 需要创建比赛权限
   if (to.meta.requiresContestCreate) {
-    const userStore = useUserStore()
     const role = userStore.user?.role
     const hasPerm = ['teacher', 'admin'].includes(role) || !!userStore.user?.can_create_contest
     if (!hasPerm) {
@@ -200,7 +231,6 @@ router.beforeEach((to) => {
 
   // 需要特定角色
   if (to.meta.requiresRole) {
-    const userStore = useUserStore()
     const role = userStore.user?.role
     const required = to.meta.requiresRole
 

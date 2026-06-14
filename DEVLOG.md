@@ -2093,3 +2093,263 @@ const isCaptain = computed(() => team.value?.my_role === 'captain')
 | `judge_announcement` | 公告 |
 | `judge_assignment` | 作业 |
 | `judge_assignmentproblem` | 作业-题目关联表 |
+
+---
+
+## 阶段十三：前端全面重写 + 权限体系升级
+
+### 2026-06-13
+
+---
+
+### Feature 1 — 首页重写（HomeView.vue 双布局）
+
+按登录状态渲染两套完全不同的内容：
+
+**未登录（Guest）视图：**
+- `HeroGuest`：大标语 + "开始刷题" / "了解平台" 双按钮 + `StatsInline` 一行平台统计
+- 双列网格：热题列表（带难度徽章、AC 率）+ `ContestCard` 近期比赛 + `NoticeBar` 公告栏
+
+**已登录（Dashboard）视图：**
+- `.dash-header`：时间段问候语（深夜好 / 早上好 / 下午好 / 晚上好）+ 个人三项统计（提交数、AC 数、Rating）
+- 双列网格：`HeatmapCard`（GitHub 风格热力图）+ `RecommendCard`（今日推荐题）+ `RecentJudgeCard`（最近提交）+ `ContestCard`
+
+**新建 7 个子组件**（`frontend/src/components/home/`）：
+
+| 组件 | 说明 |
+|------|------|
+| `HeroGuest.vue` | 未登录 Hero，两个按钮路由到 `problem-list` |
+| `StatsInline.vue` | 一行 "X 道题目 · Y 位用户" 统计 |
+| `HeatmapCard.vue` | 16 周 × 7 天热力图，纯 CSS div grid，月份标签动态定位 |
+| `RecommendCard.vue` | 今日推荐题，难度颜色区分，路由到 `problem-detail` |
+| `RecentJudgeCard.vue` | 最近提交列表，AC/WA/TLE 语义色，等宽字体状态标签 |
+| `ContestCard.vue` | 比赛列表，未开始/进行中/已结束状态 |
+| `NoticeBar.vue` | 公告横幅，`v-if="message"` 控制显隐 |
+
+**设计令牌**（新增至 `main.css`）：
+- 主色 `--home-accent: #534AB7`（亮色）/ `#7b70e0`（暗色）
+- 语义色：`--home-ac` / `--home-wa` / `--home-tle`，各有对应 `-bg` 变量
+- 热力图五级色阶：`--heatmap-0` ～ `--heatmap-4`，暗/亮双套
+
+---
+
+### Fix 1 — 管理后台实时数据
+
+**问题**：管理后台数据仅在 `onMounted` 时加载一次，之后不更新。
+
+**修复**（`admin/DashboardView.vue`）：
+- 提取 `fetchData(initial)` 函数
+- `onMounted` 中同时启动 `setInterval(fetchData, 20_000)`
+- `onUnmounted` 中 `clearInterval` 清理定时器，防止内存泄漏
+- 新增 `refreshing` 状态，刷新时显示旋转图标
+
+---
+
+### Fix 2 — 管理后台视觉重写
+
+**问题**：截图显示所有统计均为 0，样式与新首页风格不匹配。
+
+**修复**（`admin/DashboardView.vue`）：
+- `Promise.all` → `Promise.allSettled`：任一接口失败不影响另一侧数据渲染
+- 新增 `errorMsg` ref + `err-badge` 横幅，显示具体 HTTP 错误说明（401/403/404/5xx）
+- 样式对齐新首页：左对齐布局，无阴影，CSS 变量着色
+- 修复模板 bug：`!error` → `!errorMsg`（`error` 变量已改名，Vue 3 中 `!undefined === true`，不报错但逻辑不符）
+
+---
+
+### Fix 3 — 路由守卫刷新后角色判断失效
+
+**问题**：页面刷新时 Pinia store 重置，`user.value = null`，`role` 为 undefined，`requiresRole: 'admin'` 检查返回 false，管理员/教师路由被拦截跳转到 forbidden。
+
+**根因**：`router.beforeEach` 是同步函数，直接读取 `userStore.user?.role` 在刷新时为 null。
+
+**修复**（`frontend/src/router/index.js`）：
+- `beforeEach` 改为 `async`
+- token 存在但 user 为 null 时，先 `await userStore.fetchMe()` 取回用户信息
+- `fetchMe()` 失败会调用 `logout()` 清除 localStorage，之后必须**重新读取** `localStorage.getItem('access_token')` 而非使用缓存变量
+
+```js
+router.beforeEach(async (to) => {
+  const tokenBefore = localStorage.getItem('access_token')
+  if (tokenBefore && !userStore.user) {
+    await userStore.fetchMe()
+  }
+  const token = localStorage.getItem('access_token')  // 重新读取，fetchMe 可能清除了它
+  ...
+})
+```
+
+---
+
+### Fix 4 — JWT Access Token 过期 + Refresh 竞态
+
+**问题 A**：simplejwt 默认 access token 仅 5 分钟，用户操作频繁时必然过期，导致所有 API 返回 401。
+
+**修复**：`settings.py` 新增 `SIMPLE_JWT` 配置：
+
+```python
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME':  timedelta(hours=8),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=14),
+    'ROTATE_REFRESH_TOKENS':  False,
+    'BLACKLIST_AFTER_ROTATION': False,
+}
+```
+
+**问题 B**：多个并发请求同时收到 401 时，各自独立触发 `refresh`，同一 refresh token 被使用多次，第二次必然失败，导致强制登出。
+
+**修复**（`frontend/src/api/index.js`）：单例 `_refreshPromise`，所有并发 401 等待同一个 refresh 请求：
+
+```js
+let _refreshPromise = null
+
+if (!_refreshPromise) {
+  _refreshPromise = axios.post('/api/auth/refresh/', { refresh })
+    .finally(() => { _refreshPromise = null })
+}
+const { data } = await _refreshPromise
+```
+
+---
+
+### Fix 5 — 团队总览页面空白（核心 Bug）
+
+**问题**：点击"总览"按钮后，`/teacher/teams/:id/dashboard` 页面完全空白，没有任何内容。
+
+**根因**（`TeamDashboardView.vue`）：
+
+```html
+<!-- 两个分支都不命中时，页面空白 -->
+<div class="dashboard" v-if="!loading && data">...</div>
+<div v-else-if="loading" class="loading-tip">加载中…</div>
+<!-- 没有 v-else！当 loading=false 且 data=null（API 失败）时，什么都不渲染 -->
+```
+
+**修复**：
+- 新增 `apiError = ref('')` + catch 块，按 HTTP 状态码提供人类可读错误消息
+- 模板增加 `v-else` 错误态（红色提示 + 重试按钮 + 返回按钮）
+- `loadDashboard()` 函数化（原为 `onMounted` 内联 async），支持重试调用
+
+同样修复 `teacher/DashboardView.vue`：
+- `loading` 初始值 `false` → `true`（避免初始渲染闪"还没有团队"空态）
+- `load()` catch 块设置 `apiError`，模板新增错误显示行
+
+---
+
+### Feature 2 — 总管理员（Super Admin）权限体系
+
+**需求**：系统只有一个"总管理员"（`huizui`），拥有对管理员角色的授予/撤销权，以及转让总管理员身份的能力；普通管理员只能在学生/教师之间切换用户角色。
+
+#### 后端
+
+**`judge/models.py`**：`UserProfile` 新增字段：
+
+```python
+is_super_admin = models.BooleanField('总管理员', default=False)
+```
+
+**Migration**：`judge/migrations/0013_userprofile_is_super_admin.py`（已执行）
+
+**`judge/serializers.py`**：`UserSerializer` 暴露 `is_super_admin` → `/api/auth/me/` 携带该字段，前端 store 可直接读取
+
+**`judge/api_views.py`** 新增 `_is_super_admin()` 辅助函数，并重写 `AdminUserUpdateAPIView` 权限矩阵：
+
+| 操作 | 普通管理员 | 总管理员 |
+|------|-----------|---------|
+| student ↔ teacher | ✅ | ✅ |
+| 任意用户 → admin | ❌ | ✅ |
+| admin → 其他角色 | ❌ | ✅ |
+| 修改自己角色 | ❌ | ❌ |
+| 修改总管理员角色 | ❌ | ❌ |
+
+**新增** `AdminTransferSuperAdminAPIView`（`POST /api/admin/transfer-super-admin/`）：
+- 目标用户必须已是 admin 角色
+- 原子操作：`my_profile.is_super_admin = False` + `target.profile.is_super_admin = True`
+- 仅总管理员可调用
+
+**`judge/api_urls.py`**：注册新路由
+
+**数据初始化**：Django shell 设置 `huizui.profile.is_super_admin = True`（已执行）
+
+#### 前端
+
+**`stores/user.js`**：新增 `isSuperAdmin = computed(() => isAdmin.value && !!user.value?.is_super_admin)`
+
+**`admin/UserManageView.vue`** 完整重写：
+
+- 顶部权限横幅：总管理员显示金色说明，普通管理员显示普通说明
+- `canEdit(u)` 函数：自己/总管理员/对方是admin（非超管调用时）均返回 false
+- `roleOptions(u)` 函数：超管返回全部三选项，普通管理员只返回 `['student', 'teacher']`
+- 不可编辑的角色显示为静态 `<span>` 标签而非下拉
+- 总管理员行显示 ★ 徽章（金色），当前用户显示"我"徽章
+- **转让弹窗**：仅超管可见，仅出现在其他 admin 用户行；确认后调用转让 API，成功后刷新 store 状态（`userStore.fetchMe()`）
+
+---
+
+### Feature 3 — 成员排行升降序排序 + 列对齐修复（TeamDashboardView）
+
+**需求**：排序箭头应显示当前方向（上/下），点击同一列切换升序/降序，点击不同列重置为降序。数字列表头需右对齐与数据对齐。
+
+**排序逻辑**：
+
+```js
+const sortDir = ref('desc')
+
+function setSort(key) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'desc'   // 切换列时重置方向
+  }
+}
+
+const sortedRanking = computed(() => {
+  const mult = sortDir.value === 'desc' ? -1 : 1
+  return [...data.value.ranking].sort((a, b) => mult * (a[sortKey.value] - b[sortKey.value]))
+})
+```
+
+**箭头显示**：激活列显示 `▲`（升序）或 `▼`（降序），非激活列显示淡色 `↕`
+
+**对齐修复**：`.rank-table th { text-align: left }` 优先级（0,1,1）高于 `.col-num { text-align: right }`（0,1,0），导致数字列表头仍左对齐。新增更高优先级规则：
+
+```css
+.rank-table th.col-num { text-align: right; }
+```
+
+顶部快捷标签（总排名/本周/本月）的点击也改为 `setSort(key)`，与列头行为统一。
+
+---
+
+### 新增文件汇总
+
+| 文件 | 说明 |
+|------|------|
+| `frontend/src/components/home/HeroGuest.vue` | 未登录首页 Hero |
+| `frontend/src/components/home/StatsInline.vue` | 平台统计一行 |
+| `frontend/src/components/home/HeatmapCard.vue` | GitHub 风格提交热力图 |
+| `frontend/src/components/home/RecommendCard.vue` | 今日推荐题 |
+| `frontend/src/components/home/RecentJudgeCard.vue` | 最近提交列表 |
+| `frontend/src/components/home/ContestCard.vue` | 比赛列表 |
+| `frontend/src/components/home/NoticeBar.vue` | 公告横幅 |
+| `judge/migrations/0013_userprofile_is_super_admin.py` | 总管理员字段迁移 |
+
+### 主要修改文件汇总
+
+| 文件 | 关键改动 |
+|------|----------|
+| `frontend/src/views/HomeView.vue` | 完整重写，双布局 |
+| `frontend/src/views/admin/DashboardView.vue` | 实时轮询、allSettled、错误展示、模板变量修复 |
+| `frontend/src/views/admin/UserManageView.vue` | 完整重写，总管理员权限体系 |
+| `frontend/src/views/teacher/DashboardView.vue` | 加 loading 初始值、apiError、错误显示 |
+| `frontend/src/views/teacher/TeamDashboardView.vue` | 错误态 v-else、升降序排序、列对齐 |
+| `frontend/src/stores/user.js` | 新增 isSuperAdmin |
+| `frontend/src/router/index.js` | async 守卫，fetchMe 后重读 token |
+| `frontend/src/api/index.js` | 单例 _refreshPromise 防 401 竞态 |
+| `judge/models.py` | UserProfile.is_super_admin |
+| `judge/serializers.py` | UserSerializer 暴露 is_super_admin |
+| `judge/api_views.py` | AdminUserUpdateAPIView 重写权限逻辑、新增 AdminTransferSuperAdminAPIView |
+| `judge/api_urls.py` | 注册 transfer-super-admin 路由 |
+| `acm_oj/settings.py` | SIMPLE_JWT 8h access + 14d refresh |
+| `frontend/src/assets/main.css` | home 专属设计令牌、暗色覆盖 |

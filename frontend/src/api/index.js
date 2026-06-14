@@ -14,7 +14,9 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// 响应拦截：token 过期时尝试刷新
+// 响应拦截：token 过期时尝试刷新（单例 Promise 防止并发 401 的竞态）
+let _refreshPromise = null
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -23,8 +25,13 @@ api.interceptors.response.use(
       original._retry = true
       const refresh = localStorage.getItem('refresh_token')
       if (refresh) {
+        // 多个并发请求同时收到 401 时，只执行一次 refresh
+        if (!_refreshPromise) {
+          _refreshPromise = axios.post('/api/auth/refresh/', { refresh })
+            .finally(() => { _refreshPromise = null })
+        }
         try {
-          const { data } = await axios.post('/api/auth/refresh/', { refresh })
+          const { data } = await _refreshPromise
           localStorage.setItem('access_token', data.access)
           original.headers.Authorization = `Bearer ${data.access}`
           return api(original)

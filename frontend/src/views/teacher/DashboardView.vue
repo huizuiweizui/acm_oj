@@ -9,7 +9,8 @@ const userStore = useUserStore()
 const isAdmin = computed(() => userStore.user?.role === 'admin')
 
 const teams = ref([])
-const loading = ref(false)
+const loading = ref(true)
+const apiError = ref('')
 const showCreate = ref(false)
 
 const form = ref({ name: '', description: '', need_review: true })
@@ -18,9 +19,15 @@ const formError = ref('')
 
 async function load() {
   loading.value = true
+  apiError.value = ''
   try {
     const { data } = await getTeams()
     teams.value = data
+  } catch (e) {
+    const status = e.response?.status
+    if (status === 401) apiError.value = '登录已过期，请重新登录'
+    else if (status === 403) apiError.value = '无权限访问教学管理'
+    else apiError.value = `加载失败（${status ? 'HTTP ' + status : '网络错误'}）`
   } finally {
     loading.value = false
   }
@@ -58,13 +65,17 @@ onMounted(load)
     <div class="page-header">
       <div>
         <h1 class="page-title">教学管理</h1>
-        <p class="page-sub">管理你创建的团队与班级</p>
+        <p class="page-sub">{{ isAdmin ? '查看所有教师的团队与班级（管理员视图）' : '管理你创建的团队与班级' }}</p>
       </div>
       <button class="btn-primary" @click="showCreate = true">＋ 创建团队</button>
     </div>
 
     <!-- 团队卡片列表 -->
     <div v-if="loading" class="loading-tip">加载中…</div>
+    <div v-else-if="apiError" class="error-tip">
+      <span>{{ apiError }}</span>
+      <button class="btn-retry" @click="load">重试</button>
+    </div>
     <div v-else-if="teams.length === 0" class="empty-tip">
       还没有团队，点击右上角「创建团队」开始。
     </div>
@@ -219,4 +230,14 @@ onMounted(load)
 .btn-secondary:hover { border-color: var(--text-secondary); }
 
 .loading-tip, .empty-tip { text-align: center; padding: 3rem; color: var(--text-muted); }
+.error-tip {
+  display: flex; align-items: center; justify-content: center; gap: 1rem;
+  padding: 3rem; color: #f87171; font-size: 0.9rem;
+}
+.btn-retry {
+  background: none; border: 1px solid #f87171; color: #f87171;
+  padding: 0.3rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.82rem;
+  transition: background 0.15s;
+}
+.btn-retry:hover { background: #f871711a; }
 </style>
