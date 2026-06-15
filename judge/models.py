@@ -24,6 +24,7 @@ class UserProfile(models.Model):
     ac_count = models.IntegerField('AC题目数', default=0)
     submit_count = models.IntegerField('总提交数', default=0)
     rating = models.IntegerField('Rating', default=1500)
+    contest_rating = models.IntegerField('比赛Rating', default=1500)  # CF 式，仅比赛结算更新
     bio = models.CharField('个人简介', max_length=200, blank=True, default='')
     # 学籍字段
     student_id = models.CharField('学号', max_length=30, blank=True, default='', db_index=True)
@@ -84,6 +85,11 @@ class Problem(models.Model):
     ac_count = models.IntegerField('通过人数', default=0)
     submit_count = models.IntegerField('提交次数', default=0)
     source = models.CharField('来源', max_length=200, blank=True, default='')
+    problem_type = models.CharField('题目类型', max_length=10,
+                                    choices=[('standard', '标准'), ('function', '函数题')],
+                                    default='standard')
+    # 函数题模板：{语言: {"template": 给学生的函数签名, "prefix": 隐藏前缀, "suffix": 隐藏驱动main}}
+    function_templates = models.JSONField('函数题模板', default=dict, blank=True)
     is_published = models.BooleanField('是否公开', default=False)
     tags = models.ManyToManyField(Tag, blank=True, verbose_name='标签', related_name='problems')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name='出题人', related_name='created_problems')
@@ -112,6 +118,16 @@ class Problem(models.Model):
         if not submit:
             return 0
         return round(ac / submit * 100, 1)
+
+    def wrap_code(self, language, code):
+        """函数题：用隐藏 prefix/suffix 包裹学生函数体，拼成完整程序交给现有评测。
+        非函数题或该语言无模板时返回 None。"""
+        if self.problem_type != 'function':
+            return None
+        cfg = (self.function_templates or {}).get(language)
+        if not cfg:
+            return None
+        return f"{cfg.get('prefix', '')}\n{code}\n{cfg.get('suffix', '')}"
 
 
 class TestCase(models.Model):
@@ -158,11 +174,13 @@ class Submission(models.Model):
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, verbose_name='题目', related_name='submissions')
     language = models.CharField('编程语言', max_length=10, choices=LANGUAGE_CHOICES, default='C++')
     code = models.TextField('源代码')
+    raw_code = models.TextField('学生原始代码', blank=True, default='')  # 函数题：学生填写的函数体；标准题为空
     status = models.CharField('评测结果', max_length=10, choices=STATUS_CHOICES, default='Pending', db_index=True)
     time_used = models.IntegerField('耗时(ms)', null=True, blank=True)
     memory_used = models.IntegerField('内存(KB)', null=True, blank=True)
     error_info = models.TextField('错误信息', blank=True, default='')
     contest = models.ForeignKey('Contest', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='所属比赛', related_name='submissions')
+    assignment = models.ForeignKey('Assignment', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='所属作业/考试', related_name='code_submissions')
     ai_feedback = models.TextField('AI评测反馈', blank=True, default='')
     test_results = models.JSONField('测试点结果', default=list, blank=True)
     submitted_at = models.DateTimeField('提交时间', auto_now_add=True)
@@ -177,6 +195,7 @@ class Submission(models.Model):
             models.Index(fields=['problem', 'status']),
             models.Index(fields=['contest', 'submitted_at']),
             models.Index(fields=['user', 'submitted_at']),
+            models.Index(fields=['assignment', 'user']),
         ]
 
     def __str__(self):
@@ -200,6 +219,9 @@ class Contest(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, verbose_name='创建者', related_name='created_contests')
     is_public = models.BooleanField('是否公开', default=True)
     password = models.CharField('私有赛密码', max_length=50, blank=True, default='')
+    team = models.ForeignKey('Team', on_delete=models.SET_NULL, null=True, blank=True, related_name='contests', verbose_name='所属团队')
+    rating_applied = models.BooleanField('已结算Rating', default=False)
+    freeze_minutes = models.IntegerField('封榜时长（分钟，0=不封榜）', default=0)
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
 
     class Meta:
@@ -227,6 +249,7 @@ class ContestProblem(models.Model):
     contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='contest_problems')
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='contest_entries')
     label = models.CharField('编号（A/B/C...）', max_length=2)
+    points = models.IntegerField('分值（IOI 赛制用）', default=100)
     sort_order = models.IntegerField('排序', default=0)
 
     class Meta:
@@ -345,10 +368,27 @@ class AlgorithmEdge(models.Model):
 
 # ==================== 团队（班级）====================
 
+class Department(models.Model):
+    """院系（组织层级：院系 > 班级/团队），供全校规模分组管理。"""
+    name = models.CharField('院系名称', max_length=100, unique=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_department'
+        verbose_name = '院系'
+        verbose_name_plural = '院系'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Team(models.Model):
     """团队/班级，由教师创建"""
     name = models.CharField('团队名称', max_length=100)
     description = models.TextField('简介', blank=True, default='')
+    department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='teams', verbose_name='所属院系')
     creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_teams', verbose_name='创建教师')
     invite_code = models.CharField('邀请码', max_length=8, unique=True)
     need_review = models.BooleanField('加入需审核', default=True)
@@ -369,6 +409,7 @@ class TeamMembership(models.Model):
     """团队成员"""
     ROLE_CHOICES = [
         ('captain', '队长'),
+        ('assistant', '助教'),
         ('member', '队员'),
     ]
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='memberships', verbose_name='团队')
@@ -489,11 +530,26 @@ class Announcement(models.Model):
 
 
 class Assignment(models.Model):
-    """团队作业"""
+    """团队作业 / 考试容器：练习·作业·考试三态（参照 PTA 题目集）。
+    可同时包含编程题（AssignmentProblem）与客观题（AssignmentQuestion）。
+    """
+    CATEGORY_CHOICES = [
+        ('practice', '练习'),
+        ('homework', '作业'),
+        ('exam', '考试'),
+    ]
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='assignments', verbose_name='团队')
     title = models.CharField('作业名称', max_length=200)
     description = models.TextField('作业说明', blank=True, default='')
+    category = models.CharField('类型', max_length=10, choices=CATEGORY_CHOICES, default='homework', db_index=True)
     deadline = models.DateTimeField('截止时间', null=True, blank=True)
+    # 考试模式专用：绝对时间窗口 + 个人限时 + 防作弊行为
+    start_time = models.DateTimeField('开始时间', null=True, blank=True)
+    end_time = models.DateTimeField('结束时间', null=True, blank=True)
+    duration_minutes = models.IntegerField('个人限时（分钟，0=用整个窗口）', default=0)
+    shuffle = models.BooleanField('打乱题序/选项', default=False)
+    track_focus = models.BooleanField('记录切屏次数', default=False)
+    hide_rank = models.BooleanField('考试中隐藏排名/他人作答', default=False)
     is_active = models.BooleanField('是否发布', default=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_assignments')
     created_at = models.DateTimeField('创建时间', auto_now_add=True)
@@ -513,6 +569,7 @@ class AssignmentProblem(models.Model):
     """作业题目"""
     assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='problems', verbose_name='作业')
     problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='assignment_entries', verbose_name='题目')
+    score = models.IntegerField('分值', default=10)
     sort_order = models.IntegerField('排序', default=0)
 
     class Meta:
@@ -524,3 +581,286 @@ class AssignmentProblem(models.Model):
 
     def __str__(self):
         return f'{self.assignment.title} - #{self.problem_id}'
+
+
+class AssignmentQuestion(models.Model):
+    """作业/考试中的客观题（引用题库 Question）"""
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='question_items', verbose_name='作业')
+    question = models.ForeignKey('Question', on_delete=models.CASCADE, related_name='assignment_entries', verbose_name='客观题')
+    score = models.IntegerField('分值', default=5)
+    sort_order = models.IntegerField('排序', default=0)
+
+    class Meta:
+        db_table = 'judge_assignmentquestion'
+        verbose_name = '作业客观题'
+        verbose_name_plural = '作业客观题'
+        unique_together = ['assignment', 'question']
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'{self.assignment.title} - Q#{self.question_id}'
+
+
+# ==================== 每日打卡 ====================
+
+class DailyCheckIn(models.Model):
+    """用户每日打卡记录，每人每天只能打一次"""
+    user    = models.ForeignKey(User, on_delete=models.CASCADE, related_name='checkins', verbose_name='用户')
+    date    = models.DateField('打卡日期')
+    fortune = models.JSONField('今日运势')  # {"mood": "大吉", "lucky": ["刷题","早睡"], "unlucky": ["摸鱼","熬夜"]}
+
+    class Meta:
+        db_table = 'judge_dailycheckin'
+        verbose_name = '每日打卡'
+        verbose_name_plural = '每日打卡'
+        unique_together = ('user', 'date')
+        ordering = ['-date']
+
+    def __str__(self):
+        return f'{self.user.username} {self.date} {self.fortune.get("mood", "")}'
+
+
+# ==================== 客观题题库（考试 / 作业用）====================
+
+class Question(models.Model):
+    """客观题题库：单选 / 多选 / 判断 / 填空。
+    编程题仍用 Problem；本表用于作业与考试的非编程部分，支持自动判分。
+    """
+    TYPE_CHOICES = [
+        ('single', '单选题'),
+        ('multiple', '多选题'),
+        ('judge', '判断题'),
+        ('fill', '填空题'),
+    ]
+
+    qtype = models.CharField('题型', max_length=10, choices=TYPE_CHOICES, db_index=True)
+    title = models.CharField('题干', max_length=300)
+    content = models.TextField('题目详情（Markdown）', blank=True, default='')
+    # 选项，仅单选 / 多选使用：[{"key": "A", "text": "..."}, ...]
+    options = models.JSONField('选项', default=list, blank=True)
+    # 标准答案：
+    #   single   -> ["A"]
+    #   multiple -> ["A", "C"]
+    #   judge    -> ["T"] 或 ["F"]
+    #   fill     -> [["空1答案", "空1可接受写法"], ["空2答案"]]  每空一组可接受答案
+    answer = models.JSONField('标准答案', default=list)
+    blank_ignore_case = models.BooleanField('填空判定忽略大小写', default=True)
+    explanation = models.TextField('答案解析（Markdown）', blank=True, default='')
+    difficulty = models.CharField('难度', max_length=20,
+                                  choices=Problem.DIFFICULTY_CHOICES, default='暂无评定')
+    score = models.IntegerField('默认分值', default=5)
+    tags = models.ManyToManyField(Tag, blank=True, related_name='questions', verbose_name='标签')
+    source = models.CharField('来源', max_length=200, blank=True, default='')
+    is_published = models.BooleanField('是否公开', default=False)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,
+                                   related_name='created_questions', verbose_name='出题人')
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'judge_question'
+        verbose_name = '客观题'
+        verbose_name_plural = '客观题'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['qtype']),
+            models.Index(fields=['is_published']),
+        ]
+
+    def __str__(self):
+        return f'[{self.get_qtype_display()}] {self.title[:30]}'
+
+    def check_answer(self, submitted):
+        """判定作答是否正确，返回 bool。submitted 格式：
+           single / judge -> "A" 或 ["A"]
+           multiple       -> ["A", "C"]
+           fill           -> ["用户第1空", "用户第2空", ...]
+        """
+        if self.qtype in ('single', 'multiple', 'judge'):
+            sub = submitted if isinstance(submitted, list) else [submitted]
+            sub_set = {str(x).strip().upper() for x in sub if str(x).strip() != ''}
+            ans_set = {str(x).strip().upper() for x in self.answer}
+            return bool(ans_set) and sub_set == ans_set
+
+        if self.qtype == 'fill':
+            sub = submitted if isinstance(submitted, list) else [submitted]
+            if not self.answer or len(sub) < len(self.answer):
+                return False
+            for i, accepted in enumerate(self.answer):
+                variants = accepted if isinstance(accepted, list) else [accepted]
+                user_ans = str(sub[i]).strip()
+                if self.blank_ignore_case:
+                    user_ans = user_ans.lower()
+                    variants = [str(v).strip().lower() for v in variants]
+                else:
+                    variants = [str(v).strip() for v in variants]
+                if user_ans not in variants:
+                    return False
+            return True
+
+        return False
+
+
+# ==================== 考试会话与客观题作答 ====================
+
+class ExamParticipation(models.Model):
+    """学生进入某作业/考试的会话，用于个人限时与切屏统计。"""
+    STATUS_CHOICES = [
+        ('in_progress', '进行中'),
+        ('submitted', '已交卷'),
+        ('graded', '已批改'),
+    ]
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='participations', verbose_name='作业/考试')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exam_participations', verbose_name='学生')
+    started_at = models.DateTimeField('开始时间', auto_now_add=True)
+    submitted_at = models.DateTimeField('交卷时间', null=True, blank=True)
+    focus_loss_count = models.IntegerField('切屏次数', default=0)
+    status = models.CharField('状态', max_length=12, choices=STATUS_CHOICES, default='in_progress')
+    total_score = models.IntegerField('总得分', default=0)
+
+    class Meta:
+        db_table = 'judge_examparticipation'
+        verbose_name = '考试会话'
+        verbose_name_plural = '考试会话'
+        unique_together = ('assignment', 'user')
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f'{self.user.username} @ {self.assignment.title} [{self.status}]'
+
+
+class QuestionAnswer(models.Model):
+    """学生在某作业/考试中对某客观题的作答与自动判分结果。"""
+    assignment = models.ForeignKey(Assignment, on_delete=models.CASCADE, related_name='question_answers', verbose_name='作业/考试')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='question_answers', verbose_name='学生')
+    question = models.ForeignKey('Question', on_delete=models.CASCADE, related_name='answers', verbose_name='客观题')
+    answer = models.JSONField('作答', default=list, blank=True)
+    is_correct = models.BooleanField('是否正确', default=False)
+    score = models.IntegerField('得分', default=0)
+    answered_at = models.DateTimeField('作答时间', auto_now=True)
+
+    class Meta:
+        db_table = 'judge_questionanswer'
+        verbose_name = '客观题作答'
+        verbose_name_plural = '客观题作答'
+        unique_together = ('assignment', 'user', 'question')
+
+    def __str__(self):
+        return f'{self.user.username} → Q#{self.question_id} ({self.score})'
+
+
+# ==================== 题单 / 训练计划 ====================
+
+class ProblemList(models.Model):
+    """题单：用户自建的有序题目集合，可公开/私有，可挂到团队作为训练计划。"""
+    title = models.CharField('标题', max_length=200)
+    description = models.TextField('简介', blank=True, default='')
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='problem_lists', verbose_name='创建者')
+    team = models.ForeignKey('Team', on_delete=models.CASCADE, null=True, blank=True,
+                             related_name='problem_lists', verbose_name='所属团队')
+    is_public = models.BooleanField('是否公开', default=True)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'judge_problemlist'
+        verbose_name = '题单'
+        verbose_name_plural = '题单'
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return self.title
+
+
+class ProblemListItem(models.Model):
+    """题单中的题目"""
+    problem_list = models.ForeignKey(ProblemList, on_delete=models.CASCADE, related_name='items', verbose_name='题单')
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='list_entries', verbose_name='题目')
+    note = models.CharField('备注', max_length=200, blank=True, default='')
+    sort_order = models.IntegerField('排序', default=0)
+
+    class Meta:
+        db_table = 'judge_problemlistitem'
+        verbose_name = '题单题目'
+        verbose_name_plural = '题单题目'
+        unique_together = ['problem_list', 'problem']
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f'{self.problem_list.title} - #{self.problem_id}'
+
+
+# ==================== 题解 / 每日一题 ====================
+
+class Solution(models.Model):
+    """题解：仅对已 AC 该题的用户可见（防剧透）。"""
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='solutions', verbose_name='题目')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='solutions', verbose_name='作者')
+    title = models.CharField('标题', max_length=200, blank=True, default='')
+    content = models.TextField('题解内容（Markdown）')
+    language = models.CharField('语言', max_length=10, blank=True, default='')
+    upvotes = models.IntegerField('点赞数', default=0)
+    created_at = models.DateTimeField('发布时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_solution'
+        verbose_name = '题解'
+        verbose_name_plural = '题解'
+        ordering = ['-upvotes', '-created_at']
+        indexes = [models.Index(fields=['problem', '-upvotes'])]
+
+    def __str__(self):
+        return f'{self.user.username} 的题解 @ #{self.problem_id}'
+
+
+class DailyProblem(models.Model):
+    """每日一题：每天一道，可由管理员指定，未指定时按日期确定性自动挑选。"""
+    date = models.DateField('日期', unique=True)
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name='daily_features', verbose_name='题目')
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_dailyproblem'
+        verbose_name = '每日一题'
+        verbose_name_plural = '每日一题'
+        ordering = ['-date']
+
+    def __str__(self):
+        return f'{self.date} → #{self.problem_id}'
+
+
+class RatingChange(models.Model):
+    """一场比赛对某用户 contest_rating 的影响，用于画 Rating 曲线。"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rating_changes', verbose_name='用户')
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='rating_changes', verbose_name='比赛')
+    rank = models.IntegerField('名次')
+    old_rating = models.IntegerField('赛前')
+    new_rating = models.IntegerField('赛后')
+    delta = models.IntegerField('变化')
+    created_at = models.DateTimeField('结算时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_ratingchange'
+        verbose_name = 'Rating 变化'
+        verbose_name_plural = 'Rating 变化'
+        unique_together = ('user', 'contest')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} @ {self.contest_id}: {self.old_rating}→{self.new_rating}'
+
+
+class VirtualParticipation(models.Model):
+    """虚拟参赛：比赛结束后以个人计时重打该场比赛。"""
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='virtual_participations', verbose_name='比赛')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='virtual_participations', verbose_name='用户')
+    started_at = models.DateTimeField('开始时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'judge_virtualparticipation'
+        verbose_name = '虚拟参赛'
+        verbose_name_plural = '虚拟参赛'
+        unique_together = ('contest', 'user')
+
+    def __str__(self):
+        return f'{self.user.username} 虚拟参赛 @ {self.contest_id}'

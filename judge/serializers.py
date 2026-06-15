@@ -4,7 +4,7 @@ from rest_framework import serializers
 from .models import (
     Algorithm, AlgorithmEdge,
     Contest, Discussion, DiscussionReply,
-    Problem, Submission, Tag, UserProfile,
+    Problem, Question, Submission, Tag, UserProfile,
 )
 
 
@@ -80,6 +80,7 @@ class UserSerializer(serializers.ModelSerializer):
     avatar_url = serializers.CharField(source='profile.avatar_url', default='')
     avatar_color = serializers.CharField(source='profile.avatar_color', default='#4F46E5')
     rating = serializers.IntegerField(source='profile.rating', default=1500)
+    contest_rating = serializers.IntegerField(source='profile.contest_rating', default=1500)
     ac_count = serializers.IntegerField(source='profile.ac_count', default=0)
     submit_count = serializers.IntegerField(source='profile.submit_count', default=0)
     bio = serializers.CharField(source='profile.bio', default='')
@@ -95,7 +96,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'avatar_url', 'avatar_color',
-                  'rating', 'ac_count', 'submit_count', 'bio', 'role',
+                  'rating', 'contest_rating', 'ac_count', 'submit_count', 'bio', 'role',
                   'student_id', 'real_name', 'major', 'grade',
                   'must_change_password', 'can_create_contest', 'is_super_admin']
 
@@ -113,6 +114,7 @@ class ProblemListSerializer(serializers.ModelSerializer):
 class ProblemDetailSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
     ac_rate = serializers.FloatField(read_only=True)
+    function_templates = serializers.SerializerMethodField()
 
     class Meta:
         model = Problem
@@ -122,7 +124,15 @@ class ProblemDetailSerializer(serializers.ModelSerializer):
             'description', 'input_desc', 'output_desc',
             'sample_input', 'sample_output', 'hint',
             'time_limit', 'memory_limit', 'is_published',
+            'problem_type', 'function_templates',
         ]
+
+    def get_function_templates(self, obj):
+        """只下发给学生的函数签名模板，隐藏 prefix/suffix 评测驱动。"""
+        if obj.problem_type != 'function':
+            return {}
+        return {lang: (cfg or {}).get('template', '')
+                for lang, cfg in (obj.function_templates or {}).items()}
 
 
 class SubmissionSerializer(serializers.ModelSerializer):
@@ -153,6 +163,7 @@ class ContestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'start_time', 'end_time',
             'rule_type', 'is_public', 'status', 'created_by_username', 'problem_count',
+            'rating_applied', 'freeze_minutes',
         ]
 
 
@@ -178,3 +189,29 @@ class DiscussionSerializer(serializers.ModelSerializer):
             'title', 'content', 'view_count', 'reply_count', 'created_at',
         ]
         read_only_fields = ['view_count', 'created_at']
+
+
+class QuestionListSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True, read_only=True)
+    qtype_display = serializers.CharField(source='get_qtype_display', read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'qtype', 'qtype_display', 'title', 'difficulty',
+                  'score', 'tags', 'is_published', 'created_at']
+
+
+class QuestionDetailSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True, read_only=True)
+    qtype_display = serializers.CharField(source='get_qtype_display', read_only=True)
+    created_by_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Question
+        fields = ['id', 'qtype', 'qtype_display', 'title', 'content', 'options',
+                  'answer', 'blank_ignore_case', 'explanation', 'difficulty',
+                  'score', 'tags', 'source', 'is_published',
+                  'created_by_username', 'created_at', 'updated_at']
+
+    def get_created_by_username(self, obj):
+        return obj.created_by.username if obj.created_by else ''

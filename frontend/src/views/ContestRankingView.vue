@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getContestRank } from '@/api/contests'
+import { getContestRank, finalizeRating } from '@/api/contests'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
@@ -9,6 +10,8 @@ const router = useRouter()
 const contest = ref(null)
 const problemLabels = ref([])
 const rankedUsers = ref([])
+const ruleType = ref('ICPC')
+const frozen = ref(false)
 const loading = ref(true)
 const lastUpdated = ref(null)
 let timer = null
@@ -19,13 +22,39 @@ async function fetchRank() {
     contest.value = data.contest
     problemLabels.value = data.problem_labels
     rankedUsers.value = data.ranked_users
+    ruleType.value = data.rule_type || data.contest?.rule_type || 'ICPC'
+    frozen.value = !!data.frozen
     lastUpdated.value = new Date()
   } finally {
     loading.value = false
   }
 }
 
+const userStore = useUserStore()
+const finalizing = ref(false)
+const finalizeMsg = ref('')
+
 const isRunning = computed(() => contest.value?.status === 'running')
+const isIOI = computed(() => ruleType.value === 'IOI')
+const isEnded = computed(() => contest.value?.status === 'ended')
+const canFinalize = computed(() => {
+  if (!isEnded.value || contest.value?.rating_applied) return false
+  const u = userStore.user
+  return !!u && (u.role === 'admin' || u.username === contest.value?.created_by_username)
+})
+async function doFinalize() {
+  if (!confirm('结算本场比赛 Rating？结算后不可撤销。')) return
+  finalizing.value = true
+  try {
+    const { data } = await finalizeRating(route.params.id)
+    finalizeMsg.value = `已结算 ${data.count} 人的 Rating`
+    await fetchRank()
+  } catch (e) {
+    finalizeMsg.value = e.response?.data?.detail || '结算失败'
+  } finally {
+    finalizing.value = false
+  }
+}
 
 function formatTime(iso) {
   if (!iso) return '-'
@@ -79,6 +108,18 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <div v-if="canFinalize || finalizeMsg" style="display:flex;align-items:center;gap:1rem;justify-content:flex-end;margin-bottom:1rem">
+      <span v-if="finalizeMsg" style="font-size:0.85rem;color:#10b981">{{ finalizeMsg }}</span>
+      <button v-if="canFinalize" :disabled="finalizing" @click="doFinalize"
+              style="background:var(--accent);color:#fff;border:none;padding:0.45rem 1.1rem;border-radius:6px;cursor:pointer;font-size:0.875rem">
+        {{ finalizing ? '结算中…' : '结算 Rating' }}
+      </button>
+    </div>
+
+    <div v-if="frozen" style="background:#f59e0b18;border:1px solid #f59e0b55;color:#f59e0b;border-radius:8px;padding:0.6rem 1rem;font-size:0.875rem;margin-bottom:1rem;text-align:center">
+      🔒 封榜中——赛末最后 {{ contest.freeze_minutes }} 分钟的提交暂不显示，比赛结束后揭晓
+    </div>
+
     <!-- 空状态 -->
     <div v-if="rankedUsers.length === 0" class="empty-state">
       暂无参赛者
@@ -91,8 +132,9 @@ onBeforeUnmount(() => {
           <tr>
             <th class="th-rank">名次</th>
             <th class="th-user">选手</th>
-            <th class="th-solved">通过</th>
-            <th class="th-penalty">罚时</th>
+            <th v-if="!isIOI" class="th-solved">通过</th>
+            <th v-if="!isIOI" class="th-penalty">罚时</th>
+            <th v-else class="th-solved">总分</th>
             <th
               v-for="label in problemLabels"
               :key="label"
@@ -124,11 +166,10 @@ onBeforeUnmount(() => {
               </div>
             </td>
 
-            <!-- 通过数 -->
-            <td class="td-solved">{{ user.solved }}</td>
-
-            <!-- 罚时 -->
-            <td class="td-penalty">{{ user.solved ? formatPenalty(user.penalty) : '-' }}</td>
+            <!-- 通过数 / 总分 -->
+            <td v-if="!isIOI" class="td-solved">{{ user.solved }}</td>
+            <td v-if="!isIOI" class="td-penalty">{{ user.solved ? formatPenalty(user.penalty) : '-' }}</td>
+            <td v-else class="td-solved" style="font-weight:700;color:var(--accent)">{{ user.score }}</td>
 
             <!-- 各题结果 -->
             <td
@@ -136,22 +177,23 @@ onBeforeUnmount(() => {
               :key="label"
               class="td-problem"
             >
-              <div
-                v-if="user.problems[label]?.ac"
-                class="cell-ac"
-              >
-                <div class="cell-time">{{ user.problems[label].time_min }}m</div>
-                <div v-if="user.problems[label].wrong_count" class="cell-wrong">
-                  -{{ user.problems[label].wrong_count }}
+              <template v-if="isIOI">
+                <div v-if="user.problems[label]"
+                     :style="user.problems[label].score >= user.problems[label].max ? 'color:#10b981;font-weight:700' : (user.problems[label].score > 0 ? 'color:#f59e0b;font-weight:600' : 'color:var(--text-muted)')">
+                  {{ user.problems[label].score }}
+                  <span v-if="user.problems[label].frozen" style="font-size:0.7rem">🔒{{ user.problems[label].frozen }}</span>
                 </div>
-              </div>
-              <div
-                v-else-if="user.problems[label]?.wrong_count > 0"
-                class="cell-wa"
-              >
-                -{{ user.problems[label].wrong_count }}
-              </div>
-              <div v-else class="cell-empty">—</div>
+                <div v-else class="cell-empty">—</div>
+              </template>
+              <template v-else>
+                <div v-if="user.problems[label]?.ac" class="cell-ac">
+                  <div class="cell-time">{{ user.problems[label].time_min }}m</div>
+                  <div v-if="user.problems[label].wrong_count" class="cell-wrong">-{{ user.problems[label].wrong_count }}</div>
+                </div>
+                <div v-else-if="user.problems[label]?.wrong_count > 0" class="cell-wa">-{{ user.problems[label].wrong_count }}</div>
+                <div v-else-if="user.problems[label]?.frozen" style="color:#f59e0b;font-size:0.78rem">🔒{{ user.problems[label].frozen }}</div>
+                <div v-else class="cell-empty">—</div>
+              </template>
             </td>
           </tr>
         </tbody>

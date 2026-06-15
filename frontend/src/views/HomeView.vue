@@ -61,10 +61,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import api from '@/api/index.js'
+import { getDailyProblem } from '@/api/problems'
 
 import HeroGuest       from '@/components/home/HeroGuest.vue'
 import HeatmapCard     from '@/components/home/HeatmapCard.vue'
-import RecommendCard   from '@/components/home/RecommendCard.vue'
+import CheckInCard     from '@/components/home/CheckInCard.vue'
 import RecentJudgeCard from '@/components/home/RecentJudgeCard.vue'
 import ContestCard     from '@/components/home/ContestCard.vue'
 import NoticeBar       from '@/components/home/NoticeBar.vue'
@@ -116,22 +117,13 @@ function genMockHeatmap() {
 }
 
 const MOCK_DASHBOARD = {
-  acCount: 42,
-  totalSubmissions: 137,
-  streak: 7,
+  acCount: 0,
+  totalSubmissions: 0,
+  streak: 0,
+  checkedIn: false,
+  fortune: null,
   heatmap: genMockHeatmap(),
-  recommend: {
-    id: 7,
-    title: '最长公共子序列',
-    difficulty: '中等',
-    reason: '基于你的薄弱知识点：动态规划',
-  },
-  recentSubmissions: [
-    { id: 1, problemId: 2,  problemTitle: '反转链表',        status: 'AC',  time: 12,   memory: 5120,  language: 'C++',    submittedAt: new Date(Date.now() - 30 * 60000).toISOString() },
-    { id: 2, problemId: 7,  problemTitle: '最长公共子序列',  status: 'WA',  time: 48,   memory: 8192,  language: 'Python', submittedAt: new Date(Date.now() - 2  * 3600000).toISOString() },
-    { id: 3, problemId: 12, problemTitle: '最大流（网络流）', status: 'TLE', time: 2000, memory: 16384, language: 'C++',    submittedAt: new Date(Date.now() - 86400000).toISOString() },
-    { id: 4, problemId: 1,  problemTitle: '两数之和',        status: 'AC',  time: 4,    memory: 4096,  language: 'Java',   submittedAt: new Date(Date.now() - 2  * 86400000).toISOString() },
-  ],
+  recentSubmissions: [],
   recentContests: MOCK_CONTESTS,
 }
 
@@ -144,6 +136,7 @@ const hotProblems   = ref(MOCK_HOT_PROBLEMS)
 const guestContests = ref(MOCK_CONTESTS)
 const notice        = ref(MOCK_NOTICE)
 const dashboard     = ref(MOCK_DASHBOARD)
+const dailyProblem  = ref(null)
 
 // ── Greeting ──────────────────────────────────────────────────────────────
 
@@ -201,7 +194,26 @@ onMounted(async () => {
     }
   } catch { /* keep mocks */ }
 
+  try {
+    const { data } = await getDailyProblem()
+    dailyProblem.value = data.problem
+  } catch { /* ignore */ }
+
   if (userStore.isLoggedIn) {
+    try {
+      const { data } = await api.get('/dashboard/')
+      dashboard.value = {
+        ...dashboard.value,
+        acCount:          data.ac_count,
+        totalSubmissions: data.total_submissions,
+        streak:           data.streak,
+        checkedIn:        data.checked_in_today,
+        fortune:          data.fortune,
+        heatmap:          data.heatmap,
+        recentContests:   data.recent_contests,
+      }
+    } catch { /* keep mocks */ }
+
     try {
       const { data } = await api.get('/submissions/', { params: { page_size: 5 } })
       const subs = (data.results ?? data).slice(0, 5).map(s => ({
@@ -218,11 +230,31 @@ onMounted(async () => {
     } catch { /* keep mocks */ }
   }
 })
+
+async function handleCheckin() {
+  try {
+    const { data } = await api.post('/checkin/')
+    dashboard.value = {
+      ...dashboard.value,
+      checkedIn: true,
+      fortune:   data.fortune,
+      streak:    data.streak,
+    }
+  } catch { /* already checked in or error */ }
+}
 </script>
 
 <template>
   <div class="page-wrap">
     <div class="content">
+
+      <div v-if="dailyProblem" class="daily-card" @click="router.push(`/problems/${dailyProblem.id}`)">
+        <span class="daily-badge">每日一题</span>
+        <span class="daily-title">#{{ dailyProblem.id }} {{ dailyProblem.title }}</span>
+        <span class="daily-diff">{{ dailyProblem.difficulty }}</span>
+        <span v-if="dailyProblem.ac" class="daily-ac">✓ 已完成</span>
+        <span class="daily-go">去挑战 →</span>
+      </div>
 
       <!-- ════════════════════════════════════════
            GUEST VIEW
@@ -300,7 +332,12 @@ onMounted(async () => {
         <!-- 2×2 grid: heatmap | recommend / judge | contests -->
         <div class="dash-grid">
           <HeatmapCard     :submissions="dashboard.heatmap" />
-          <RecommendCard   :problem="dashboard.recommend" />
+          <CheckInCard
+            :streak="dashboard.streak"
+            :checked-in="dashboard.checkedIn"
+            :fortune="dashboard.fortune"
+            @checkin="handleCheckin"
+          />
           <RecentJudgeCard :submissions="dashboard.recentSubmissions" />
           <ContestCard     :contests="dashboard.recentContests" />
         </div>
@@ -325,6 +362,20 @@ onMounted(async () => {
   flex-direction: column;
   gap: 20px;
 }
+
+/* 每日一题 */
+.daily-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-card); border: 1px solid var(--border-strong);
+  border-radius: 8px; padding: 12px 18px; cursor: pointer; margin-top: 16px;
+  transition: border-color 0.15s;
+}
+.daily-card:hover { border-color: var(--home-accent, #6366f1); }
+.daily-badge { font-size: 12px; font-weight: 600; color: #fff; background: var(--home-accent, #6366f1); padding: 2px 10px; border-radius: 999px; flex-shrink: 0; }
+.daily-title { font-size: 14px; color: var(--text-primary); font-weight: 500; flex: 1; }
+.daily-diff { font-size: 12px; color: var(--text-muted); }
+.daily-ac { font-size: 12px; color: #10b981; font-weight: 600; }
+.daily-go { font-size: 12px; color: var(--home-accent, #6366f1); white-space: nowrap; }
 
 /* ── Shared card shell (also used by sub-components via :deep) ── */
 .card,

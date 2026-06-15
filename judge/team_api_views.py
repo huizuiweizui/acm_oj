@@ -16,7 +16,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from django.db import models as django_models
-from .models import Team, TeamMembership, TeamJoinRequest, Submission, Announcement, Assignment, AssignmentProblem, Problem
+from .models import (
+    Team, TeamMembership, TeamJoinRequest, Submission, Announcement,
+    Assignment, AssignmentProblem, AssignmentQuestion, Question, QuestionAnswer,
+    Problem, Contest, ContestProblem, Department,
+)
 from .permissions import IsTeacherOrAdmin
 
 
@@ -62,6 +66,8 @@ def _team_data(team, include_code=False):
         'created_at': team.created_at,
         'member_count': team.memberships.count(),
         'pending_count': team.join_requests.filter(status='pending').count(),
+        'department_id': team.department_id,
+        'department_name': team.department.name if team.department_id else '',
     }
     if include_code:
         d['invite_code'] = team.invite_code
@@ -73,11 +79,10 @@ def _is_creator_or_admin(user, team):
 
 
 def _is_team_viewer(user, team):
-    """creator / admin / captain 可查看团队数据"""
+    """creator / admin / 任意成员 可查看团队数据"""
     if _is_creator_or_admin(user, team):
         return True
-    ms = team.memberships.filter(user=user).first()
-    return ms is not None and ms.role == 'captain'
+    return team.memberships.filter(user=user).exists()
 
 
 # ── 团队列表 / 创建 ─────────────────────────────────────────────────────────────
@@ -117,12 +122,16 @@ class TeamListCreateAPIView(APIView):
         if not name:
             return Response({'detail': '团队名称不能为空'}, status=status.HTTP_400_BAD_REQUEST)
 
+        dept_id = request.data.get('department_id')
+        if dept_id and not Department.objects.filter(pk=dept_id).exists():
+            dept_id = None
         team = Team.objects.create(
             name=name,
             description=request.data.get('description', '').strip(),
             creator=request.user,
             invite_code=_gen_invite_code(),
             need_review=request.data.get('need_review', True),
+            department_id=dept_id or None,
         )
         return Response(_team_data(team, include_code=True), status=status.HTTP_201_CREATED)
 
@@ -166,6 +175,9 @@ class TeamDetailAPIView(APIView):
         for field in ('name', 'description', 'need_review', 'is_active'):
             if field in request.data:
                 setattr(team, field, request.data[field])
+        if 'department_id' in request.data:
+            did = request.data['department_id']
+            team.department_id = did if (did and Department.objects.filter(pk=did).exists()) else None
         team.save()
         return Response(_team_data(team, include_code=True))
 
@@ -327,8 +339,8 @@ class TeamMemberDetailAPIView(APIView):
 
         if 'role' in request.data:
             new_role = request.data['role']
-            if new_role not in ('captain', 'member'):
-                return Response({'detail': 'role 只能是 captain 或 member'}, status=status.HTTP_400_BAD_REQUEST)
+            if new_role not in ('captain', 'assistant', 'member'):
+                return Response({'detail': 'role 只能是 captain / assistant / member'}, status=status.HTTP_400_BAD_REQUEST)
             if new_role == 'captain':
                 team.memberships.filter(role='captain').update(role='member')
             ms.role = new_role
@@ -1161,13 +1173,19 @@ class AnnouncementDetailAPIView(APIView):
 
 # ── 作业 ─────────────────────────────────────────────────────────────────────
 
+
 def _assignment_data(assignment, user=None):
-    """序列化作业，可选附带当前用户的 AC 状态。"""
+    """序列化作业/考试容器，可选附带当前用户的完成状态。
+    不包含客观题标准答案，可安全下发给学生。
+    """
     problems = list(
         assignment.problems.select_related('problem').order_by('sort_order', 'id')
     )
-    # 若提供 user，计算 AC 集合
-    ac_set = set()
+    questions = list(
+        assignment.question_items.select_related('question').order_by('sort_order', 'id')
+    )
+
+    ac_set, answered_set = set(), set()
     if user:
         pids = [ap.problem_id for ap in problems]
         if pids:
@@ -1176,26 +1194,114 @@ def _assignment_data(assignment, user=None):
                     user=user, status='AC', problem_id__in=pids
                 ).values_list('problem_id', flat=True).distinct()
             )
+        qids = [aq.question_id for aq in questions]
+        if qids:
+            answered_set = set(
+                QuestionAnswer.objects.filter(
+                    user=user, assignment=assignment, question_id__in=qids
+                ).values_list('question_id', flat=True)
+            )
 
     return {
         'id': assignment.id,
         'title': assignment.title,
         'description': assignment.description,
+        'category': assignment.category,
         'deadline': assignment.deadline.isoformat() if assignment.deadline else None,
+        'start_time': assignment.start_time.isoformat() if assignment.start_time else None,
+        'end_time': assignment.end_time.isoformat() if assignment.end_time else None,
+        'duration_minutes': assignment.duration_minutes,
+        'shuffle': assignment.shuffle,
+        'track_focus': assignment.track_focus,
+        'hide_rank': assignment.hide_rank,
         'is_active': assignment.is_active,
         'created_by': assignment.created_by.username if assignment.created_by else '',
         'created_at': assignment.created_at.isoformat(),
         'problem_count': len(problems),
+        'question_count': len(questions),
+        'total_score': sum(ap.score for ap in problems) + sum(aq.score for aq in questions),
         'problems': [
             {
                 'id': ap.problem_id,
                 'title': ap.problem.title,
                 'difficulty': ap.problem.difficulty,
+                'score': ap.score,
                 'ac': ap.problem_id in ac_set,
             }
             for ap in problems
         ],
+        'questions': [
+            {
+                'id': aq.question_id,
+                'title': aq.question.title,
+                'qtype': aq.question.qtype,
+                'qtype_display': aq.question.get_qtype_display(),
+                'score': aq.score,
+                'options': aq.question.options,
+                'answered': aq.question_id in answered_set,
+            }
+            for aq in questions
+        ],
     }
+
+
+def _safe_int(value, default):
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _apply_assignment_config(assignment, data):
+    """从请求数据应用容器配置字段（类型、时间窗口、防作弊开关），不含题目条目。"""
+    from django.utils.dateparse import parse_datetime
+    if data.get('category') in ('practice', 'homework', 'exam'):
+        assignment.category = data['category']
+    if 'deadline' in data:
+        assignment.deadline = parse_datetime(data['deadline']) if data['deadline'] else None
+    if 'start_time' in data:
+        assignment.start_time = parse_datetime(data['start_time']) if data['start_time'] else None
+    if 'end_time' in data:
+        assignment.end_time = parse_datetime(data['end_time']) if data['end_time'] else None
+    if 'duration_minutes' in data:
+        assignment.duration_minutes = _safe_int(data['duration_minutes'], assignment.duration_minutes)
+    for flag in ('shuffle', 'track_focus', 'hide_rank'):
+        if flag in data:
+            setattr(assignment, flag, bool(data[flag]))
+
+
+def _set_assignment_items(assignment, data):
+    """根据请求数据重建编程题与客观题条目。
+    支持 problems/questions: [{"id": x, "score": s}]，兼容旧版 problem_ids/question_ids。
+    仅在请求中出现对应键时才重建，避免误删已有条目。
+    """
+    if 'problems' in data or 'problem_ids' in data:
+        assignment.problems.all().delete()
+        items = data.get('problems')
+        if items is None:
+            items = [{'id': pid, 'score': 10} for pid in data.get('problem_ids', [])]
+        for order, it in enumerate(items):
+            pid = it.get('id') if isinstance(it, dict) else it
+            score = _safe_int(it.get('score') if isinstance(it, dict) else None, 10)
+            if pid and Problem.objects.filter(pk=pid, is_published=True).exists():
+                AssignmentProblem.objects.get_or_create(
+                    assignment=assignment, problem_id=pid,
+                    defaults={'score': score, 'sort_order': order},
+                )
+
+    if 'questions' in data or 'question_ids' in data:
+        assignment.question_items.all().delete()
+        items = data.get('questions')
+        if items is None:
+            items = [{'id': qid, 'score': 5} for qid in data.get('question_ids', [])]
+        for order, it in enumerate(items):
+            qid = it.get('id') if isinstance(it, dict) else it
+            score = _safe_int(it.get('score') if isinstance(it, dict) else None, 5)
+            if qid and Question.objects.filter(pk=qid).exists():
+                AssignmentQuestion.objects.get_or_create(
+                    assignment=assignment, question_id=qid,
+                    defaults={'score': score, 'sort_order': order},
+                )
 
 
 class AssignmentListCreateAPIView(APIView):
@@ -1206,11 +1312,12 @@ class AssignmentListCreateAPIView(APIView):
         team = get_object_or_404(Team, pk=pk)
         if not _is_team_viewer(request.user, team):
             return Response({'detail': '无权限'}, status=status.HTTP_403_FORBIDDEN)
-        assignments = team.assignments.filter(is_active=True).select_related('created_by').prefetch_related('problems__problem')
+        prefetch = ('problems__problem', 'question_items__question')
+        assignments = team.assignments.filter(is_active=True).select_related('created_by').prefetch_related(*prefetch)
         # 教师看到全部，学生也看 is_active=True
         is_teacher = _is_creator_or_admin(request.user, team)
         if is_teacher:
-            assignments = team.assignments.select_related('created_by').prefetch_related('problems__problem')
+            assignments = team.assignments.select_related('created_by').prefetch_related(*prefetch)
         user_for_ac = None if is_teacher else request.user
         return Response([_assignment_data(a, user_for_ac) for a in assignments])
 
@@ -1221,27 +1328,17 @@ class AssignmentListCreateAPIView(APIView):
         title = request.data.get('title', '').strip()
         if not title:
             return Response({'detail': '作业名称不能为空'}, status=status.HTTP_400_BAD_REQUEST)
-        deadline_raw = request.data.get('deadline')
-        deadline = None
-        if deadline_raw:
-            from django.utils.dateparse import parse_datetime
-            deadline = parse_datetime(deadline_raw)
 
         assignment = Assignment.objects.create(
             team=team,
             title=title,
             description=request.data.get('description', ''),
-            deadline=deadline,
             is_active=bool(request.data.get('is_active', True)),
             created_by=request.user,
         )
-        problem_ids = request.data.get('problem_ids', [])
-        for order, pid in enumerate(problem_ids):
-            if Problem.objects.filter(pk=pid, is_published=True).exists():
-                AssignmentProblem.objects.get_or_create(
-                    assignment=assignment, problem_id=pid,
-                    defaults={'sort_order': order},
-                )
+        _apply_assignment_config(assignment, request.data)
+        assignment.save()
+        _set_assignment_items(assignment, request.data)
         return Response(_assignment_data(assignment), status=status.HTTP_201_CREATED)
 
 
@@ -1254,7 +1351,7 @@ class AssignmentDetailAPIView(APIView):
         if not _is_team_viewer(user, team):
             return None, None, Response({'detail': '无权限'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            a = team.assignments.select_related('created_by').prefetch_related('problems__problem').get(pk=aid)
+            a = team.assignments.select_related('created_by').prefetch_related('problems__problem', 'question_items__question').get(pk=aid)
         except Assignment.DoesNotExist:
             return None, None, Response({'detail': '作业不存在'}, status=status.HTTP_404_NOT_FOUND)
         return team, a, None
@@ -1278,17 +1375,9 @@ class AssignmentDetailAPIView(APIView):
             a.description = request.data['description']
         if 'is_active' in request.data:
             a.is_active = bool(request.data['is_active'])
-        if 'deadline' in request.data:
-            from django.utils.dateparse import parse_datetime
-            a.deadline = parse_datetime(request.data['deadline']) if request.data['deadline'] else None
+        _apply_assignment_config(a, request.data)
         a.save()
-        # 更新题目列表
-        if 'problem_ids' in request.data:
-            pids = request.data['problem_ids']
-            a.problems.all().delete()
-            for order, pid in enumerate(pids):
-                if Problem.objects.filter(pk=pid, is_published=True).exists():
-                    AssignmentProblem.objects.create(assignment=a, problem_id=pid, sort_order=order)
+        _set_assignment_items(a, request.data)
         return Response(_assignment_data(a))
 
     def delete(self, request, pk, aid):
@@ -1299,3 +1388,124 @@ class AssignmentDetailAPIView(APIView):
             return Response({'detail': '无删除权限'}, status=status.HTTP_403_FORBIDDEN)
         a.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── 团队比赛 ──────────────────────────────────────────────────────────────────
+
+def _contest_status(contest):
+    now = timezone.now()
+    if now < contest.start_time:
+        return 'upcoming'
+    elif now > contest.end_time:
+        return 'ended'
+    return 'running'
+
+
+def _team_contest_data(c):
+    return {
+        'id': c.id,
+        'title': c.title,
+        'description': c.description,
+        'start_time': c.start_time.isoformat(),
+        'end_time': c.end_time.isoformat(),
+        'rule_type': c.rule_type,
+        'status': _contest_status(c),
+        'problem_count': c.contest_problems.count(),
+    }
+
+
+class TeamContestListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def _can_create(self, user, team):
+        if _is_creator_or_admin(user, team):
+            return True
+        ms = team.memberships.filter(user=user).first()
+        return ms is not None and ms.role == 'captain'
+
+    def get(self, request, pk):
+        team = get_object_or_404(Team, pk=pk)
+        if not _is_team_viewer(request.user, team):
+            return Response({'detail': '无权限'}, status=status.HTTP_403_FORBIDDEN)
+        contests = team.contests.prefetch_related('contest_problems').order_by('-start_time')
+        return Response([_team_contest_data(c) for c in contests])
+
+    def post(self, request, pk):
+        team = get_object_or_404(Team, pk=pk)
+        if not self._can_create(request.user, team):
+            return Response({'detail': '仅队长或教师可创建比赛'}, status=status.HTTP_403_FORBIDDEN)
+
+        from django.utils.dateparse import parse_datetime
+
+        title = request.data.get('title', '').strip()
+        if not title:
+            return Response({'detail': '比赛名称不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(title) > 100:
+            return Response({'detail': '比赛名称不能超过 100 字符'}, status=status.HTTP_400_BAD_REQUEST)
+
+        rule_type = request.data.get('rule_type', 'ICPC')
+        if rule_type not in ('ICPC', 'IOI'):
+            return Response({'detail': '赛制参数错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_time = parse_datetime(request.data.get('start_time', ''))
+        end_time = parse_datetime(request.data.get('end_time', ''))
+        if not start_time or not end_time:
+            return Response({'detail': '时间格式错误'}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = timezone.now()
+        if start_time < now:
+            return Response({'detail': '开始时间不能早于当前时间'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_time <= start_time:
+            return Response({'detail': '结束时间必须晚于开始时间'}, status=status.HTTP_400_BAD_REQUEST)
+        if (end_time - start_time).total_seconds() < 300:
+            return Response({'detail': '结束时间必须晚于开始时间至少 5 分钟'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            freeze = max(0, int(request.data.get('freeze_minutes', 0) or 0))
+        except (TypeError, ValueError):
+            freeze = 0
+
+        contest = Contest.objects.create(
+            title=title,
+            description=request.data.get('description', '').strip(),
+            start_time=start_time,
+            end_time=end_time,
+            rule_type=rule_type,
+            created_by=request.user,
+            is_public=False,
+            team=team,
+            freeze_minutes=freeze,
+        )
+
+        labels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        for idx, pid in enumerate(request.data.get('problem_ids', [])):
+            problem = Problem.objects.filter(id=pid, is_published=True).first()
+            if problem:
+                ContestProblem.objects.create(
+                    contest=contest,
+                    problem=problem,
+                    label=labels[idx] if idx < len(labels) else str(idx + 1),
+                    sort_order=idx,
+                )
+
+        return Response({'id': contest.id}, status=status.HTTP_201_CREATED)
+
+
+# ── 院系（组织层级）────────────────────────────────────────────────────────────
+
+class DepartmentListCreateAPIView(APIView):
+    """GET /api/departments/  列出院系；POST 创建（教师/管理员）。"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response([{'id': d.id, 'name': d.name} for d in Department.objects.all()])
+
+    def post(self, request):
+        profile = getattr(request.user, 'profile', None)
+        if not (profile and profile.role in ('admin', 'teacher')):
+            return Response({'detail': '需要教师/管理员权限'}, status=status.HTTP_403_FORBIDDEN)
+        name = (request.data.get('name') or '').strip()
+        if not name:
+            return Response({'detail': '院系名称不能为空'}, status=status.HTTP_400_BAD_REQUEST)
+        d, _ = Department.objects.get_or_create(name=name)
+        return Response({'id': d.id, 'name': d.name}, status=status.HTTP_201_CREATED)

@@ -43,6 +43,7 @@ function logout() {
         </RouterLink>
         <div class="nav-links">
           <RouterLink to="/problems">题库</RouterLink>
+          <RouterLink v-if="userStore.isLoggedIn" to="/problem-lists">题单</RouterLink>
           <RouterLink to="/contests">比赛</RouterLink>
           <RouterLink to="/submissions">评测记录</RouterLink>
           <RouterLink to="/rank">排行榜</RouterLink>

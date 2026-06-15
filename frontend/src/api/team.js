@@ -66,3 +66,7 @@ export const getAssignments = (teamId) => api.get(`/teams/${teamId}/assignments/
 export const createAssignment = (teamId, data) => api.post(`/teams/${teamId}/assignments/`, data)
 export const updateAssignment = (teamId, aid, data) => api.patch(`/teams/${teamId}/assignments/${aid}/`, data)
 export const deleteAssignment = (teamId, aid) => api.delete(`/teams/${teamId}/assignments/${aid}/`)
+
+// 团队比赛
+export const getTeamContests = (teamId) => api.get(`/teams/${teamId}/contests/`)
+export const createTeamContest = (teamId, data) => api.post(`/teams/${teamId}/contests/`, data)

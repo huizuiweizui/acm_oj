@@ -1,3 +1,4 @@
+import random
 import shutil
 import tempfile
 import threading
@@ -22,16 +23,22 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .models import (
     Algorithm, AlgorithmEdge, KnowledgeChunk,
     Contest, ContestParticipant, ContestProblem,
+    DailyCheckIn,
     Discussion, DiscussionReply,
     Problem, Submission, UserProfile,
-    Team,
+    Team, Assignment, RatingChange,
 )
+
+_FORTUNE_MOODS   = ['大吉', '中吉', '小吉', '末吉', '凶']
+_FORTUNE_LUCKY   = ['刷题', '写代码', '喝水', '早睡', '复习', '读书', '运动', '做笔记', '整理思路', '看题解']
+_FORTUNE_UNLUCKY = ['摸鱼', '熬夜', '拖延', '乱投代码', '不测样例', '忘记保存', '跳过样例', '不读题']
 from .serializers import (
     AlgorithmListSerializer, AlgorithmDetailSerializer,
     ContestSerializer, DiscussionReplySerializer, DiscussionSerializer,
     ProblemListSerializer, ProblemDetailSerializer,
     SubmissionSerializer, UserSerializer,
 )
+from .services.rating import apply_contest_rating
 
 
 # ==================== 认证 ====================
@@ -484,6 +491,16 @@ class SubmitCodeAPIView(APIView):
         if len(code) > 65536:
             return Response({'detail': '代码不能超过 64 KB'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # 函数题：用隐藏驱动包裹学生函数体，拼成完整程序后再评测；原始函数另存
+        raw_code = ''
+        judged_code = code
+        if problem.problem_type == 'function':
+            wrapped = problem.wrap_code(language, code)
+            if wrapped is None:
+                return Response({'detail': '该函数题未配置此语言的评测模板'}, status=status.HTTP_400_BAD_REQUEST)
+            raw_code = code
+            judged_code = wrapped
+
         # 检测是否属于比赛提交
         now = timezone.now()
         contest = None
@@ -504,13 +521,30 @@ class SubmitCodeAPIView(APIView):
             if active.count() == 1:
                 contest = active.first()
 
+        # 检测是否属于作业/考试提交
+        assignment = None
+        assignment_id = request.data.get('assignment_id')
+        if assignment_id:
+            a = Assignment.objects.filter(
+                id=assignment_id, problems__problem=problem
+            ).first()
+            if a and (a.team.creator_id == request.user.id
+                      or a.team.memberships.filter(user=request.user).exists()):
+                if a.category == 'exam':
+                    if (not a.start_time or now >= a.start_time) and (not a.end_time or now <= a.end_time):
+                        assignment = a
+                elif a.is_active:
+                    assignment = a
+
         submission = Submission.objects.create(
             user=request.user,
             problem=problem,
             language=language,
-            code=code,
+            code=judged_code,
+            raw_code=raw_code,
             status='Pending',
             contest=contest,
+            assignment=assignment,
         )
 
         # 更新计数
@@ -544,7 +578,7 @@ class ContestListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         now = timezone.now()
-        qs = Contest.objects.annotate(problem_count=Count('contest_problems')).order_by('-start_time')
+        qs = Contest.objects.filter(team__isnull=True).annotate(problem_count=Count('contest_problems')).order_by('-start_time')
         tab = self.request.query_params.get('tab', 'all')
         if tab == 'running':
             qs = qs.filter(start_time__lte=now, end_time__gte=now)
@@ -932,8 +966,16 @@ class DiscussionDetailAPIView(APIView):
 
 # ==================== 比赛排行榜 ====================
 
+def _ac_ratio(test_results):
+    """编程题测试点通过率，用于 IOI 部分分。"""
+    if not test_results:
+        return 0.0
+    total = len(test_results)
+    return (sum(1 for c in test_results if c.get('status') == 'AC') / total) if total else 0.0
+
+
 class ContestRankingAPIView(APIView):
-    """GET /api/contests/<id>/rank/"""
+    """GET /api/contests/<id>/rank/  支持 ICPC（解题+罚时）/ IOI（分数制）+ 封榜。"""
     permission_classes = [AllowAny]
 
     def get(self, request, pk):
@@ -943,100 +985,159 @@ class ContestRankingAPIView(APIView):
 
         contest_problems = list(
             ContestProblem.objects.filter(contest=contest)
-            .select_related('problem')
-            .order_by('sort_order')
+            .select_related('problem').order_by('sort_order')
         )
         problem_ids = [cp.problem_id for cp in contest_problems]
-        problem_labels = {cp.problem_id: cp.label for cp in contest_problems}
+        labels = {cp.problem_id: cp.label for cp in contest_problems}
+        points = {cp.problem_id: cp.points for cp in contest_problems}
+        is_ioi = contest.rule_type == 'IOI'
+
+        # 封榜：赛末 freeze_minutes 内的提交在榜上隐藏，赛后揭晓
+        now = timezone.now()
+        freeze_start = None
+        frozen = False
+        if contest.freeze_minutes and contest.freeze_minutes > 0:
+            freeze_start = contest.end_time - timedelta(minutes=contest.freeze_minutes)
+            frozen = freeze_start <= now < contest.end_time
+
+        def base_resp(ranked_users):
+            return {
+                'contest': ContestSerializer(contest).data,
+                'rule_type': contest.rule_type,
+                'frozen': frozen,
+                'freeze_minutes': contest.freeze_minutes,
+                'problem_labels': [cp.label for cp in contest_problems],
+                'problem_points': [points[cp.problem_id] for cp in contest_problems] if is_ioi else None,
+                'ranked_users': ranked_users,
+            }
 
         participants = list(
             ContestParticipant.objects.filter(contest=contest)
             .select_related('user', 'user__profile')
         )
         if not participants:
-            return Response({
-                'contest': ContestSerializer(contest).data,
-                'problem_labels': [cp.label for cp in contest_problems],
-                'ranked_users': [],
-            })
+            return Response(base_resp([]))
 
         participant_ids = [p.user_id for p in participants]
-
         subs = list(
             Submission.objects.filter(
-                contest=contest,
-                user_id__in=participant_ids,
-                problem_id__in=problem_ids,
+                contest=contest, user_id__in=participant_ids, problem_id__in=problem_ids,
             ).order_by('submitted_at')
         )
 
-        # user_id → problem_id → {ac_time, wrong_count}
-        user_problem = {
-            uid: {pid: {'ac_time': None, 'wrong_count': 0} for pid in problem_ids}
+        cells = {
+            uid: {pid: {'ac_time': None, 'wrong_count': 0, 'best_ratio': 0.0, 'frozen': 0}
+                  for pid in problem_ids}
             for uid in participant_ids
         }
         for sub in subs:
-            up = user_problem[sub.user_id][sub.problem_id]
-            if up['ac_time'] is not None:
+            c = cells[sub.user_id][sub.problem_id]
+            if frozen and freeze_start is not None and sub.submitted_at >= freeze_start:
+                c['frozen'] += 1
                 continue
-            if sub.status == 'AC':
-                up['ac_time'] = sub.submitted_at
-            elif sub.status in ('WA', 'TLE', 'MLE', 'RE', 'CE'):
-                up['wrong_count'] += 1
+            if is_ioi:
+                ratio = 1.0 if sub.status == 'AC' else _ac_ratio(sub.test_results)
+                c['best_ratio'] = max(c['best_ratio'], ratio)
+            else:
+                if c['ac_time'] is not None:
+                    continue
+                if sub.status == 'AC':
+                    c['ac_time'] = sub.submitted_at
+                elif sub.status in ('WA', 'TLE', 'MLE', 'RE', 'CE'):
+                    c['wrong_count'] += 1
 
         start_time = contest.start_time
         ranked = []
         for p in participants:
             uid = p.user_id
-            solved = 0
-            penalty = 0
             problem_results = {}
-
-            for pid in problem_ids:
-                up = user_problem[uid][pid]
-                label = problem_labels[pid]
-                if up['ac_time'] is not None:
-                    solved += 1
-                    minutes = int((up['ac_time'] - start_time).total_seconds() / 60)
-                    penalty += minutes + 20 * up['wrong_count']
-                    problem_results[label] = {
-                        'ac': True, 'wrong_count': up['wrong_count'], 'time_min': minutes,
-                    }
-                else:
-                    problem_results[label] = {
-                        'ac': False, 'wrong_count': up['wrong_count'], 'time_min': None,
-                    }
-
             try:
-                profile = p.user.profile
-                avatar_color = profile.avatar_color
+                avatar_color = p.user.profile.avatar_color
             except Exception:
                 avatar_color = '#4F46E5'
+            row = {'user_id': uid, 'username': p.user.username,
+                   'avatar_color': avatar_color, 'problems': problem_results}
 
-            ranked.append({
-                'user_id': uid,
-                'username': p.user.username,
-                'avatar_color': avatar_color,
-                'solved': solved,
-                'penalty': penalty,
-                'problems': problem_results,
-            })
+            if is_ioi:
+                total = 0
+                for pid in problem_ids:
+                    c = cells[uid][pid]
+                    sc = round(points[pid] * c['best_ratio'])
+                    total += sc
+                    problem_results[labels[pid]] = {'score': sc, 'max': points[pid], 'frozen': c['frozen']}
+                row['score'] = total
+            else:
+                solved = penalty = 0
+                for pid in problem_ids:
+                    c = cells[uid][pid]
+                    if c['ac_time'] is not None:
+                        solved += 1
+                        minutes = int((c['ac_time'] - start_time).total_seconds() / 60)
+                        penalty += minutes + 20 * c['wrong_count']
+                        problem_results[labels[pid]] = {'ac': True, 'wrong_count': c['wrong_count'],
+                                                        'time_min': minutes, 'frozen': c['frozen']}
+                    else:
+                        problem_results[labels[pid]] = {'ac': False, 'wrong_count': c['wrong_count'],
+                                                        'time_min': None, 'frozen': c['frozen']}
+                row['solved'] = solved
+                row['penalty'] = penalty
+            ranked.append(row)
 
-        ranked.sort(key=lambda x: (-x['solved'], x['penalty']))
+        if is_ioi:
+            ranked.sort(key=lambda x: -x['score'])
+            key_fn = lambda r: (r['score'],)
+        else:
+            ranked.sort(key=lambda x: (-x['solved'], x['penalty']))
+            key_fn = lambda r: (r['solved'], r['penalty'])
+
         prev = None
         for i, r in enumerate(ranked):
-            val = (r['solved'], r['penalty'])
+            val = key_fn(r)
             if val != prev:
                 r['rank'] = i + 1
                 prev = val
             else:
                 r['rank'] = ranked[i - 1]['rank']
 
-        return Response({
-            'contest': ContestSerializer(contest).data,
-            'problem_labels': [cp.label for cp in contest_problems],
-            'ranked_users': ranked,
-        })
+        return Response(base_resp(ranked))
+
+
+class ContestFinalizeRatingAPIView(APIView):
+    """POST /api/contests/<pk>/finalize-rating/  比赛结束后结算 Rating（创建者/管理员）。"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        contest = Contest.objects.filter(pk=pk).first()
+        if contest is None:
+            raise NotFound('比赛不存在')
+        profile = getattr(request.user, 'profile', None)
+        is_admin = bool(profile and profile.role == 'admin')
+        if contest.created_by_id != request.user.id and not is_admin:
+            return Response({'detail': '仅创建者或管理员可结算'}, status=status.HTTP_403_FORBIDDEN)
+        if contest.status != 'ended':
+            return Response({'detail': '比赛结束后才能结算 Rating'}, status=status.HTTP_400_BAD_REQUEST)
+        if contest.rating_applied:
+            return Response({'detail': '该比赛已结算过', 'applied': True}, status=status.HTTP_400_BAD_REQUEST)
+        changes = apply_contest_rating(contest) or []
+        return Response({'applied': True, 'count': len(changes), 'changes': changes})
+
+
+class UserRatingHistoryAPIView(APIView):
+    """GET /api/users/<pk>/rating-history/  Rating 变化曲线。"""
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        changes = (RatingChange.objects.filter(user_id=pk)
+                   .select_related('contest').order_by('created_at'))
+        return Response([{
+            'contest_id': c.contest_id,
+            'contest_title': c.contest.title,
+            'rank': c.rank,
+            'old_rating': c.old_rating,
+            'new_rating': c.new_rating,
+            'delta': c.delta,
+            'date': c.created_at.isoformat(),
+        } for c in changes])
 
 
 # ==================== 平台统计 ====================
@@ -1131,6 +1232,132 @@ class PlatformStatsAPIView(APIView):
             'recent_problems': recent_problems,
             'recent_submissions': recent_submissions,
         })
+
+
+# ==================== 用户仪表盘 ====================
+
+class UserDashboardAPIView(APIView):
+    """GET /api/dashboard/ — 登录用户首页所需的个人数据"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = date.today()
+
+        # 1. 已AC题目数（去重）
+        ac_count = (
+            Submission.objects.filter(user=user, status='AC')
+            .values('problem_id').distinct().count()
+        )
+
+        # 2. 总提交数
+        total_submissions = Submission.objects.filter(user=user).count()
+
+        # 3. 连续打卡天数（基于 DailyCheckIn）
+        checkin_dates = set(
+            DailyCheckIn.objects.filter(user=user)
+            .values_list('date', flat=True)
+        )
+        streak = 0
+        check = today
+        while check in checkin_dates:
+            streak += 1
+            check -= timedelta(days=1)
+
+        # 4. 热力图：近16周（112天）每日提交数
+        cutoff = today - timedelta(days=111)
+        heatmap_qs = (
+            Submission.objects.filter(user=user, submitted_at__date__gte=cutoff)
+            .values('submitted_at__date')
+            .annotate(cnt=Count('id'))
+        )
+        heatmap = [{'date': str(row['submitted_at__date']), 'count': row['cnt']} for row in heatmap_qs]
+
+        # 5. 近期比赛（进行中 + 即将开始 + 近14天已结束）
+        now = timezone.now()
+        contest_cutoff = now - timedelta(days=14)
+        contests_qs = (
+            Contest.objects.filter(end_time__gt=contest_cutoff)
+            .order_by('-start_time')[:5]
+            .values('id', 'title', 'start_time', 'end_time', 'rule_type')
+        )
+        recent_contests = [
+            {
+                'id': c['id'],
+                'title': c['title'],
+                'startTime': c['start_time'].isoformat(),
+                'endTime': c['end_time'].isoformat(),
+                'mode': c['rule_type'],
+            }
+            for c in contests_qs
+        ]
+
+        # 6. 今日打卡状态
+        today_checkin = DailyCheckIn.objects.filter(user=user, date=today).first()
+        checked_in_today = today_checkin is not None
+        fortune = today_checkin.fortune if today_checkin else None
+
+        return Response({
+            'ac_count': ac_count,
+            'total_submissions': total_submissions,
+            'streak': streak,
+            'heatmap': heatmap,
+            'recent_contests': recent_contests,
+            'checked_in_today': checked_in_today,
+            'fortune': fortune,
+        })
+
+
+# ==================== 每日打卡 ====================
+
+class CheckInAPIView(APIView):
+    """
+    GET  /api/checkin/ — 查询今日打卡状态
+    POST /api/checkin/ — 执行今日打卡（已打卡返回 400）
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _build_response(self, checkin, streak):
+        return Response({
+            'checked_in': True,
+            'date': str(checkin.date),
+            'streak': streak,
+            'fortune': checkin.fortune,
+        })
+
+    def _get_streak(self, user, today):
+        checkin_dates = set(
+            DailyCheckIn.objects.filter(user=user).values_list('date', flat=True)
+        )
+        streak, check = 0, today
+        while check in checkin_dates:
+            streak += 1
+            check -= timedelta(days=1)
+        return streak
+
+    def get(self, request):
+        today = date.today()
+        checkin = DailyCheckIn.objects.filter(user=request.user, date=today).first()
+        if checkin is None:
+            return Response({'checked_in': False, 'date': str(today), 'streak': self._get_streak(request.user, today), 'fortune': None})
+        return self._build_response(checkin, self._get_streak(request.user, today))
+
+    def post(self, request):
+        today = date.today()
+        existing = DailyCheckIn.objects.filter(user=request.user, date=today).first()
+        if existing:
+            return Response(
+                {'detail': '今天已经打卡了', **self._build_response(existing, self._get_streak(request.user, today)).data},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        fortune = {
+            'mood':    random.choice(_FORTUNE_MOODS),
+            'lucky':   random.sample(_FORTUNE_LUCKY, 2),
+            'unlucky': random.sample(_FORTUNE_UNLUCKY, 2),
+        }
+        checkin = DailyCheckIn.objects.create(user=request.user, date=today, fortune=fortune)
+        streak = self._get_streak(request.user, today)
+        return self._build_response(checkin, streak)
 
 
 def _is_admin(user):

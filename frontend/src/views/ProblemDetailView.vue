@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProblem, submitCode, runCode } from '@/api/problems'
+import { getProblem, submitCode, runCode, getSolutions, postSolution, deleteSolution, getDistribution } from '@/api/problems'
 import { getSubmissions } from '@/api/submissions'
 import { getDiscussions } from '@/api/discussions'
 import { useUserStore } from '@/stores/user'
@@ -22,6 +22,7 @@ const loading = ref(true)
 const prevId  = ref(null)
 const nextId  = ref(null)
 const contestId = route.query.contest_id || null
+const assignmentId = route.query.assignment || null
 
 const passRate = computed(() => {
   if (!problem.value || problem.value.submit_count === 0) return '0.0%'
@@ -40,7 +41,23 @@ const DEFAULT_CODE = {
 const language = ref('C++')
 const code     = ref(DEFAULT_CODE['C++'])
 
+// 函数题：可选语言限定为配置了模板的语言
+const availableLanguages = computed(() => {
+  if (problem.value?.problem_type === 'function') {
+    const langs = Object.keys(problem.value.function_templates || {})
+    if (langs.length) return langs
+  }
+  return LANGUAGES
+})
+
 function onLangChange() {
+  if (problem.value?.problem_type === 'function') {
+    const tpls = problem.value.function_templates || {}
+    const cur = code.value.trim()
+    const isTpl = !cur || Object.values(tpls).some(t => (t || '').trim() === cur)
+    if (isTpl) code.value = tpls[language.value] || ''
+    return
+  }
   const isDefault = Object.values(DEFAULT_CODE).includes(code.value) || !code.value.trim()
   if (isDefault) code.value = DEFAULT_CODE[language.value] || ''
 }
@@ -58,7 +75,12 @@ function toggleEditorTheme() {
   editorTheme.value = editorTheme.value === 'vs-dark' ? 'vs' : 'vs-dark'
 }
 function resetCode() {
-  if (confirm('重置为默认模板？')) code.value = DEFAULT_CODE[language.value] || ''
+  if (!confirm('重置为默认模板？')) return
+  if (problem.value?.problem_type === 'function') {
+    code.value = (problem.value.function_templates || {})[language.value] || ''
+  } else {
+    code.value = DEFAULT_CODE[language.value] || ''
+  }
 }
 function formatCode() { editorRef.value?.format() }
 async function copyCode() {
@@ -82,7 +104,7 @@ async function handleSubmit() {
   submitting.value  = true
   submitError.value = ''
   try {
-    const { data } = await submitCode(route.params.id, language.value, code.value, contestId)
+    const { data } = await submitCode(route.params.id, language.value, code.value, contestId, assignmentId)
     submissionStore.startPolling(data.submission_id)
     showRunPanel.value = false
   } catch (e) {
@@ -169,6 +191,55 @@ function switchToDiscuss() {
   loadDiscussions()
 }
 
+// ── Solutions（AC 后可见）─────────────────────────────────────────
+const solutions   = ref([])
+const solLocked   = ref(false)
+const solLoading  = ref(false)
+const solLoaded   = ref(false)
+const solPosting  = ref(false)
+const solForm     = ref({ title: '', content: '' })
+
+async function switchToSolution() {
+  activeTab.value = 'solution'
+  if (solLoaded.value) return
+  solLoading.value = true
+  try {
+    const { data } = await getSolutions(route.params.id)
+    solLocked.value = data.locked
+    solutions.value = data.solutions || []
+    solLoaded.value = true
+  } catch {} finally {
+    solLoading.value = false
+  }
+}
+async function postSol() {
+  if (!solForm.value.content.trim()) return
+  solPosting.value = true
+  try {
+    const { data } = await postSolution(route.params.id, { ...solForm.value })
+    solutions.value.unshift(data)
+    solForm.value = { title: '', content: '' }
+  } catch (e) {
+    alert(e.response?.data?.detail || '发布失败')
+  } finally {
+    solPosting.value = false
+  }
+}
+async function delSol(s) {
+  if (!confirm('删除这篇题解？')) return
+  await deleteSolution(s.id)
+  solutions.value = solutions.value.filter(x => x.id !== s.id)
+}
+
+// ── Distribution（耗时击败 X%）────────────────────────────────────
+const dist = ref(null)
+async function loadDistribution() {
+  try {
+    const { data } = await getDistribution(route.params.id, 'time')
+    dist.value = data
+  } catch {}
+}
+
 // ── Drag-split ────────────────────────────────────────────────────
 const splitRef  = ref(null)
 const leftWidth = ref(Number(localStorage.getItem('prob-split') || 60))
@@ -233,11 +304,19 @@ onMounted(async () => {
     problem.value = data
     prevId.value  = data.prev_id
     nextId.value  = data.next_id
-    code.value    = DEFAULT_CODE['C++']
+    if (data.problem_type === 'function') {
+      const tpls = data.function_templates || {}
+      const langs = Object.keys(tpls)
+      language.value = langs.includes('C++') ? 'C++' : (langs[0] || 'C++')
+      code.value = tpls[language.value] ?? DEFAULT_CODE[language.value] ?? ''
+    } else {
+      code.value = DEFAULT_CODE['C++']
+    }
   } finally {
     loading.value = false
   }
   loadMyStats()
+  loadDistribution()
   window.addEventListener('keydown', onKeyDown)
 })
 
@@ -267,6 +346,7 @@ onBeforeUnmount(() => {
         <span class="meta-chip">提交 {{ problem.submit_count }}</span>
         <span class="meta-chip">⏱ {{ problem.time_limit }} ms</span>
         <span class="meta-chip">💾 {{ problem.memory_limit }} MB</span>
+        <span v-if="problem.problem_type === 'function'" class="meta-chip" style="background:#8b5cf622;color:#a78bfa;border-color:#8b5cf644">函数题 · 只需填函数体</span>
       </div>
       <div class="tb-nav">
         <button v-if="prevId" class="btn-nav" @click="goPrev">‹ 上题</button>
@@ -286,6 +366,7 @@ onBeforeUnmount(() => {
         <div class="panel-tabs">
           <button :class="['ptab', activeTab==='problem' && 'ptab-active']" @click="activeTab='problem'">题目</button>
           <button :class="['ptab', activeTab==='discuss' && 'ptab-active']" @click="switchToDiscuss">讨论</button>
+          <button :class="['ptab', activeTab==='solution' && 'ptab-active']" @click="switchToSolution">题解</button>
         </div>
 
         <!-- Problem content -->
@@ -379,6 +460,10 @@ onBeforeUnmount(() => {
                 <span class="ms-label">最佳耗时</span>
                 <span class="ms-val mono">{{ myStats.bestTime }} ms</span>
               </div>
+              <div v-if="dist && dist.beats != null" class="ms-item">
+                <span class="ms-label">耗时击败</span>
+                <span class="ms-val mono ms-ac">{{ dist.beats }}%</span>
+              </div>
             </div>
           </div>
         </div>
@@ -403,6 +488,32 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
+
+        <!-- Solution tab（AC 后可见，防剧透） -->
+        <div v-show="activeTab==='solution'" class="discuss-scroll">
+          <div v-if="solLoading" class="loading-tip">加载中…</div>
+          <div v-else-if="solLocked" class="empty-tip">🔒 AC 本题后才能查看 / 发布题解</div>
+          <template v-else>
+            <div class="sol-post">
+              <input v-model="solForm.title" class="sol-input" placeholder="题解标题（可选）" maxlength="200" />
+              <textarea v-model="solForm.content" class="sol-textarea" placeholder="分享你的思路（支持 Markdown）…" rows="4"></textarea>
+              <button class="btn-new-disc" :disabled="solPosting || !solForm.content.trim()" @click="postSol">
+                {{ solPosting ? '发布中…' : '+ 发布题解' }}
+              </button>
+            </div>
+            <div v-if="solutions.length === 0" class="empty-tip">还没有题解，来写第一篇</div>
+            <div v-else class="sol-list">
+              <div v-for="s in solutions" :key="s.id" class="sol-card">
+                <div class="sol-head">
+                  <span class="sol-title">{{ s.title || '题解' }}</span>
+                  <span class="sol-author">{{ s.username }}</span>
+                  <button v-if="s.is_author" class="sol-del" @click="delSol(s)">删除</button>
+                </div>
+                <div class="sol-content">{{ s.content }}</div>
+              </div>
+            </div>
+          </template>
+        </div>
       </div>
 
       <!-- DRAG HANDLE -->
@@ -414,7 +525,7 @@ onBeforeUnmount(() => {
         <!-- Editor toolbar -->
         <div class="editor-toolbar">
           <select class="lang-select" v-model="language" @change="onLangChange">
-            <option v-for="l in LANGUAGES" :key="l" :value="l">{{ l }}</option>
+            <option v-for="l in availableLanguages" :key="l" :value="l">{{ l }}</option>
           </select>
           <div class="tb-right">
             <button class="tbtn" @click="fontSize = Math.max(12, fontSize - 1)">A−</button>
@@ -786,6 +897,19 @@ onBeforeUnmount(() => {
 }
 .btn-submit-code:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-submit-code:disabled { opacity: 0.55; cursor: not-allowed; }
+
+/* 题解 tab */
+.sol-post { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+.sol-input, .sol-textarea { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.7rem; color: var(--text-primary); font-size: 0.85rem; width: 100%; box-sizing: border-box; }
+.sol-input:focus, .sol-textarea:focus { outline: none; border-color: var(--accent); }
+.sol-textarea { resize: vertical; font-family: inherit; line-height: 1.5; }
+.sol-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.sol-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem; }
+.sol-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+.sol-title { font-weight: 600; color: var(--text-primary); font-size: 0.9rem; flex: 1; }
+.sol-author { font-size: 0.78rem; color: var(--text-muted); }
+.sol-del { background: none; border: 1px solid #f8717144; color: #f87171; padding: 0.1rem 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+.sol-content { font-size: 0.85rem; color: var(--text-secondary); white-space: pre-wrap; line-height: 1.6; }
 
 /* Run panel */
 .run-panel {

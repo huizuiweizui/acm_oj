@@ -20,6 +20,18 @@ const router = createRouter({
       component: () => import('@/views/ProblemDetailView.vue'),
     },
     {
+      path: '/problem-lists',
+      name: 'problem-lists',
+      component: () => import('@/views/ProblemListsView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/problem-lists/:id',
+      name: 'problem-list-detail',
+      component: () => import('@/views/ProblemListDetailView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
@@ -122,6 +134,12 @@ const router = createRouter({
       component: () => import('@/views/student/StudentTeamView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/exam/:aid',
+      name: 'exam',
+      component: () => import('@/views/student/ExamView.vue'),
+      meta: { requiresAuth: true },
+    },
 
     // ==================== 教师端 ====================
     {
@@ -129,6 +147,24 @@ const router = createRouter({
       name: 'teacher-dashboard',
       component: () => import('@/views/teacher/DashboardView.vue'),
       meta: { requiresAuth: true, requiresRole: 'teacher' },
+    },
+    {
+      path: '/teacher/questions',
+      name: 'teacher-questions',
+      component: () => import('@/views/teacher/QuestionBankView.vue'),
+      meta: { requiresAuth: true, requiresRole: 'teacher' },
+    },
+    {
+      path: '/teacher/assignments/:aid/gradebook',
+      name: 'teacher-gradebook',
+      component: () => import('@/views/teacher/GradebookView.vue'),
+      meta: { requiresAuth: true },   // 后端 _is_manager 控制权限
+    },
+    {
+      path: '/teacher/assignments/:aid/plagiarism',
+      name: 'teacher-plagiarism',
+      component: () => import('@/views/teacher/PlagiarismView.vue'),
+      meta: { requiresAuth: true },   // 后端 _is_manager 控制权限
     },
     {
       path: '/teacher/teams/:id',

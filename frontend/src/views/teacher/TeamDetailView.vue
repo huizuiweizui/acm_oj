@@ -10,6 +10,7 @@ import {
   getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
   getAssignments, createAssignment, updateAssignment, deleteAssignment,
 } from '@/api/team'
+import { getQuestions } from '@/api/questions'
 
 const route = useRoute()
 const router = useRouter()
@@ -161,33 +162,70 @@ async function togglePin(a) {
   if (idx >= 0) announcements.value[idx] = data
 }
 
-// ── 作业 ─────────────────────────────────────────────────────────
+// ── 作业 / 考试 ───────────────────────────────────────────────────
+const ASGN_CATEGORIES = [
+  { value: 'practice', label: '练习' },
+  { value: 'homework', label: '作业' },
+  { value: 'exam', label: '考试' },
+]
 const assignments = ref([])
 const asgnModal = ref(false)
 const asgnEdit = ref(null)
-const asgnForm = ref({ title: '', description: '', deadline: '', is_active: true, problem_ids: [] })
 const problemSearch = ref('')
 const problemResults = ref([])
 const problemSearching = ref(false)
+const questionSearch = ref('')
+const questionResults = ref([])
+const questionSearching = ref(false)
+
+function blankAsgnForm() {
+  return {
+    title: '', description: '', category: 'homework',
+    deadline: '', start_time: '', end_time: '', duration_minutes: 0,
+    shuffle: false, track_focus: false, hide_rank: false,
+    is_active: true,
+    problems: [],   // [{ id, title, difficulty, score }]
+    questions: [],  // [{ id, title, qtype, qtype_display, score }]
+  }
+}
+const asgnForm = ref(blankAsgnForm())
+const asgnTotalScore = computed(() =>
+  asgnForm.value.problems.reduce((s, p) => s + (Number(p.score) || 0), 0) +
+  asgnForm.value.questions.reduce((s, q) => s + (Number(q.score) || 0), 0)
+)
 
 async function loadAssignments() {
   const { data } = await getAssignments(teamId)
   assignments.value = data
 }
 
+function dtLocal(s) { return s ? s.slice(0, 16) : '' }
+
 function openAsgnModal(a = null) {
   asgnEdit.value = a
-  asgnForm.value = a
-    ? {
-        title: a.title,
-        description: a.description,
-        deadline: a.deadline ? a.deadline.slice(0, 16) : '',
-        is_active: a.is_active,
-        problem_ids: a.problems.map(p => p.id),
-      }
-    : { title: '', description: '', deadline: '', is_active: true, problem_ids: [] }
-  problemResults.value = a ? a.problems.map(p => ({ id: p.id, title: p.title, difficulty: p.difficulty })) : []
+  if (a) {
+    asgnForm.value = {
+      title: a.title,
+      description: a.description,
+      category: a.category || 'homework',
+      deadline: dtLocal(a.deadline),
+      start_time: dtLocal(a.start_time),
+      end_time: dtLocal(a.end_time),
+      duration_minutes: a.duration_minutes || 0,
+      shuffle: !!a.shuffle,
+      track_focus: !!a.track_focus,
+      hide_rank: !!a.hide_rank,
+      is_active: a.is_active,
+      problems: (a.problems || []).map(p => ({ id: p.id, title: p.title, difficulty: p.difficulty, score: p.score ?? 10 })),
+      questions: (a.questions || []).map(q => ({ id: q.id, title: q.title, qtype: q.qtype, qtype_display: q.qtype_display, score: q.score ?? 5 })),
+    }
+  } else {
+    asgnForm.value = blankAsgnForm()
+  }
+  problemResults.value = []
+  questionResults.value = []
   problemSearch.value = ''
+  questionSearch.value = ''
   asgnModal.value = true
 }
 
@@ -197,35 +235,61 @@ async function searchProblems() {
   try {
     const { default: api } = await import('@/api/index')
     const { data } = await api.get('/problems/', { params: { search: problemSearch.value, limit: 10, is_published: true } })
-    // 过滤掉已添加的
-    const ids = new Set(asgnForm.value.problem_ids)
+    const ids = new Set(asgnForm.value.problems.map(p => p.id))
     problemResults.value = (data.results || data).filter(p => !ids.has(p.id)).slice(0, 8)
   } finally {
     problemSearching.value = false
   }
 }
 
-function addProblemToAssignment(p) {
-  if (asgnForm.value.problem_ids.includes(p.id)) return
-  asgnForm.value.problem_ids.push(p.id)
-  // 记录题目信息用于展示
-  if (!asgnForm.value._problems) asgnForm.value._problems = {}
-  asgnForm.value._problems[p.id] = p
-  problemResults.value = problemResults.value.filter(x => x.id !== p.id)
+async function searchQuestions() {
+  if (!questionSearch.value.trim()) return
+  questionSearching.value = true
+  try {
+    const { data } = await getQuestions({ q: questionSearch.value.trim(), is_published: 'true', page_size: 8 })
+    const ids = new Set(asgnForm.value.questions.map(q => q.id))
+    questionResults.value = (data.results || []).filter(q => !ids.has(q.id))
+  } finally {
+    questionSearching.value = false
+  }
 }
 
+function addProblemToAssignment(p) {
+  if (asgnForm.value.problems.some(x => x.id === p.id)) return
+  asgnForm.value.problems.push({ id: p.id, title: p.title, difficulty: p.difficulty, score: 10 })
+  problemResults.value = problemResults.value.filter(x => x.id !== p.id)
+}
 function removeProblemFromAssignment(pid) {
-  asgnForm.value.problem_ids = asgnForm.value.problem_ids.filter(id => id !== pid)
+  asgnForm.value.problems = asgnForm.value.problems.filter(p => p.id !== pid)
+}
+function addQuestionToAssignment(q) {
+  if (asgnForm.value.questions.some(x => x.id === q.id)) return
+  asgnForm.value.questions.push({ id: q.id, title: q.title, qtype: q.qtype, qtype_display: q.qtype_display, score: 5 })
+  questionResults.value = questionResults.value.filter(x => x.id !== q.id)
+}
+function removeQuestionFromAssignment(qid) {
+  asgnForm.value.questions = asgnForm.value.questions.filter(q => q.id !== qid)
 }
 
 async function saveAssignment() {
-  if (!asgnForm.value.title.trim()) return
+  const f = asgnForm.value
+  if (!f.title.trim()) return
   const payload = {
-    title: asgnForm.value.title.trim(),
-    description: asgnForm.value.description,
-    deadline: asgnForm.value.deadline || null,
-    is_active: asgnForm.value.is_active,
-    problem_ids: asgnForm.value.problem_ids,
+    title: f.title.trim(),
+    description: f.description,
+    category: f.category,
+    deadline: f.deadline || null,
+    is_active: f.is_active,
+    problems: f.problems.map(p => ({ id: p.id, score: Number(p.score) || 0 })),
+    questions: f.questions.map(q => ({ id: q.id, score: Number(q.score) || 0 })),
+  }
+  if (f.category === 'exam') {
+    payload.start_time = f.start_time || null
+    payload.end_time = f.end_time || null
+    payload.duration_minutes = Number(f.duration_minutes) || 0
+    payload.shuffle = f.shuffle
+    payload.track_focus = f.track_focus
+    payload.hide_rank = f.hide_rank
   }
   if (asgnEdit.value) {
     const { data } = await updateAssignment(teamId, asgnEdit.value.id, payload)
@@ -236,7 +300,7 @@ async function saveAssignment() {
     assignments.value.unshift(data)
   }
   asgnModal.value = false
-  flash(asgnEdit.value ? '作业已更新' : '作业已创建')
+  flash(asgnEdit.value ? '已保存' : '已创建')
 }
 
 async function deleteAsgn(a) {
@@ -292,6 +356,13 @@ async function toggleCaptain(ms) {
   members.value.forEach(m => { if (m.role === 'captain') m.role = 'member' })
   ms.role = newRole
   flash(newRole === 'captain' ? `已设 ${ms.display_name} 为队长` : '已取消队长身份')
+}
+
+async function toggleAssistant(ms) {
+  const target = ms.role === 'assistant' ? 'member' : 'assistant'
+  await updateMember(teamId, ms.user_id, { role: target })
+  ms.role = target
+  flash(target === 'assistant' ? `已设 ${ms.display_name} 为助教` : '已取消助教身份')
 }
 
 async function doRemove(ms) {
@@ -381,6 +452,10 @@ function fmt(dt) {
   return dt ? new Date(dt).toLocaleDateString('zh-CN') : ''
 }
 
+function catLabel(c) {
+  return ({ practice: '练习', homework: '作业', exam: '考试' })[c] || '作业'
+}
+
 onMounted(load)
 </script>
 
@@ -463,8 +538,8 @@ onMounted(load)
               <td class="text-muted">{{ ms.student_id || '—' }}</td>
               <td class="text-muted">{{ [ms.major, ms.grade].filter(Boolean).join(' / ') || '—' }}</td>
               <td>
-                <span :class="['role-tag', ms.role === 'captain' ? 'role-captain' : 'role-member']">
-                  {{ ms.role === 'captain' ? '队长' : '队员' }}
+                <span :class="['role-tag', ms.role === 'captain' ? 'role-captain' : (ms.role === 'assistant' ? 'role-ta' : 'role-member')]">
+                  {{ ms.role === 'captain' ? '队长' : (ms.role === 'assistant' ? '助教' : '队员') }}
                 </span>
               </td>
               <td class="text-muted">{{ fmt(ms.joined_at) }}</td>
@@ -472,6 +547,9 @@ onMounted(load)
                 <button class="btn-xs" @click="openEdit(ms)">改备注</button>
                 <button class="btn-xs" @click="toggleCaptain(ms)">
                   {{ ms.role === 'captain' ? '取消队长' : '设队长' }}
+                </button>
+                <button class="btn-xs" @click="toggleAssistant(ms)">
+                  {{ ms.role === 'assistant' ? '取消助教' : '设助教' }}
                 </button>
                 <button
                   class="btn-xs"
@@ -629,24 +707,23 @@ onMounted(load)
         <div v-for="a in assignments" :key="a.id" class="asgn-card">
           <div class="asgn-head">
             <div class="asgn-info">
+              <span :class="['asgn-cat', 'cat-' + (a.category || 'homework')]">{{ catLabel(a.category) }}</span>
               <span class="asgn-title">{{ a.title }}</span>
               <span v-if="!a.is_active" class="asgn-draft">草稿</span>
             </div>
             <div class="asgn-actions">
+              <button v-if="canManage" class="btn-xs" @click="router.push(`/teacher/assignments/${a.id}/gradebook`)">成绩</button>
               <button class="btn-xs" @click="openAsgnModal(a)">编辑</button>
               <button class="btn-xs btn-danger" @click="deleteAsgn(a)">删除</button>
             </div>
           </div>
           <p v-if="a.description" class="asgn-desc text-muted">{{ a.description }}</p>
           <div class="asgn-footer text-muted">
-            <span>{{ a.problem_count }} 道题</span>
-            <span v-if="a.deadline"> · 截止 {{ fmt(a.deadline) }}</span>
+            <span>{{ a.problem_count }} 编程 · {{ a.question_count || 0 }} 客观</span>
+            <span> · 满分 {{ a.total_score ?? 0 }}</span>
+            <span v-if="a.category === 'exam' && a.start_time"> · 开考 {{ fmt(a.start_time) }}</span>
+            <span v-else-if="a.deadline"> · 截止 {{ fmt(a.deadline) }}</span>
             <span> · {{ a.created_by }}</span>
-          </div>
-          <div v-if="a.problems.length > 0" class="asgn-problems">
-            <span v-for="p in a.problems" :key="p.id" class="asgn-prob-tag">
-              #{{ p.id }} {{ p.title }}
-            </span>
           </div>
         </div>
       </div>
@@ -675,49 +752,105 @@ onMounted(load)
     </div>
   </div>
 
-  <!-- 作业弹窗 -->
+  <!-- 作业 / 考试弹窗 -->
   <div v-if="asgnModal" class="modal-overlay" @click.self="asgnModal = false">
     <div class="modal modal-wide">
-      <h2 class="modal-title">{{ asgnEdit ? '编辑作业' : '创建作业' }}</h2>
-      <input v-model="asgnForm.title" class="form-input" placeholder="作业名称" maxlength="200" />
-      <textarea v-model="asgnForm.description" class="form-textarea" placeholder="作业说明（可选）" rows="3"></textarea>
+      <h2 class="modal-title">{{ asgnEdit ? '编辑' : '创建' }}{{ catLabel(asgnForm.category) }}</h2>
+
       <div class="form-row">
+        <label class="form-label">类型</label>
+        <div class="cat-pills">
+          <button
+            v-for="c in ASGN_CATEGORIES" :key="c.value"
+            :class="['pill', asgnForm.category === c.value && 'pill-on']"
+            @click="asgnForm.category = c.value"
+          >{{ c.label }}</button>
+        </div>
+      </div>
+
+      <input v-model="asgnForm.title" class="form-input" placeholder="名称" maxlength="200" />
+      <textarea v-model="asgnForm.description" class="form-textarea" placeholder="说明（可选）" rows="2"></textarea>
+
+      <!-- 非考试：截止时间 -->
+      <div v-if="asgnForm.category !== 'exam'" class="form-row">
         <label class="form-label">截止时间（可选）</label>
         <input v-model="asgnForm.deadline" type="datetime-local" class="form-input" />
       </div>
+
+      <!-- 考试配置 -->
+      <div v-else class="exam-config">
+        <div class="exam-grid">
+          <div class="form-row">
+            <label class="form-label">开始时间</label>
+            <input v-model="asgnForm.start_time" type="datetime-local" class="form-input" />
+          </div>
+          <div class="form-row">
+            <label class="form-label">结束时间</label>
+            <input v-model="asgnForm.end_time" type="datetime-local" class="form-input" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label">个人限时（分钟，0 = 用整个窗口）</label>
+          <input v-model.number="asgnForm.duration_minutes" type="number" min="0" class="form-input" />
+        </div>
+        <div class="exam-flags">
+          <label class="check-label"><input type="checkbox" v-model="asgnForm.shuffle" /> 打乱题序</label>
+          <label class="check-label"><input type="checkbox" v-model="asgnForm.hide_rank" /> 隐藏排名/他人</label>
+          <label class="check-label"><input type="checkbox" v-model="asgnForm.track_focus" /> 记录切屏</label>
+        </div>
+      </div>
+
       <label class="check-label">
         <input type="checkbox" v-model="asgnForm.is_active" />
         立即发布（取消则保存为草稿）
       </label>
 
-      <!-- 题目搜索 -->
-      <div class="prob-search-section">
+      <!-- 编程题 -->
+      <div class="pick-section">
+        <div class="pick-head">编程题（{{ asgnForm.problems.length }}）</div>
         <div class="search-row">
           <input v-model="problemSearch" class="form-input" placeholder="搜索题目标题或 ID…" @keyup.enter="searchProblems" />
-          <button class="btn-primary add-search-btn" :disabled="problemSearching" @click="searchProblems">
-            {{ problemSearching ? '…' : '搜索' }}
-          </button>
+          <button class="btn-primary add-search-btn" :disabled="problemSearching" @click="searchProblems">{{ problemSearching ? '…' : '搜索' }}</button>
         </div>
         <div v-if="problemResults.length > 0" class="search-result-list">
           <div v-for="p in problemResults" :key="p.id" class="search-result-row">
-            <div class="sr-info">
-              <span class="sr-name">#{{ p.id }} {{ p.title }}</span>
-              <span class="sr-meta text-muted">{{ p.difficulty }}</span>
-            </div>
+            <div class="sr-info"><span class="sr-name">#{{ p.id }} {{ p.title }}</span><span class="sr-meta text-muted">{{ p.difficulty }}</span></div>
             <button class="btn-xs btn-success" @click="addProblemToAssignment(p)">添加</button>
           </div>
         </div>
-      </div>
-
-      <!-- 已选题目 -->
-      <div v-if="asgnForm.problem_ids.length > 0" class="selected-problems">
-        <div class="sp-label text-muted">已选题目（{{ asgnForm.problem_ids.length }}）</div>
-        <div v-for="pid in asgnForm.problem_ids" :key="pid" class="sp-row">
-          <span class="sp-id">#{{ pid }}</span>
-          <span class="sp-title">{{ asgnForm._problems?.[pid]?.title || asgnEdit?.problems?.find(p=>p.id===pid)?.title || '' }}</span>
-          <button class="btn-xs btn-danger" @click="removeProblemFromAssignment(pid)">✕</button>
+        <div v-for="p in asgnForm.problems" :key="p.id" class="picked-row">
+          <span class="pk-tag prob">#{{ p.id }}</span>
+          <span class="pk-title">{{ p.title }}</span>
+          <input v-model.number="p.score" type="number" min="0" class="pk-score" title="分值" />
+          <button class="btn-xs btn-danger" @click="removeProblemFromAssignment(p.id)">✕</button>
         </div>
       </div>
+
+      <!-- 客观题 -->
+      <div class="pick-section">
+        <div class="pick-head">客观题（{{ asgnForm.questions.length }}）</div>
+        <div class="search-row">
+          <input v-model="questionSearch" class="form-input" placeholder="搜索客观题题干…" @keyup.enter="searchQuestions" />
+          <button class="btn-primary add-search-btn" :disabled="questionSearching" @click="searchQuestions">{{ questionSearching ? '…' : '搜索' }}</button>
+        </div>
+        <div v-if="questionResults.length > 0" class="search-result-list">
+          <div v-for="q in questionResults" :key="q.id" class="search-result-row">
+            <div class="sr-info"><span class="sr-name">{{ q.title }}</span><span class="sr-meta text-muted">{{ q.qtype_display }} · {{ q.difficulty }}</span></div>
+            <button class="btn-xs btn-success" @click="addQuestionToAssignment(q)">添加</button>
+          </div>
+        </div>
+        <p v-if="!asgnForm.questions.length && !questionResults.length" class="pick-hint text-muted">
+          客观题来自<a class="pick-link" @click="router.push('/teacher/questions')">题库</a>，需先在题库创建并发布
+        </p>
+        <div v-for="q in asgnForm.questions" :key="q.id" class="picked-row">
+          <span class="pk-tag ques">{{ q.qtype_display || q.qtype }}</span>
+          <span class="pk-title">{{ q.title }}</span>
+          <input v-model.number="q.score" type="number" min="0" class="pk-score" title="分值" />
+          <button class="btn-xs btn-danger" @click="removeQuestionFromAssignment(q.id)">✕</button>
+        </div>
+      </div>
+
+      <div class="total-bar">满分合计：<strong>{{ asgnTotalScore }}</strong> 分</div>
 
       <div class="modal-actions">
         <button class="btn-secondary" @click="asgnModal = false">取消</button>
@@ -829,6 +962,7 @@ onMounted(load)
 .role-tag { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 10px; font-size: 0.75rem; }
 .role-captain { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
 .role-member { background: rgba(100,100,100,0.1); color: var(--text-muted); border: 1px solid var(--border); }
+.role-ta { background: rgba(99,102,241,0.12); color: var(--accent); border: 1px solid rgba(99,102,241,0.3); }
 .req-remark { color: var(--text-primary); max-width: 200px; word-break: break-word; }
 .actions-cell { display: flex; gap: 0.4rem; flex-wrap: nowrap; }
 
@@ -988,4 +1122,41 @@ onMounted(load)
 .ir-fail { color: #f87171; font-size: 0.875rem; }
 .ir-errors { display: flex; flex-direction: column; gap: 0.25rem; }
 .ir-error-row { font-size: 0.8rem; color: #f87171; padding-left: 0.5rem; border-left: 2px solid #f87171; }
+
+/* 作业/考试增强 */
+.cat-pills { display: flex; gap: 0.5rem; }
+.pill {
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  padding: 0.3rem 0.85rem; border-radius: 20px; cursor: pointer; font-size: 0.85rem;
+}
+.pill:hover { border-color: var(--accent); }
+.pill-on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.exam-config {
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+  padding: 0.85rem; display: flex; flex-direction: column; gap: 0.75rem;
+}
+.exam-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.exam-flags { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.pick-section {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  border-top: 1px solid var(--border); padding-top: 0.75rem;
+}
+.pick-head { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+.pick-hint { font-size: 0.8rem; margin: 0; }
+.pick-link { color: var(--accent); cursor: pointer; }
+.picked-row { display: flex; align-items: center; gap: 0.5rem; }
+.pk-tag { font-size: 0.72rem; padding: 0.1rem 0.4rem; border-radius: 4px; flex-shrink: 0; white-space: nowrap; }
+.pk-tag.prob { background: rgba(99,102,241,0.12); color: var(--accent); border: 1px solid rgba(99,102,241,0.3); font-family: monospace; }
+.pk-tag.ques { background: #8b5cf622; color: #a78bfa; border: 1px solid #8b5cf644; }
+.pk-title { flex: 1; font-size: 0.85rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pk-score {
+  width: 4rem; flex-shrink: 0; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0.2rem 0.4rem; color: var(--text-primary); font-size: 0.8rem;
+}
+.total-bar { text-align: right; font-size: 0.875rem; color: var(--text-secondary); padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.total-bar strong { color: var(--accent); font-size: 1.05rem; }
+.asgn-cat { font-size: 0.72rem; padding: 0.1rem 0.45rem; border-radius: 4px; flex-shrink: 0; }
+.cat-practice { background: rgba(100,100,100,0.12); color: var(--text-muted); border: 1px solid var(--border); }
+.cat-homework { background: rgba(99,102,241,0.12); color: var(--accent); border: 1px solid rgba(99,102,241,0.3); }
+.cat-exam { background: #ef444422; color: #f87171; border: 1px solid #ef444444; }
 </style>

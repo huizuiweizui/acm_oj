@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import api from '@/api/index'
 import { useRoute, useRouter } from 'vue-router'
 import { getUser, getUserStats, updateMe, changePassword } from '@/api/users'
 import { useUserStore } from '@/stores/user'
@@ -94,6 +95,25 @@ function timeAgo(iso) {
 
 const totalSubs = (dist) => Object.values(dist || {}).reduce((a, b) => a + b, 0)
 
+// ── 比赛 Rating 曲线 ──
+const ratingHistory = ref([])
+const RC_W = 600, RC_H = 110
+const ratingDots = computed(() => {
+  const h = ratingHistory.value
+  const n = h.length
+  if (!n) return []
+  const rs = h.map(x => x.new_rating)
+  const lo = Math.min(...rs) - 30, hi = Math.max(...rs) + 30
+  const span = Math.max(1, hi - lo)
+  return h.map((x, i) => ({
+    x: n <= 1 ? RC_W / 2 : (i / (n - 1)) * RC_W,
+    y: RC_H - ((x.new_rating - lo) / span) * RC_H,
+    delta: x.delta,
+  }))
+})
+const ratingPoints = computed(() => ratingDots.value.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' '))
+const ratingPeak = computed(() => ratingHistory.value.length ? Math.max(...ratingHistory.value.map(x => x.new_rating)) : '-')
+
 onMounted(async () => {
   const id = route.params.id
   loading.value = true
@@ -107,6 +127,10 @@ onMounted(async () => {
     acProblems.value = profileRes.data.ac_problems || []
     contestHistory.value = profileRes.data.contest_history || []
     stats.value = statsRes.data
+    try {
+      const { data } = await api.get(`/users/${id}/rating-history/`)
+      ratingHistory.value = data
+    } catch { /* ignore */ }
   } finally {
     loading.value = false
   }
@@ -140,6 +164,11 @@ onMounted(async () => {
           </div>
           <div class="stat-divider"></div>
           <div class="stat-item">
+            <div class="stat-val">{{ profile.contest_rating ?? 1500 }}</div>
+            <div class="stat-label">比赛 Rating</div>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
             <div class="stat-val">{{ profile.ac_count }}</div>
             <div class="stat-label">AC 题目</div>
           </div>
@@ -157,6 +186,19 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 比赛 Rating 走势 -->
+    <div v-if="ratingDots.length" class="rating-card"
+         style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.25rem">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:0.5rem">
+        <span style="font-weight:600;color:var(--text-primary)">比赛 Rating 走势</span>
+        <span style="font-size:0.8rem;color:var(--text-muted)">当前 {{ profile.contest_rating ?? 1500 }} · 峰值 {{ ratingPeak }} · {{ ratingHistory.length }} 场</span>
+      </div>
+      <svg :viewBox="`0 0 ${RC_W} ${RC_H}`" preserveAspectRatio="none" style="width:100%;height:110px;display:block">
+        <polyline :points="ratingPoints" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" />
+        <circle v-for="(p, i) in ratingDots" :key="i" :cx="p.x" :cy="p.y" r="3.5" :fill="p.delta >= 0 ? '#10b981' : '#f87171'" />
+      </svg>
     </div>
 
     <!-- 主内容区 -->

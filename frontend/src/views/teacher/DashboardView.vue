@@ -67,7 +67,10 @@ onMounted(load)
         <h1 class="page-title">教学管理</h1>
         <p class="page-sub">{{ isAdmin ? '查看所有教师的团队与班级（管理员视图）' : '管理你创建的团队与班级' }}</p>
       </div>
-      <button class="btn-primary" @click="showCreate = true">＋ 创建团队</button>
+      <div class="header-actions" style="display:flex;gap:0.6rem;align-items:center">
+        <button class="btn-secondary" @click="router.push('/teacher/questions')">📚 题库</button>
+        <button class="btn-primary" @click="showCreate = true">＋ 创建团队</button>
+      </div>
     </div>
 
     <!-- 团队卡片列表 -->

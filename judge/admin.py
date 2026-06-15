@@ -6,7 +6,7 @@ from django.db import models
 from .models import (
     UserProfile, Tag, Problem, TestCase, Submission,
     Contest, ContestProblem, ContestParticipant,
-    Discussion, DiscussionReply,
+    Discussion, DiscussionReply, Question,
 )
 
 _MONO_TEXTAREA = forms.Textarea(attrs={
@@ -38,8 +38,8 @@ class TestCaseInline(admin.StackedInline):
 
 @admin.register(Problem)
 class ProblemAdmin(admin.ModelAdmin):
-    list_display = ['id', 'title', 'difficulty', 'ac_count', 'submit_count', 'is_published']
-    list_filter = ['difficulty', 'is_published']
+    list_display = ['id', 'title', 'problem_type', 'difficulty', 'ac_count', 'submit_count', 'is_published']
+    list_filter = ['difficulty', 'is_published', 'problem_type']
     search_fields = ['title', 'source']
     filter_horizontal = ['tags']
     inlines = [TestCaseInline]
@@ -105,3 +105,11 @@ class DiscussionAdmin(admin.ModelAdmin):
 @admin.register(DiscussionReply)
 class DiscussionReplyAdmin(admin.ModelAdmin):
     list_display = ['discussion', 'user', 'created_at']
+
+
+@admin.register(Question)
+class QuestionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'qtype', 'title', 'difficulty', 'score', 'is_published', 'created_at']
+    list_filter = ['qtype', 'difficulty', 'is_published']
+    search_fields = ['title', 'source']
+    filter_horizontal = ['tags']

@@ -2,6 +2,8 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import api from '@/api/index'
+import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +17,20 @@ const CODE_LANGS = ['C++', 'Java', 'Python']
 // 知识笔记
 const chunks = ref([])
 const chunksLoading = ref(false)
+
+// 个性化学习路径（需登录）
+const userStore = useUserStore()
+const learningPath = ref([])
+async function loadPath(id) {
+  learningPath.value = []
+  if (!userStore.isLoggedIn) return
+  try {
+    const { data } = await api.get(`/algorithms/${id}/learning-path/`)
+    learningPath.value = data.path || []
+  } catch {
+    learningPath.value = []
+  }
+}
 
 // 过滤掉不适合直接展示的章节
 const SKIP_SECTIONS = new Set(['前置知识', '全文', '相关例题'])
@@ -61,8 +77,8 @@ async function loadAlgo(id) {
   }
 }
 
-onMounted(() => loadAlgo(route.params.id))
-watch(() => route.params.id, id => { if (id) loadAlgo(id) })
+onMounted(() => { loadAlgo(route.params.id); loadPath(route.params.id) })
+watch(() => route.params.id, id => { if (id) { loadAlgo(id); loadPath(id) } })
 
 // ── AI 问答抽屉 ───────────────────────────────────────────────
 const drawerOpen = ref(false)
@@ -194,8 +210,56 @@ function onEnter(e) {
         </div>
       </div>
 
+      <!-- 前置知识 -->
+      <div class="path-group prereq-top" v-if="algo.prerequisites?.length">
+        <div class="path-hd">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 3 12 9 6"/><polyline points="21 18 15 12 21 6"/></svg>
+          先学这些
+        </div>
+        <div class="path-cards">
+          <div
+            v-for="n in algo.prerequisites" :key="n.algo_id"
+            class="path-card prereq-card"
+            @click="router.push({ name: 'learn-detail', params: { id: n.algo_id } })"
+          >
+            <span class="pc-name">{{ n.name }}</span>
+            <span class="pc-en">{{ n.name_en }}</span>
+            <div class="pc-tags">
+              <span class="pc-cat">{{ n.category }}</span>
+              <span class="pc-diff" :class="diffClass(n.difficulty)">{{ n.difficulty }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 有详情内容 -->
       <template v-if="algo.description">
+        <div class="detail-section" v-if="learningPath.length">
+          <div class="section-hd">个性化学习路径</div>
+          <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.5rem">
+            <div v-for="(node, i) in learningPath" :key="node.algo_id"
+                 style="border:1px solid var(--border);border-radius:8px;padding:0.7rem 0.9rem"
+                 :style="node.is_target ? 'border-color:var(--accent)' : ''">
+              <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap">
+                <span style="width:1.5rem;height:1.5rem;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;flex-shrink:0"
+                      :style="node.mastered ? 'background:#10b981;color:#fff' : 'background:var(--bg-secondary);color:var(--text-muted)'">
+                  {{ node.mastered ? '✓' : i + 1 }}
+                </span>
+                <span style="font-weight:600;color:var(--text-primary);cursor:pointer" @click="router.push(`/learn/${node.algo_id}`)">{{ node.name }}</span>
+                <span style="font-size:0.78rem;color:var(--text-muted)">{{ node.category }}</span>
+                <span v-if="node.problem_count" style="font-size:0.78rem;color:var(--text-muted);font-family:monospace">{{ node.solved_count }}/{{ node.problem_count }}</span>
+                <span v-if="node.is_target" style="font-size:0.72rem;padding:0.1rem 0.45rem;border-radius:4px;background:rgba(99,102,241,0.15);color:var(--accent)">目标</span>
+              </div>
+              <div v-if="node.recommend.length" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;padding-left:2.1rem">
+                <a v-for="p in node.recommend" :key="p.id" :href="`/problems/${p.id}`" target="_blank"
+                   style="font-size:0.8rem;color:var(--accent);text-decoration:none;border:1px solid var(--border);border-radius:4px;padding:0.15rem 0.5rem">
+                  #{{ p.id }} {{ p.title }}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="detail-section">
           <div class="section-hd">算法简介</div>
           <p class="detail-text">{{ algo.description }}</p>
@@ -264,20 +328,20 @@ function onEnter(e) {
         </div>
       </div>
 
-      <!-- ── 学习路径 ── -->
+      <!-- ── 学习路径（相关算法 + 学完继续） ── -->
       <div
-        v-if="algo.prerequisites?.length || algo.extends_to?.length || algo.related?.length"
+        v-if="algo.related?.length || algo.extends_to?.length"
         class="path-section"
       >
-        <div class="path-group" v-if="algo.prerequisites?.length">
+        <div class="path-group" v-if="algo.related?.length">
           <div class="path-hd">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 3 12 9 6"/><polyline points="21 18 15 12 21 6"/></svg>
-            先学这些
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>
+            相关算法
           </div>
           <div class="path-cards">
             <div
-              v-for="n in algo.prerequisites" :key="n.algo_id"
-              class="path-card prereq-card"
+              v-for="n in algo.related" :key="n.algo_id"
+              class="path-card related-card"
               @click="router.push({ name: 'learn-detail', params: { id: n.algo_id } })"
             >
               <span class="pc-name">{{ n.name }}</span>
@@ -299,27 +363,6 @@ function onEnter(e) {
             <div
               v-for="n in algo.extends_to" :key="n.algo_id"
               class="path-card extends-card"
-              @click="router.push({ name: 'learn-detail', params: { id: n.algo_id } })"
-            >
-              <span class="pc-name">{{ n.name }}</span>
-              <span class="pc-en">{{ n.name_en }}</span>
-              <div class="pc-tags">
-                <span class="pc-cat">{{ n.category }}</span>
-                <span class="pc-diff" :class="diffClass(n.difficulty)">{{ n.difficulty }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="path-group" v-if="algo.related?.length">
-          <div class="path-hd">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/></svg>
-            相关算法
-          </div>
-          <div class="path-cards">
-            <div
-              v-for="n in algo.related" :key="n.algo_id"
-              class="path-card related-card"
               @click="router.push({ name: 'learn-detail', params: { id: n.algo_id } })"
             >
               <span class="pc-name">{{ n.name }}</span>
@@ -530,6 +573,15 @@ function onEnter(e) {
 .notes-body :deep(.md-body blockquote) {
   border-left: 3px solid var(--accent); margin: 0.8em 0;
   padding: 0.4em 1em; border-radius: 0 6px 6px 0;
+}
+
+/* 前置知识（置顶） */
+.prereq-top {
+  margin-bottom: 2rem;
+  padding: 12px 16px;
+  background: rgba(248, 113, 113, 0.06);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: 10px;
 }
 
 /* ── 学习路径 ── */

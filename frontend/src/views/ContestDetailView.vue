@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getContest, registerContest } from '@/api/contests'
+import { getContest, registerContest, getMyContestProgress, virtualStart, virtualStatus } from '@/api/contests'
 import { useUserStore } from '@/stores/user'
 import DifficultyBadge from '@/components/DifficultyBadge.vue'
 
@@ -12,6 +12,23 @@ const userStore = useUserStore()
 const contest = ref(null)
 const problems = ref([])
 const isRegistered = ref(false)
+const myProgress = ref(null)
+const virtual = ref(null)
+
+async function loadExtras() {
+  if (!userStore.isLoggedIn || contest.value?.status !== 'ended') return
+  try { const { data } = await getMyContestProgress(route.params.id); myProgress.value = data } catch { /* ignore */ }
+  try { const { data } = await virtualStatus(route.params.id); if (data.started) virtual.value = data } catch { /* ignore */ }
+}
+async function startVirtual() {
+  try {
+    await virtualStart(route.params.id)
+    const { data } = await virtualStatus(route.params.id)
+    virtual.value = data
+  } catch (e) {
+    alert(e.response?.data?.detail || '开始失败')
+  }
+}
 const participantCount = ref(0)
 const loading = ref(true)
 const registering = ref(false)
@@ -41,6 +58,7 @@ async function fetchContest() {
     contest.value = data.contest
     problems.value = data.problems
     isRegistered.value = data.is_registered
+    loadExtras()
     participantCount.value = data.participant_count
   } finally {
     loading.value = false
@@ -106,6 +124,23 @@ onMounted(fetchContest)
           <div v-if="regMsg" class="reg-msg">{{ regMsg }}</div>
         </template>
       </div>
+    </div>
+
+    <!-- 赛后：补题进度 + 虚拟参赛 -->
+    <div v-if="contest.status === 'ended' && myProgress"
+         style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem">
+      <span style="font-size:0.9rem;color:var(--text-secondary)">
+        赛中 AC <strong style="color:#10b981">{{ myProgress.in_contest_count }}</strong>
+        · 赛后补题 <strong style="color:var(--accent)">{{ myProgress.upsolved_count }}</strong>
+      </span>
+      <button v-if="!virtual" @click="startVirtual"
+              style="background:var(--accent);color:#fff;border:none;padding:0.4rem 1rem;border-radius:6px;cursor:pointer;font-size:0.85rem">
+        虚拟参赛
+      </button>
+      <span v-else style="font-size:0.85rem;color:var(--accent)">
+        虚拟参赛中 · 已解 {{ virtual.solved ?? 0 }}/{{ virtual.problems?.length ?? 0 }}
+        · 截止 {{ new Date(virtual.deadline).toLocaleTimeString('zh-CN') }}
+      </span>
     </div>
 
     <!-- 题目列表 -->
