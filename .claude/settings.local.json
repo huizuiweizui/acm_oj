@@ -69,7 +69,14 @@
       "Bash(python manage.py shell -c \"from judge.models import AlgorithmEdge; print\\('边类型统计:'\\); [print\\(f'  {t}: {AlgorithmEdge.objects.filter\\(edge_type=t\\).count\\(\\)}'\\) for t in ['prerequisite','related','extends']]\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('scripts',{}\\)\\)\")",
       "Bash(npx vite *)",
-      "Bash(curl -s http://localhost:5174/)"
+      "Bash(curl -s http://localhost:5174/)",
+      "PowerShell(Get-ChildItem -Path . -Directory | Where-Object { $_.Name -in @\\('venv','.venv','env','.env','myvenv'\\) } | Select-Object -ExpandProperty Name; \"--- root files ---\"; Get-ChildItem -Path . -File | Where-Object { $_.Name -match 'requirements|manage|settings' } | Select-Object -ExpandProperty Name; \"--- python ---\"; python --version)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe _tmp_qtest.py)",
+      "PowerShell(Push-Location frontend; node _tmp_sfccheck.mjs src/views/teacher/QuestionBankView.vue src/views/teacher/DashboardView.vue; $code=$LASTEXITCODE; Remove-Item _tmp_sfccheck.mjs; Pop-Location; \"exit=$code\")",
+      "Bash(git checkout *)",
+      "Bash(git rm *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

@@ -2353,3 +2353,317 @@ const sortedRanking = computed(() => {
 | `judge/api_urls.py` | 注册 transfer-super-admin 路由 |
 | `acm_oj/settings.py` | SIMPLE_JWT 8h access + 14d refresh |
 | `frontend/src/assets/main.css` | home 专属设计令牌、暗色覆盖 |
+
+---
+
+## 阶段十一：扩展为全校考试 / 作业平台（PTA 式）+ 毕设三大数据科学亮点
+
+**背景**：前面阶段把项目做成了一个完整的「竞赛 OJ」。本阶段把它**扩展为面向全校师生的考试 / 作业平台**（参照拼题A/PTA），并补齐三个具备算法深度、可写进论文创新章节的数据科学亮点。共规划 13 个里程碑，按「考试地基 → 毕设亮点 → 竞赛增强 → 团队/社区 → 前端」推进。
+
+**三条架构原则（贯穿整个阶段）：**
+
+1. **不碰评测核心**。`judge/services/judger.py` 的 `judge_submission()` 绝对不动。所有需要「特殊评测」的功能（如函数题）都在**提交前**把代码处理成完整程序，再喂给现有评测器。
+2. **加表不改表**。新功能尽量用新模型 / 给现有模型加可空字段，避免破坏既有数据与逻辑。9 个迁移 `0016→0024` 全部是增量。
+3. **API 按域分文件**。延续 `team_api_views.py` 的模块化做法，新建 `question_api_views.py`、`exam_api_views.py`、`list_api_views.py`、`community_api_views.py`、`learning_api_views.py`、`contest_extra_api_views.py`，避免 `api_views.py` 进一步膨胀。
+
+**里程碑总览：**
+
+| # | 里程碑 | 关键技术 |
+|---|--------|----------|
+| 1 | 客观题题库 | `Question` 模型 + `check_answer()` 自动判分 |
+| 2 | 函数题 | 隐藏驱动包裹 + `raw_code` 双存 |
+| 3 | 考试容器/模式 | `Assignment` 三态 + 答题流 + 防作弊审计 |
+| 4 | 成绩管理 | 测试点部分分 + 批量成绩单 + Excel |
+| 5 | **代码查重** | **Winnowing 指纹算法** |
+| 6 | **比赛 Rating** | **Codeforces 式赛后结算** |
+| 7 | **知识图谱学习路径** | **前置依赖图后序 DFS + 推荐** |
+| 8 | IOI 排名 + 封榜 | 分数制排名 + 赛末冻结 |
+| 9 | 补题 + 虚拟参赛 | 解题状态机 + 个人计时 |
+| 10 | 团队 TA + 院系 | 助教角色 + 组织层级 |
+| 11 | 题单 / 训练计划 | `ProblemList` + AC 进度 |
+| 12 | 题解区/分布/每日一题 | AC 门禁 + 直方图 + 确定性选题 |
+| 13 | 考试前端 | 4 切片，沿用设计系统 |
+
+> **验证方式说明**：本机数据库是真实 MySQL（无独立测试库），所有后端逻辑用 **「事务包裹 + 末尾抛异常回滚」** 的脚本配合 DRF `APIRequestFactory` 做端到端验证，跑完即回滚、不污染数据；前端全部以 `npm run build` 编译验证（外加 `vue/compiler-sfc` 单文件快验）。**整体尚未做浏览器实跑。**
+
+---
+
+### 一、考试地基（M1–M4）
+
+#### M1 客观题题库
+
+考试一半是选择/判断/填空，纯 OJ 没有这块。新增 `Question` 模型（`judge/models.py`），与编程题 `Problem` 并存、互不影响。
+
+```python
+class Question(models.Model):
+    TYPE_CHOICES = [('single','单选'),('multiple','多选'),('judge','判断'),('fill','填空')]
+    qtype   = CharField(choices=TYPE_CHOICES)
+    options = JSONField(default=list)   # 单/多选：[{"key":"A","text":"..."}]
+    answer  = JSONField(default=list)   # single→["A"] / multiple→["A","C"]
+                                        # judge→["T"] / fill→[["答案1","可接受写法"],["第二空"]]
+    blank_ignore_case = BooleanField(default=True)
+    score   = IntegerField(default=5)
+    ...
+    def check_answer(self, submitted):   # 自动判分，返回 bool
+```
+
+**判分逻辑 `check_answer`**：单/多/判断走集合相等（`{A,C}` 与提交集合比较，多选顺序无关）；填空逐空比对，每空可配多个可接受写法（任一命中即对），可选忽略大小写与首尾空格。
+
+API 在 `question_api_views.py`，教师/管理员可 CRUD + 试做判分。**关键：校验在视图层做全量校验**（单选答案须 1 项、选项 key 不重复、答案须是选项 key 之一……），PATCH 时先把旧值与新值合并再整体校验，避免局部更新破坏题型自洽。
+
+> 测试：10 个用例覆盖四种题型（含多选顺序无关、填空大小写敏感/不敏感、可接受写法）全过。
+
+#### M2 函数题（PTA 式，复用评测核心）
+
+学生只填**函数体**，系统拼接隐藏驱动后走现有评测。这是「不碰评测核心」原则的典型应用。
+
+- `Problem.problem_type`（`standard`/`function`）+ `Problem.function_templates`（JSON：`{语言:{template 给学生的签名, prefix 隐藏前缀, suffix 隐藏 main 驱动}}`）
+- `Problem.wrap_code(language, code)` 把 `prefix + 学生函数 + suffix` 拼成完整程序
+- 提交时（`SubmitCodeAPIView`）：函数题则把**完整程序存进 `submission.code`**（评测器原样编译，零改动），学生的原始函数另存到**新字段 `Submission.raw_code`**
+
+**为什么要双存？** 评测器读 `submission.code`，所以必须存完整程序；但若查重也拿完整程序比对，所有学生共享同一段公共驱动 → 相似度被样板代码污染、误报率爆炸。因此原始函数单存 `raw_code`，**查重只比 `raw_code`**。
+
+详情序列化只下发 `template`、**绝不下发 `prefix/suffix`**（否则学生能看到判题驱动）。前端 `ProblemDetailView` 检测到函数题就加载模板签名、限定可选语言为已配置模板的语言。
+
+#### M3 考试容器 / 考试模式
+
+把现有 `Assignment` **进化成统一容器**（练习/作业/考试三态，正是 PTA 的「题目集」模型），而非另造一套——复用已有团队作业逻辑、风险最低。
+
+新增/改动模型（迁移 0017）：
+
+| 模型 | 作用 |
+|------|------|
+| `Assignment` 加 `category`+`start_time`/`end_time`/`duration_minutes`+`shuffle`/`track_focus`/`hide_rank` | 三态容器 + 考试配置 |
+| `AssignmentProblem` 加 `score` / 新增 `AssignmentQuestion` | 编程题、客观题各带分值 |
+| `ExamParticipation` | 考试会话：进入时间、交卷时间、切屏次数、状态 |
+| `QuestionAnswer` | 学生对客观题的作答 + 自动判分结果 |
+| `Submission` 加 `assignment` 外键 | 编程题在考试里的归属 |
+
+**学生答题流**（`exam_api_views.py`，5 个端点）：
+
+```
+POST /assignments/<aid>/enter/        进入，建会话开始计时（考试校验时间窗口）
+GET  /assignments/<aid>/paper/        拉试卷——剥掉标准答案，按学生 id 稳定打乱
+POST /assignments/<aid>/answer/       提交单题，check_answer 自动判分
+POST /assignments/<aid>/submit/       交卷，结算总分
+POST /assignments/<aid>/focus-loss/   切屏上报（防作弊审计）
+```
+
+几个关键设计：
+
+- **不泄题/不泄对错**：试卷端的客观题只含 `content/options/my_answer`，**没有** `answer`/`correct`；考试进行中作答只回 `{saved:true}`，交卷后才揭晓对错与解析。练习/作业则即时反馈。
+- **稳定打乱**：`shuffle` 开启时按 `md5(user_id + item_id)` 排序，保证同一学生每次刷新题序一致、不同学生不同。
+- **限时**：个人截止 = `min(窗口结束, 进入时间 + 个人限时)`；前端用服务器时间做客户端时钟校准（避免本地时钟偏差），到点自动交卷。
+- **防作弊是「行为审计」非「强保证」**：切屏靠 `visibilitychange`/`blur` 监听上报，前端可绕过，论文里要如实写成审计而非强制。
+
+> 端到端测试（DRF 真实调用 5 个视图）：进入→答对答错→中途拉卷（确认无 `correct` 字段、无标准答案）→切屏计数→交卷→再拉卷（揭晓），全过。
+
+#### M4 成绩管理
+
+- **每题分值 + 测试点部分分**：编程题得分 = `round(分值 × 最佳提交的测试点通过率)`。通过率复用评测器已写入的 `Submission.test_results`（结构 `[{idx,status,time_ms}]`），取该生对该题所有提交里 AC 测试点占比的最大值。
+- **批量成绩单**：`/assignments/<aid>/gradebook/`——**固定 3 次查询、与班级规模无关**（成员、客观题得分聚合、编程提交各一次，Python 内合并），避免每人一查的 N+1。
+- **Excel 导出**：复用 openpyxl（团队排行导出已有先例）。
+- **单生作答详情** `/students/<uid>/result/`：复用 `_grade()`。
+
+> 测试：A 同学编程题两次提交（全错 + 2/4 通过）→ 取最佳 0.5 → 得满分的一半；成绩单批量计算正确。
+
+---
+
+### 二、毕设三大数据科学亮点（M5–M7）
+
+> 这三个是论文创新章节的核心，下面写到算法细节级。
+
+#### M5 代码查重 —— Winnowing 指纹算法
+
+**目标**：检测作业/考试中的代码抄袭，且要**抗「改名 + 重排版 + 改注释」**。纯文本 diff 完全无效，必须做语义级指纹。实现于纯 Python 模块 `judge/services/similarity.py`（仅依赖 `re`，不耦合 Django，便于单测与论文实验复现）。
+
+算法参考 Schleimer, Wilkerson, Aiken (2003) *Winnowing: Local Algorithms for Document Fingerprinting*（也是 MOSS 的核心），四步：
+
+**① 词法归一化**——把代码抽象成 token 串，消除表面差异：
+
+| 原始 | 归一化 |
+|------|--------|
+| 标识符（变量名/函数名） | `I` |
+| 数字字面量 | `N` |
+| 字符串字面量 | `S` |
+| 运算符 / 标点 | 原样保留 |
+| 注释 | 丢弃 |
+
+这样「把 `sum` 改成 `total`、`i` 改成 `k`」后 token 串完全不变 → **纯改名的抄袭直接得 1.0**。
+
+> **踩坑（语言相关）**：`//` 在 C/C++/Java 里是行注释，在 **Python 里是整除运算符**。所以按语言构造不同的词法正则——Python 只认 `#` 注释、`//` 当两个运算符；C 系认 `//`、`/* */`、`#`（预处理也当注释丢弃，正好滤掉 `#include` 这种公共样板）。
+
+**② k-gram**：取 token 串里所有相邻 `k=5` 个 token 的片段，对每个片段算滚动多项式哈希（模 `2^61-1` 大素数降碰撞）。
+
+**③ Winnowing**：在每个长度 `w=4` 的哈希窗口里取**最小值**作为指纹，得到文档的指纹集合。理论保证：任意长度 ≥ `w+k-1 = 8` 的雷同片段必被捕获，且指纹密度可控。
+
+**④ 相似度**：两份代码指纹集合的
+
+- **重叠系数（containment）** = `|A∩B| / min(|A|,|B|)`——对「抄一部分再扩写」敏感，作主指标
+- **Jaccard** = `|A∩B| / |A∪B|`——对称、更保守，作对照
+
+**API**（`exam_api_views.py`）：`/assignments/<aid>/plagiarism/`——对每道编程题，取每位学生**最新一次提交**（函数题用 `raw_code`），两两比对（`O(n²)`），列出超阈值（默认 0.5）的可疑对，按相似度降序；配套 `/plagiarism/pair/` 并排取两份源码供人工研判。token 数 < 25 的提交（空壳）跳过，避免样板误报。
+
+**实测区分度**（同一段求和代码）：
+
+| 对比 | 重叠系数 |
+|------|----------|
+| 自身 / 纯改名 | **1.0** |
+| 改名 + 重排版 + 加注释 + 加括号 + 调声明顺序 | **0.526** |
+| 完全不同算法（递归 fib） | **0.263** |
+
+抄袭版（中等改动）仍比无关代码高约 2 倍，阈值 0.5 能干净分开。论文里可做阈值 ROC / 准确率召回率实验。
+
+#### M6 比赛 Rating —— Codeforces 式赛后结算
+
+**目标**：比赛后按名次更新选手 Rating（原 `UserProfile.rating` 是「首次 AC 按难度加分」的练习积分，不是竞赛 Rating）。新增**独立**字段 `UserProfile.contest_rating`（默认 1500），不动练习积分；`Contest.rating_applied` 保证幂等；`RatingChange` 记录每场变化用于画曲线（迁移 0021）。算法实现于 `judge/services/rating.py` 的 `apply_contest_rating()`。
+
+**Codeforces 算法**（`_compute_ranks` 先按 ICPC 罚时排名，再结算）：
+
+```
+对每位选手 i（当前 rating Rᵢ，实际名次 rankᵢ）：
+  seedᵢ = 1 + Σ_{j≠i} P(j 胜 i)            # 期望名次，P(a胜b)=1/(1+10^((Rb-Ra)/400))
+  mᵢ    = sqrt(seedᵢ × rankᵢ)               # 期望名次与实际名次的几何平均
+  targetᵢ = 二分查找 rating r 使 getSeed(r, 排除i) = mᵢ
+  Δᵢ    = (targetᵢ − Rᵢ) / 2
+零和校正：整体平移使 ΣΔ ≈ 0
+头部稳定：对 rating 最高的一批做温和向下修正
+```
+
+> **关键踩坑（开发时真踩了）**：`seedᵢ` 和反解 `target` 时**必须把自己排除在 field 外**。一开始我把自己也算进了 seed 的求和，结果末名选手反而 rating 上升（因为 `seed_all` 含自身项 0.5，与排除自身的 `mᵢ` 量纲不一致）。改成 `getSeed(r, exclude=i) = 1 + Σ_{j≠i} P(j胜r)` 后立刻正常。这是 CF 算法实现里最容易错的一处。
+
+`apply_contest_rating` 用 `rating_applied` 守卫幂等，结算时在一个事务里更新所有 `contest_rating` + 写 `RatingChange`。
+
+**实测**（4 人比赛，全部初始 1500，名次 1/2/3/4）：
+
+| 名次 | Δ | 赛后 |
+|------|-----|------|
+| 1 | **+112** | 1612 |
+| 2 | +19 | 1519 |
+| 3 | −39 | 1461 |
+| 4 | **−94** | 1406 |
+
+单调（名次越高涨越多）、近似零和（Σ = −2）、幂等（第二次结算返回 None）。
+
+**端点**：`/contests/<id>/finalize-rating/`（创建者/管理员、赛后调用）、`/users/<id>/rating-history/`（曲线数据）。前端：榜单页「结算 Rating」按钮、`ProfileView` 比赛 Rating 统计 + **内联 SVG 折线曲线**（涨绿跌红的圆点）。
+
+#### M7 知识图谱个性化学习路径
+
+**目标**：基于已有的 `Algorithm` + `AlgorithmEdge`（前置依赖图）+ 用户 AC 数据，生成「到某算法的前置学习路径 + 每个知识点的掌握度 + 推荐题」。实现于 `learning_api_views.py`。
+
+**核心算法**——对目标算法沿「前置依赖」边做**后序 DFS**，得到「前置在前、目标在后」的学习顺序：
+
+```python
+def _prereq_order(target):
+    visited, order = set(), []
+    def dfs(aid):
+        if aid in visited: return
+        visited.add(aid)
+        for 前置 in 该算法的 prerequisite 边的 target:
+            dfs(前置)
+        order.append(aid)        # 后序：前置先入列
+    dfs(target)
+    return order                  # [前置…, 目标]
+```
+
+后序遍历天然保证依赖在前；`visited` 防环。
+
+**掌握度与推荐**：当前缺少 Problem↔Algorithm 的显式关联，用**标签启发式**——标签名与算法名/类别双向子串匹配，把题目挂到算法上。然后：掌握度 = 该知识点关联题里用户 AC 过半数；推荐 = 关联题里未 AC 的前 3 道。
+
+> **诚实标注（论文要写）**：标签启发式是缺少显式关联时的折中，精度依赖标签数据质量。后续可加 `Problem.algorithms` 多对多做精确关联。
+
+前端在 `LearnDetailView`（算法详情页）加「个性化学习路径」节，登录后展示带 ✓ 掌握标记的有序路径 + 每个知识点的推荐题。
+
+> 测试：`sort ← bsearch ← dp` 前置链，路径顺序正确为 `[sort, bsearch, dp]`，AC 过排序题 → sort 标记掌握，dp 为目标且推荐 2 道未解题。
+
+---
+
+### 三、竞赛增强（M8–M9）
+
+#### M8 IOI 赛制排名 + 封榜滚榜
+
+原 `ContestRankingAPIView` 只实现 ICPC（解题数 + 罚时）。本里程碑重写为同时支持两种赛制 + 封榜（迁移 0022 加 `ContestProblem.points`、`Contest.freeze_minutes`）。
+
+- **IOI 分数制**：每题得分 = `round(题目分值 × 该选手最佳测试点通过率)`（部分分，复用 `test_results`），总分降序排名。
+- **封榜（frozen scoreboard）**：赛末 `freeze_minutes` 内的提交在榜上**隐藏**（不计入得分，只显示 🔒 封榜尝试数），`frozen` 标记让前端显示「封榜中」横幅；比赛结束后自动揭晓（滚榜）。
+
+排名视图按 `rule_type` 分支，封榜判断 `freeze_start ≤ now < end_time`，逐提交时落在封榜窗口的只累加 `frozen` 计数、`continue` 跳过。前端 `ContestRankingView` 条件渲染 IOI 总分列/每题分数、封榜横幅、🔒 计数。
+
+> 测试：IOI 双人——A=满分100+半分50=150、B=1/4分25+满分100=125，排名 1/2 正确；封榜场景下「此刻提交」被隐藏为 0 分 + frozen 计数 1。
+
+#### M9 补题 + 虚拟参赛
+
+实现于 `contest_extra_api_views.py`，**无需改动提交逻辑**（赛后题目仍公开可提交，靠时间判定归属）。
+
+- **补题状态** `/contests/<id>/my-progress/`：每题三态——`in_contest`（有 contest 关联的 AC）/ `upsolved`（赛后才 AC）/ `unsolved`。
+- **虚拟参赛**：新增 `VirtualParticipation`（迁移 0023）。`/virtual-start/` 赛后以个人计时开一场（个人截止 = 个人开始 + 原赛时长）；`/virtual-status/` 统计**个人窗口内**的 AC 作为虚拟通过。学生照常去题目页提交，落在个人窗口内的 AC 即计数。
+
+前端 `ContestDetailView` 赛后区显示「赛中 AC X · 赛后补题 Y」+ 虚拟参赛按钮/进度。
+
+> 测试：p1 赛中 AC→`in_contest`、p2 赛后 AC→`upsolved`；虚拟参赛 `started=true`、个人时长 7200s、窗口内 AC 计数 1。
+
+---
+
+### 四、团队与社区（M10–M12）
+
+#### M10 团队 TA 角色 + 院系层级
+
+- **助教（TA）**：`TeamMembership.ROLE_CHOICES` 加 `assistant`。`exam_api_views._is_manager` 放行 `role=assistant` → 助教**可批改/看成绩单/查重/单生成绩**，但团队设置/成员管理仍走 `_is_creator_or_admin`（助教改不了）。
+- **院系层级**：新增 `Department` 模型 + `Team.department` 外键（迁移 0024），支撑全校规模分组。`/api/departments/` 增删、团队建/改接受 `department_id`。
+
+前端 `TeamDetailView` 成员管理加「设/取消助教」按钮 + 助教徽章。院系前端从简（字段与 API 已通，经 Django admin 管理）。
+
+> 测试：助教 `_is_manager=True`、普通成员 `=False`、院系关联生效。
+
+#### M11 题单 / 训练计划
+
+统一一个 `ProblemList` + `ProblemListItem` 模型（迁移 0019）覆盖「自建题单 / 收藏夹 / 团队训练计划」。`list_api_views.py`：
+
+- `scope=mine|public|team` 三种范围；详情带**该用户 AC 进度**（去重统计）
+- 公开/私有 + 团队成员可见的访问控制
+- `/add/` 一键收藏加题
+
+前端两页：`ProblemListsView`（我的/公开两 Tab + 新建）、`ProblemListDetailView`（进度条 + 有序题目 + 编辑增删题），导航栏加「题单」入口。
+
+#### M12 题解区 + 提交分布 + 每日一题
+
+`community_api_views.py` 三件套（迁移 0020）：
+
+- **题解区**：`Solution` 模型，**AC 本题后才可见/可发**（防剧透）。未 AC 返回 `{locked:true}`。
+- **提交结果分布**（LeetCode 式「击败 X%」）：`/problems/<id>/distribution/` 对 AC 提交的耗时/内存做直方图分桶，并算当前用户的击败百分比 = `严格慢于我的提交数 / 总数`。
+- **每日一题**：`DailyProblem` 模型，管理员可指定；未指定时按 `日期序数 % 已发布题数` **确定性自动选**（同一天对所有人一致、无需定时任务）。
+
+前端：`ProblemDetailView` 加「题解」Tab（门禁+发布+删除）、「我的记录」加「耗时击败 X%」；`HomeView` 加每日一题卡片。
+
+> 测试：题解 AC 前锁定/AC 后解锁可发；分布击败 66.7%（100ms 胜过 200/300ms 两条）；每日一题返回题目。
+
+---
+
+### 五、考试前端（M13）
+
+把整套考试做成可见可用界面，沿用既有设计系统（`<script setup>` + Composition API、scoped CSS + CSS 变量、`.modal-overlay`/`.form-input` 等约定、无第三方 UI 库），分 4 切片：
+
+1. **题库管理页** `QuestionBankView`——**类型感知的出题表单**是难点：单选（圆圈选正确项）、多选（勾选多项）、判断（T/F）、填空（每空逗号分隔多个可接受答案）各自的答案编辑器；选项用**下标**管理、key 自动 A/B/C（避免删选项后 key 错位）。
+2. **组卷**——扩展 `TeamDetailView` 作业弹窗为三态 + 考试配置 + 编程/客观题各带分值 + 实时满分合计，向后兼容旧 `problem_ids`。
+3. **学生答题页** `ExamView`——倒计时（服务器时钟校准）、客观题自动保存、切屏监测、交卷结算、考试中不揭晓。
+4. **成绩单页** `GradebookView` + **查重报告页** `PlagiarismView`（相似度条 + 并排代码对比）。
+
+> **顺手修了一个坏掉的构建**：`npm run build` 因 monaco worker 打包要求单独的 `esbuild` 而失败（`Cannot find package 'esbuild'`，预先存在）。`npm i -D esbuild` 修复。期间用 `vue/compiler-sfc` 的 `parse/compileScript/compileTemplate` 做单文件快验，绕开整链构建。
+
+---
+
+### 六、工程方法与验证
+
+- **9 个增量迁移** `0016→0024`，无破坏性改动。
+- **回滚式测试**：本机是真实 MySQL，所有后端用「`transaction.atomic()` + 末尾 `raise Rollback`」配合 `APIRequestFactory`/`force_authenticate` 做端到端验证，跑完回滚、零污染。每个里程碑都有对应测试且全过。
+- **前端验证**：每个切片 `npm run build` 通过；单文件用 `vue/compiler-sfc` 快验。
+- **代码提交**：分支 `feat/exam-platform`（取消跟踪历史误提交的 `.pyc`，不纳入本地配置）。
+
+### 七、已知边界与待办
+
+- [ ] **浏览器实跑验证**（最重要）——所有代码过了后端测试 + 前端构建，但交互重的页面（答题、查重报告、Rating 曲线、IOI 榜单）只有真跑才能发现 UI/交互 bug。
+- [ ] **评测沙箱并发**——全校同时交卷时的隔离与排队是 OJ 最易出事处（见阶段四 Docker 沙箱），上全校前需压测。
+- [ ] **主观题人工批阅**——目前所有题型都是自动判分，需先加「简答题」题型才有批阅对象。
+- [ ] **院系管理前端**、**函数题/IOI 分值/封榜时长的出题/建赛表单**（目前经 Django admin 配置）。
+- [ ] **Problem↔Algorithm 显式关联**——替代 M7 的标签启发式，提升学习路径推荐精度。
+- [ ] 考试时间用 `datetime-local`（无时区），服务器 `TIME_ZONE` 与本地不一致时可能差时区（与既有比赛创建逻辑一致）。
