@@ -1,13 +1,13 @@
 import random
 import shutil
 import tempfile
-import threading
 from datetime import date, timedelta
 
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.http import StreamingHttpResponse
@@ -38,6 +38,7 @@ from .serializers import (
     ProblemListSerializer, ProblemDetailSerializer,
     SubmissionSerializer, UserSerializer,
 )
+from .tasks import judge_submission_task, custom_run_task
 from .services.rating import apply_contest_rating
 
 
@@ -449,29 +450,14 @@ class UserStatsAPIView(APIView):
 VALID_LANGUAGES = ['C', 'C++', 'Java', 'Python']
 
 
-def _run_judge_in_background(submission_id: int, problem_id: int):
-    """在独立线程里执行评测，避免阻塞请求线程。"""
-    # 延迟导入，避免模块循环引用
-    from .views import judge_submission as _judge
-
-    try:
-        sub = Submission.objects.get(id=submission_id)
-        prob = Problem.objects.get(id=problem_id)
-        sub.status = 'Judging'
-        sub.save(update_fields=['status'])
-        _judge(sub, prob)
-    except Exception:
-        # 评测异常时把状态置为 RE，保证前端不会一直轮询
-        Submission.objects.filter(id=submission_id).update(status='RE', error_info='Internal judge error')
-
-
 class SubmitCodeAPIView(APIView):
     """
     POST /api/problems/<id>/submit/
-    立即返回 submission_id（状态 Pending），后台线程评测。
+    立即返回 submission_id（状态 Pending），交由 Celery worker 异步评测。
     前端每 2 秒轮询 GET /api/submissions/<id>/ 直到状态不为 Pending/Judging。
     """
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'submit'
 
     def post(self, request, pk):
         problem = Problem.objects.filter(id=pk, is_published=True).first()
@@ -551,13 +537,8 @@ class SubmitCodeAPIView(APIView):
         Problem.objects.filter(id=pk).update(submit_count=F('submit_count') + 1)
         UserProfile.objects.filter(user=request.user).update(submit_count=F('submit_count') + 1)
 
-        # 后台线程评测（不阻塞响应）
-        t = threading.Thread(
-            target=_run_judge_in_background,
-            args=(submission.id, problem.id),
-            daemon=True,
-        )
-        t.start()
+        # 丢进 Celery 队列，由 worker 异步评测（不阻塞响应）
+        judge_submission_task.delay(submission.id)
 
         return Response(
             {'submission_id': submission.id, 'status': 'Pending'},
@@ -1659,12 +1640,16 @@ class AskAIAPIView(APIView):
 
 
 class CustomRunAPIView(APIView):
-    """POST /api/problems/<pk>/run/  — 自定义测试，不保存提交记录"""
+    """POST /api/problems/<pk>/run/  — 自定义测试，异步走 Celery（与评测共用并发闸门）。
+
+    返回二选一：
+      {ready: true,  result: {...}}   开发 eager 模式直接同步出结果（免装 Redis）
+      {ready: false, task_id: "..."}  生产入队，前端轮询 /api/run-status/<task_id>/
+    """
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'run'
 
     def post(self, request, pk):
-        from .services.sandbox import compile_code, run_code, source_path
-
         get_object_or_404(Problem, id=pk, is_published=True)
 
         code = request.data.get('code', '').strip()
@@ -1675,34 +1660,56 @@ class CustomRunAPIView(APIView):
             return Response({'detail': '代码不能为空'}, status=status.HTTP_400_BAD_REQUEST)
         if language not in VALID_LANGUAGES:
             return Response({'detail': f'语言须为 {VALID_LANGUAGES} 之一'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(code) > 65536:
+            return Response({'detail': '代码不能超过 64 KB'}, status=status.HTTP_400_BAD_REQUEST)
 
-        tmp_dir = tempfile.mkdtemp(prefix='api_run_')
+        # 开发 eager 模式：本地同步执行并直接返回结果，无需 Redis/worker
+        if settings.CELERY_TASK_ALWAYS_EAGER:
+            result = custom_run_task.apply(args=[code, language, custom_input]).get()
+            return Response({'ready': True, 'result': result})
+
+        # 生产：入队，由 worker 消费；前端用 task_id 轮询结果
+        async_result = custom_run_task.delay(code, language, custom_input)
+        return Response({'ready': False, 'task_id': async_result.id})
+
+
+class CustomRunStatusAPIView(APIView):
+    """GET /api/run-status/<task_id>/  — 轮询自定义运行结果 + 近似排队位置。"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, task_id):
+        from celery.result import AsyncResult
+
+        from acm_oj.celery import app as celery_app
+
+        res = AsyncResult(task_id, app=celery_app)
+        if res.successful():
+            return Response({'ready': True, 'state': res.state, 'result': res.result})
+        if res.failed():
+            return Response({'ready': True, 'state': 'FAILURE',
+                             'result': {'status': 'ERR', 'output': '', 'error': '运行失败，请重试'}})
+
+        # 仍在排队/运行：给一个近似排队位置（Redis 队列长度，不含已被 worker 预取的）
+        position = None
         try:
-            src = source_path(language, tmp_dir)
-            with open(src, 'w', encoding='utf-8') as f:
-                f.write(code)
+            import redis
+            r = redis.from_url(settings.CELERY_BROKER_URL)
+            position = r.llen('celery')
+        except Exception:
+            pass
+        return Response({'ready': False, 'state': res.state, 'position': position})
 
-            ok, err_msg = compile_code(language, tmp_dir)
-            if not ok:
-                return Response({'status': 'CE', 'output': '', 'error': err_msg[:2000]})
 
-            returncode, stdout_data, stderr_data, timed_out = run_code(
-                language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
-            )
+class HealthAPIView(APIView):
+    """GET /api/health/  — 健康检查（DB 连通性），供监控 / 重启探活。"""
+    permission_classes = [AllowAny]
 
-            if timed_out:
-                run_status = 'TLE'
-            elif returncode == 137:
-                run_status = 'MLE'
-            elif returncode != 0:
-                run_status = 'RE'
-            else:
-                run_status = 'OK'
-
-            return Response({
-                'status': run_status,
-                'output': stdout_data[:4096],
-                'error': stderr_data[:1024] if run_status != 'OK' else '',
-            })
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+    def get(self, request):
+        try:
+            from django.db import connection
+            with connection.cursor() as c:
+                c.execute('SELECT 1')
+        except Exception:
+            return Response({'status': 'degraded', 'db': 'error'},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({'status': 'ok', 'db': 'ok'})

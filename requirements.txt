@@ -2,6 +2,9 @@ Django>=4.2,<5.0
 mysqlclient>=2.2.0
 requests>=2.31.0
 django-redis>=5.4.0
+celery>=5.3,<6.0
+redis>=5.0.0
+flower>=2.0.0          # Celery 任务监控面板（可选，celery -A acm_oj flower）
 beautifulsoup4>=4.12.0
 djangorestframework==3.15.0
 djangorestframework-simplejwt==5.5.1

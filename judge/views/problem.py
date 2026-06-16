@@ -13,8 +13,7 @@ from django.views.decorators.http import require_POST
 
 from ..models import Contest, ContestParticipant, Problem, Submission, Tag, UserProfile
 from ..forms import ProblemFilterForm, SubmissionForm
-from ..services.judger import judge_submission
-from ..services.sandbox import compile_code, run_code, source_path
+from ..tasks import custom_run_task, judge_submission_task
 
 
 def problem_list(request):
@@ -172,25 +171,20 @@ def submit_code(request, problem_id):
     submission.user = request.user
     submission.problem = problem
     submission.contest = contest
-    submission.status = 'Judging'
+    submission.status = 'Pending'
     submission.save()
 
     Problem.objects.filter(id=problem_id).update(submit_count=F('submit_count') + 1)
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     UserProfile.objects.filter(id=profile.id).update(submit_count=F('submit_count') + 1)
 
-    result = judge_submission(submission, problem)
+    # 与 API 一致：丢进 Celery 队列异步评测，不在请求线程里同步跑（避免绕过并发闸门）
+    judge_submission_task.delay(submission.id)
 
     return JsonResponse({
         'success': True,
         'submission_id': submission.id,
-        'result': {
-            'status': result['status'],
-            'time_used': result.get('time_used'),
-            'memory_used': result.get('memory_used'),
-            'error_info': result.get('error_info', ''),
-            'ai_feedback': result.get('ai_feedback', ''),
-        }
+        'result': {'status': 'Pending'},
     })
 
 
@@ -209,47 +203,21 @@ def custom_run(request, problem_id):
     if language not in ('C', 'C++', 'Java', 'Python'):
         return JsonResponse({'success': False, 'error': '不支持的语言'})
 
-    tmp_dir = tempfile.mkdtemp(prefix='custom_run_')
-    try:
-        src_file = source_path(language, tmp_dir)
-        with open(src_file, 'w', encoding='utf-8') as f:
-            f.write(code)
+    # 经 Celery 执行，与评测共用并发闸门；等待结果以保持原同步返回契约
+    from django.conf import settings
+    if settings.CELERY_TASK_ALWAYS_EAGER:
+        r = custom_run_task.apply(args=[code, language, custom_input]).get()
+    else:
+        r = custom_run_task.delay(code, language, custom_input).get(timeout=30)
 
-        ok, err_msg = compile_code(language, tmp_dir)
-        if not ok:
-            return JsonResponse({
-                'success': True,
-                'result': {'status': 'CE', 'output': '', 'error_info': err_msg[:2000]},
-            })
-
-        returncode, stdout_data, stderr_data, timed_out = run_code(
-            language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
-        )
-
-        if timed_out:
-            status = 'TLE'
-        elif returncode == 137:
-            status = 'MLE'
-        elif returncode != 0:
-            status = 'RE'
-        else:
-            status = 'ok'
-
-        if status != 'ok':
-            error_info = stderr_data[:1024] or f'程序异常退出（退出码 {returncode}）'
-        else:
-            error_info = ''
-
-        return JsonResponse({
-            'success': True,
-            'result': {
-                'status': status,
-                'output': stdout_data[:4096],
-                'error_info': error_info,
-            },
-        })
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+    return JsonResponse({
+        'success': True,
+        'result': {
+            'status': 'ok' if r['status'] == 'OK' else r['status'],
+            'output': r['output'],
+            'error_info': r['error'],
+        },
+    })
 
 
 def api_problems(request):

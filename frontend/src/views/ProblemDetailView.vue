@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProblem, submitCode, runCode, getSolutions, postSolution, deleteSolution, getDistribution } from '@/api/problems'
+import { getProblem, submitCode, runCode, getRunStatus, getSolutions, postSolution, deleteSolution, getDistribution } from '@/api/problems'
 import { getSubmissions } from '@/api/submissions'
 import { getDiscussions } from '@/api/discussions'
 import { useUserStore } from '@/stores/user'
@@ -119,6 +119,7 @@ const showRunPanel  = ref(false)
 const customInput   = ref('')
 const running       = ref(false)
 const runResult     = ref(null)
+const runQueueMsg   = ref('')
 
 function fillInput(text) {
   customInput.value  = text
@@ -132,16 +133,46 @@ async function doRun() {
     return
   }
   if (!code.value.trim()) return
-  running.value   = true
-  runResult.value = null
+  running.value     = true
+  runResult.value   = null
+  runQueueMsg.value = ''
   try {
     const { data } = await runCode(route.params.id, language.value, code.value, customInput.value)
-    runResult.value = data
+    if (data.ready) {           // 开发 eager 模式：直接拿到结果
+      runResult.value = data.result
+      return
+    }
+    await pollRunResult(data.task_id)   // 生产：轮询队列结果
   } catch (e) {
     runResult.value = { status: 'ERR', output: '', error: e.response?.data?.detail || '运行失败' }
   } finally {
-    running.value = false
+    running.value     = false
+    runQueueMsg.value = ''
   }
+}
+
+async function pollRunResult(taskId) {
+  for (let i = 0; i < 150; i++) {        // 最多约 5 分钟
+    await new Promise(r => setTimeout(r, 2000))
+    let data
+    try {
+      ({ data } = await getRunStatus(taskId))
+    } catch {
+      continue
+    }
+    if (data.ready) {
+      runResult.value = data.result
+      return
+    }
+    if (data.state === 'STARTED') {
+      runQueueMsg.value = '运行中…'
+    } else if (data.position != null) {
+      runQueueMsg.value = `排队中，前面约 ${data.position} 个`
+    } else {
+      runQueueMsg.value = '排队中…'
+    }
+  }
+  runResult.value = { status: 'ERR', output: '', error: '运行超时，请重试' }
 }
 
 // ── My stats ──────────────────────────────────────────────────────
@@ -595,6 +626,9 @@ onBeforeUnmount(() => {
           <button class="btn-run-exec" :disabled="running" @click="doRun">
             {{ running ? '运行中…' : '▶ 执行' }}
           </button>
+          <div v-if="running && runQueueMsg" style="margin-top:8px;font-size:0.85rem;color:var(--text-muted);">
+            {{ runQueueMsg }}
+          </div>
           <div v-if="runResult" class="rp-section">
             <div class="rp-label">
               运行结果

@@ -31,7 +31,8 @@ from .api_views import (
     LoginAPIView, LogoutAPIView, MeAPIView, PlatformStatsAPIView, ProblemDetailAPIView,
     ProblemListAPIView, RegisterAPIView,
     SubmissionListAPIView, SubmissionDetailAPIView,
-    SubmitCodeAPIView, CustomRunAPIView, UserProfileAPIView, UserStatsAPIView,
+    SubmitCodeAPIView, CustomRunAPIView, CustomRunStatusAPIView, HealthAPIView,
+    UserProfileAPIView, UserStatsAPIView,
     UserDashboardAPIView,
     CheckInAPIView,
 )
@@ -77,6 +78,8 @@ urlpatterns = [
     path('problems/<int:pk>/', ProblemDetailAPIView.as_view(), name='api-problem-detail'),
     path('problems/<int:pk>/submit/', SubmitCodeAPIView.as_view(), name='api-submit-code'),
     path('problems/<int:pk>/run/', CustomRunAPIView.as_view(), name='api-problem-run'),
+    path('run-status/<str:task_id>/', CustomRunStatusAPIView.as_view(), name='api-run-status'),
+    path('health/', HealthAPIView.as_view(), name='api-health'),
 
     # 客观题题库（考试 / 作业用）
     path('questions/', QuestionListCreateAPIView.as_view(), name='api-question-list'),

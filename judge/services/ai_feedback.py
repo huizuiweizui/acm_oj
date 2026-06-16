@@ -1,9 +1,5 @@
-import threading
-
 import requests as http_req
 from django.conf import settings
-
-from ..models import Problem, Submission
 
 _LANG_CODE = {'C': 'c', 'C++': 'cpp', 'Java': 'java', 'Python': 'python'}
 
@@ -34,38 +30,9 @@ def _ai_call(prompt):
 
 
 def _async_ai_feedback(submission_id, problem_id):
-    """评测结束后在后台线程填写 AI 反馈，不阻塞 verdict 返回。"""
-    def _worker():
-        try:
-            sub = Submission.objects.get(id=submission_id)
-            prob = Problem.objects.get(id=problem_id)
-            fb = _ai_call(_ai_suggest_prompt(sub, prob))
-            if fb:
-                sub.ai_feedback = fb
-                sub.save(update_fields=['ai_feedback'])
-        except Exception:
-            pass
-
-    threading.Thread(target=_worker, daemon=True).start()
-
-
-def _ai_verdict_prompt(submission, problem):
-    """无测试点时，让 AI 判断代码是否正确。"""
-    lc = _LANG_CODE.get(submission.language, 'text')
-    return (
-        f"你是算法竞赛评测系统。请判断以下代码是否正确解决了题目。\n\n"
-        f"题目：{problem.title}\n"
-        f"描述：{problem.description[:800]}\n"
-        f"输入格式：{problem.input_desc[:300]}\n"
-        f"输出格式：{problem.output_desc[:300]}\n"
-        f"样例输入：\n{problem.sample_input[:400]}\n"
-        f"样例输出：\n{problem.sample_output[:400]}\n\n"
-        f"语言：{submission.language}\n"
-        f"代码：\n```{lc}\n{submission.code[:3000]}\n```\n\n"
-        f"请严格按此格式回答：\n"
-        f"第1行：AC 或 WA（仅此二选一，不加其他文字）\n"
-        f"第2行起：评测理由（分析代码逻辑、边界处理、与样例一致性，200字以内）"
-    )
+    """把 AI 反馈丢进 Celery 队列，由 worker 异步生成，不阻塞 verdict 返回。"""
+    from ..tasks import ai_feedback_task   # 延迟导入，避免与 tasks.py 循环引用
+    ai_feedback_task.delay(submission_id, problem_id)
 
 
 def _ai_suggest_prompt(submission, problem):

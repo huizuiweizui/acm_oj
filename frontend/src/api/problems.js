@@ -6,6 +6,7 @@ export const submitCode = (id, language, code, contest_id, assignment_id) =>
   api.post(`/problems/${id}/submit/`, { language, code, contest_id, assignment_id })
 export const runCode = (id, language, code, input) =>
   api.post(`/problems/${id}/run/`, { language, code, input })
+export const getRunStatus = (taskId) => api.get(`/run-status/${taskId}/`)
 
 // 题解 / 提交分布 / 每日一题
 export const getSolutions = (id) => api.get(`/problems/${id}/solutions/`)

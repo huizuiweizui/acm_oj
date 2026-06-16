@@ -79,7 +79,8 @@ class ProblemDistributionAPIView(APIView):
     BUCKETS = 10
 
     def get(self, request, pk):
-        metric = 'memory_used' if request.query_params.get('metric') == 'memory' else 'time_used'
+        # 仅按耗时分布；内存峰值未测量（不碰评测核心 judger/sandbox，见 docs/07）
+        metric = 'time_used'
         vals = sorted(
             Submission.objects.filter(problem_id=pk, status='AC', **{f'{metric}__isnull': False})
             .values_list(metric, flat=True)
