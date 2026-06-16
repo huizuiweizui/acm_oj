@@ -2667,3 +2667,73 @@ def _prereq_order(target):
 - [ ] **院系管理前端**、**函数题/IOI 分值/封榜时长的出题/建赛表单**（目前经 Django admin 配置）。
 - [ ] **Problem↔Algorithm 显式关联**——替代 M7 的标签启发式，提升学习路径推荐精度。
 - [ ] 考试时间用 `datetime-local`（无时区），服务器 `TIME_ZONE` 与本地不一致时可能差时区（与既有比赛创建逻辑一致）。
+
+---
+
+## 阶段十四：生产化改造（异步评测队列 + 上线加固）
+
+> 目标：把平台从「单机开发态」推向「能给全校用、能租服务器跑」的生产态。核心是把评测从线程改成任务队列、堵住所有同步执行不可信代码的口子，并补齐生产必需的配置。配套文档：`docs/07-后端架构与评测流水线.md`、`plan/生产部署方案.md`、答辩讲稿 `08-后端架构与评测.md`。
+
+### 一、评测 / AI 反馈：线程 → Celery + Redis
+
+原来一提交就用 `threading.Thread` 在 Django 进程里起线程评测，面向全校有四个致命问题：无并发上限（洪峰瞬起 N 个容器打爆机器）、重启丢任务、多 worker 失控、不能分机扩容。
+
+改造：
+- 新增 `acm_oj/celery.py`（Celery app，`config_from_object` + `autodiscover_tasks`）、`acm_oj/__init__.py` 启动加载、`judge/tasks.py` 放任务。
+- `judge_submission_task` / `ai_feedback_task` 用 `@shared_task`，重依赖**函数体内懒导入**避免 `tasks→judger→ai_feedback→tasks` 循环引用。
+- `SubmitCodeAPIView` 改 `judge_submission_task.delay(submission.id)`；`_async_ai_feedback` 改为 enqueue。
+- settings 加 `CELERY_*`：broker/backend 指向 Redis；`CELERY_TASK_ALWAYS_EAGER` 跟随 `DEBUG`（开发同步免装 Redis、生产异步）；`CELERY_WORKER_CONCURRENCY`（默认 4）= 同时最多几个评测的硬闸门；任务硬/软超时 300/270s。
+- **评测任务不自动重试**——评测用 F() 累加 AC 计数 + 结算 Rating，重试会双计；异常兜底置 RE 并 `logger.exception`。
+
+### 二、堵住所有「同步执行不可信代码」的口子
+
+审查发现除已改的提交接口，还有**三处**在请求线程里同步起 Docker：
+
+1. 🔴 **`CustomRunAPIView`（自定义运行）**——Vue「运行」按钮在用的**活接口**，每点一次同步起容器、绕过并发闸门，比旧模板口更危险。改为走 `custom_run_task`：开发 eager 直接同步返回 `{ready:true,result}`；生产入队返回 `{ready:false,task_id}`，前端轮询 `/api/run-status/<task_id>/`，并显示近似排队位置（Redis 队列 `llen`）。`CELERY_TASK_TRACK_STARTED=True` 让前端能区分「排队中 / 运行中」。
+2. 旧模板 `submit_code`——改 `judge_submission_task.delay()` + 返回 Pending。
+3. 旧模板 `custom_run`——改走 `custom_run_task`（等待结果以保持原同步契约）。
+
+> 至此所有评测 / 运行都经同一个 Celery 队列，总并发由 worker 池统一封顶。
+
+### 三、生产必需配置（settings）
+
+- **日志**：加 `LOGGING`（控制台 + 轮转文件 `logs/acm_oj.log`）；评测 / AI 任务的 `except` 改为 `logger.exception/warning`，不再静默吞错。
+- **DB 连接**：`CONN_MAX_AGE=60` 连接复用；`celery.py` 接 `task_prerun/postrun` 信号 `close_old_connections()`，防长驻 worker 的 MySQL「server has gone away」。
+- **缓存**：加 `CACHES`（生产 Redis + `IGNORE_EXCEPTIONS` 降级，开发 LocMem 免 Redis）。
+- **限流**：DRF `ScopedRateThrottle`，提交 30/min、运行 20/min（仅对设了 `throttle_scope` 的视图生效，其余不受影响）。
+- **安全头**（仅 `DEBUG=False`）：`SECURE_PROXY_SSL_HEADER`（Nginx 终止 HTTPS）、SSL 重定向、HSTS、Secure Cookie、NOSNIFF。
+- **健康检查**：`GET /api/health/`（探 DB，供监控 / 重启探活）。
+
+### 四、定时维护（Celery Beat）
+
+`CELERY_BEAT_SCHEDULE` 三个任务（需单独起 `celery -A acm_oj beat -l info`）：
+
+- `reap_stuck_submissions`（每 5min）——回收卡在 Judging > 15min 的死任务置 RE；**只动 Judging 不动 Pending**（洪峰排队的 Pending 是正常的，误杀就坏了）。
+- `cleanup_judge_tmp`（每小时）——清理遗留评测临时目录。
+- `flush_expired_tokens`（每天 04:00）——清 simplejwt 过期黑名单 token。
+
+### 五、其他清理
+
+- 删死代码 `_ai_verdict_prompt`（定义无调用）。
+- `ProblemDistributionAPIView` 去掉永远为空的**内存维度**（`memory_used` 从未被 judger 写入；遵循「不碰评测核心」原则，不在 sandbox 盲改峰值内存测量）。
+- `requirements.txt` 加 `celery` / `redis` / `flower`。
+
+### 六、验证
+
+- `manage.py check` 通过；Celery 注册 **6 个任务**（评测 / AI / 自定义运行 + 3 个定时）+ **3 条 beat**。
+- 前端 `npm run build` 通过（自定义运行改异步轮询 + 排队提示）。
+- **功能测试 12/12 通过**（eager + 回滚式，零污染真实库）：真实 g++/Python 直跑沙箱（OK/CE/TLE）、`reap_stuck_submissions`（只回收 Judging、不动 Pending）、`cleanup_judge_tmp`、**完整评测流水线**（复用已有 AC 提交重判仍 AC，证明 Celery 化没破坏评测）、`/api/health/`、自定义运行 eager 返回。期间发现并修了一个 footgun：eager 模式下嵌套的 `ai_feedback_task` 的 prerun 信号会 `close_old_connections` 破坏外层事务 → 改为信号仅在真实 worker（非 eager）下生效。
+- **真实分布式路径已实跑验证**（启 Docker 后补测）：`docker run redis` + 独立 Celery worker（`--pool=solo`），**5/5 通过** —— `.delay()→Redis→worker→结果` 往返、完整评测经 worker（已知 AC 重判仍 AC，1.09s 真编译运行）、生产 `POST /run/→task_id→/run-status/ 轮询` 全程跑通；worker 日志确认逐个 received/succeeded。
+- **Docker 沙箱隔离已实跑验证**：`docker build` 沙箱镜像后 `USE_DOCKER_SANDBOX=True` 跑 **5/5**——C++/Python 容器内编译运行、**网络隔离生效**（联网→RE）、**内存上限生效**（超限→MLE/Killed）、完整评测经容器仍 AC。Docker Desktop 跑真实 Linux 容器，行为与生产一致。
+- **仍未做**：① Linux 服务器 prefork 池（本机 Windows 用 solo，同一 Celery、差异极小）；② 全校规模并发压测（需 Linux + 多客户端模拟几百并发）。
+
+### 七、本阶段「已知边界」更新
+
+- ✅ **评测沙箱并发**——已用 Celery 队列封顶（上阶段最高优先级 TODO 落地）。
+- ✅ **同步执行不可信代码的口子**——三处全堵上。
+- ✅ **功能验证**——12/12 通过（含真实 g++ 评测流水线重判仍 AC）。
+- ✅ **真实 Redis+worker 分布式路径**——已实跑验证（5/5，worker 日志确认消费）。
+- ✅ **Docker 沙箱隔离模式**——已实跑验证（5/5，含网络/内存限制确实生效）。
+- [ ] Linux prefork 池 + 全校规模并发压测（仅这项需真实服务器 + 多客户端）。
+- [ ] 峰值内存测量（需 Docker 侧 `/usr/bin/time -v`，Linux 实测后再加）。
+- [ ] 主观题人工批阅（仍待加「简答题」题型）。
