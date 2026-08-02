@@ -14,6 +14,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -39,6 +40,8 @@ from .services.judge_queue import enqueue
 class RegisterAPIView(APIView):
     """POST /api/auth/register/"""
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'register'
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -70,6 +73,8 @@ class RegisterAPIView(APIView):
 class LoginAPIView(APIView):
     """POST /api/auth/login/"""
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'login'
 
     def post(self, request):
         username = request.data.get('username', '').strip()
@@ -449,6 +454,8 @@ class SubmitCodeAPIView(APIView):
     前端每 2 秒轮询 GET /api/submissions/<id>/ 直到状态不为 Pending/Judging。
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'submit'
 
     def post(self, request, pk):
         problem = Problem.objects.filter(id=pk, is_published=True).first()
@@ -1391,6 +1398,8 @@ class AlgorithmGraphAPIView(APIView):
 class AskAIAPIView(APIView):
     """POST /api/ai/ask/  — SSE 流式返回"""
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai'
 
     def post(self, request):
         from judge.services.rag import retrieve, stream_answer
@@ -1413,6 +1422,8 @@ class AskAIAPIView(APIView):
 class CustomRunAPIView(APIView):
     """POST /api/problems/<pk>/run/  — 自定义测试，不保存提交记录"""
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'run'
 
     def post(self, request, pk):
         from .services.sandbox import compile_code, run_code, source_path

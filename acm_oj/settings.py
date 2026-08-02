@@ -98,6 +98,26 @@ STATICFILES_DIRS = []
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ===================== 缓存（限流计数依赖） =====================
+# 限流计数存在 Django 缓存里。配置 REDIS_URL 后多个 Web 进程共享同一份计数，
+# 限流才真正准确；留空则退回进程内存（单进程可用，多进程时每进程各算各的）。
+REDIS_URL = env('REDIS_URL', default='')
+if REDIS_URL:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {'CLIENT_CLASS': 'django_redis.client.DefaultClient'},
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'acm-oj-cache',
+        }
+    }
+
 # ===================== REST Framework + JWT =====================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -106,6 +126,20 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
+    # 全局只限匿名请求（防爬），额度给得很宽松，正常浏览不会触发。
+    # 不设全局 user 限流：前端提交后每 2 秒轮询一次评测结果，按用户限流会误伤。
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon':     env('THROTTLE_ANON',     default='300/min'),
+        # 以下为按视图作用域的精确限流（见 api_views.py 的 throttle_scope）
+        'login':    env('THROTTLE_LOGIN',    default='10/min'),   # 防口令爆破
+        'register': env('THROTTLE_REGISTER', default='30/hour'),  # 防批量注册（校园 NAT 共用出口 IP，故给得较宽）
+        'submit':   env('THROTTLE_SUBMIT',   default='30/min'),   # 防刷评测，比赛正常提交够用
+        'run':      env('THROTTLE_RUN',      default='30/min'),   # 自定义运行同样会执行代码
+        'ai':       env('THROTTLE_AI',       default='30/hour'),  # 每次调用 LLM 都花钱
+    },
 }
 
 from datetime import timedelta
