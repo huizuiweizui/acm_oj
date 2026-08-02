@@ -28,6 +28,7 @@ const STATUS_COLOR = {
   WA:  'tc-wa',
   TLE: 'tc-tle',
   MLE: 'tc-tle',
+  OLE: 'tc-tle',
   RE:  'tc-wa',
   CE:  'tc-ce',
 }

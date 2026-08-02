@@ -149,6 +149,7 @@ class Submission(models.Model):
         ('WA', 'Wrong Answer'),
         ('TLE', 'Time Limit Exceeded'),
         ('MLE', 'Memory Limit Exceeded'),
+        ('OLE', 'Output Limit Exceeded'),
         ('RE', 'Runtime Error'),
         ('CE', 'Compilation Error'),
         ('NT', '无测试点'),

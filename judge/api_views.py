@@ -1438,7 +1438,7 @@ class CustomRunAPIView(APIView):
             if not ok:
                 return Response({'status': 'CE', 'output': '', 'error': err_msg[:2000]})
 
-            returncode, stdout_data, stderr_data, timed_out = run_code(
+            returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
                 language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
             )
 
@@ -1446,6 +1446,8 @@ class CustomRunAPIView(APIView):
                 run_status = 'TLE'
             elif returncode == 137:
                 run_status = 'MLE'
+            elif output_exceeded:
+                run_status = 'OLE'
             elif returncode != 0:
                 run_status = 'RE'
             else:

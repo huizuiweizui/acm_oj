@@ -132,6 +132,17 @@ JUDGE_TIMEOUT = 10
 # 总并发 = Web 进程数 × JUDGE_WORKERS。
 JUDGE_WORKERS = env.int('JUDGE_WORKERS', default=4)
 
+# 单个测试点输出硬上限（KB）。选手程序疯狂打印时，主机读取管道会把输出全缓冲进内存，
+# 超过此上限即强制终止并判 OLE，保护评测机不被打爆。默认 64 MB。
+JUDGE_OUTPUT_LIMIT_KB = env.int('JUDGE_OUTPUT_LIMIT_KB', default=65536)
+
+# ── Docker 沙箱加固（仅 USE_DOCKER_SANDBOX=True 时生效）──
+# 运行容器内的非 root 用户。默认 nobody，杜绝以 root 执行选手代码（配合 cap-drop 抵御内核提权）。
+# 若部署环境权限特殊导致只读挂载不可读，可设为空字符串临时退回 root 执行。
+JUDGE_SANDBOX_RUN_USER = env('JUDGE_SANDBOX_RUN_USER', default='nobody')
+# 容器内可打开的文件描述符上限，防止 fd 耗尽。JVM 需要较多，给足 1024。
+JUDGE_SANDBOX_NOFILE = env.int('JUDGE_SANDBOX_NOFILE', default=1024)
+
 # 沙箱隔离 — 生产环境必须设为 True，开发/Windows 可保持 False
 # True  → 每次评测启动 Docker 容器隔离执行（需提前 build Dockerfile.sandbox）
 # False → 直接在主机进程执行（无隔离，仅限本地开发）

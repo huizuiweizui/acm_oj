@@ -6,6 +6,7 @@ const cfg = {
   WA:      { icon: '✗', label: 'WA',      bg: 'var(--status-wa-bg)',      color: 'var(--status-wa-text)' },
   TLE:     { icon: '⏱', label: 'TLE',     bg: 'var(--status-tle-bg)',     color: 'var(--status-tle-text)' },
   MLE:     { icon: '▤', label: 'MLE',     bg: 'var(--status-mle-bg)',     color: 'var(--status-mle-text)' },
+  OLE:     { icon: '⇥', label: 'OLE',     bg: 'var(--status-tle-bg)',     color: 'var(--status-tle-text)' },
   RE:      { icon: '⚠', label: 'RE',      bg: 'var(--status-re-bg)',      color: 'var(--status-re-text)' },
   CE:      { icon: '⚙', label: 'CE',      bg: 'var(--status-ce-bg)',      color: 'var(--status-ce-text)' },
   Pending: { icon: '◌', label: '等待中',  bg: 'var(--status-pending-bg)', color: 'var(--status-pending-text)' },

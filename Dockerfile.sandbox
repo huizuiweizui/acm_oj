@@ -4,7 +4,8 @@
 #
 # Security layers applied at runtime (see sandbox.py):
 #   --network=none   --memory=Xm   --cpus=1   --pids-limit=64
-#   -v tmp:/sandbox:ro   --tmpfs /tmp:exec,size=128m
+#   --cap-drop=ALL   --security-opt no-new-privileges   --read-only   --ulimit nofile
+#   --user nobody (run stage)   -v tmp:/sandbox:ro   --tmpfs /tmp:exec,size=128m
 
 FROM debian:bookworm-slim
 

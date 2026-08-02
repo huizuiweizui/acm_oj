@@ -222,7 +222,7 @@ def custom_run(request, problem_id):
                 'result': {'status': 'CE', 'output': '', 'error_info': err_msg[:2000]},
             })
 
-        returncode, stdout_data, stderr_data, timed_out = run_code(
+        returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
             language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
         )
 
@@ -230,6 +230,8 @@ def custom_run(request, problem_id):
             status = 'TLE'
         elif returncode == 137:
             status = 'MLE'
+        elif output_exceeded:
+            status = 'OLE'
         elif returncode != 0:
             status = 'RE'
         else:

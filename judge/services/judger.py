@@ -59,7 +59,7 @@ def judge_submission(submission, problem):
 
     for idx, tc in enumerate(test_cases, 1):
         t0 = _time.monotonic()
-        returncode, stdout_data, stderr_data, timed_out = run_code(
+        returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
             lang, tmp_dir, tc.input_data, time_limit_sec, memory_mb,
         )
         elapsed_ms = int((_time.monotonic() - t0) * 1000)
@@ -68,6 +68,8 @@ def judge_submission(submission, problem):
             case_status = 'TLE'
         elif returncode == 137:
             case_status = 'MLE'
+        elif output_exceeded:
+            case_status = 'OLE'
         elif returncode != 0:
             case_status = 'RE'
             last_re_error = stderr_data[:1000]
