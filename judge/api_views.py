@@ -1,6 +1,5 @@
 import shutil
 import tempfile
-import threading
 from datetime import date, timedelta
 
 from django.contrib.auth import authenticate
@@ -32,6 +31,7 @@ from .serializers import (
     ProblemListSerializer, ProblemDetailSerializer,
     SubmissionSerializer, UserSerializer,
 )
+from .services.judge_queue import enqueue
 
 
 # ==================== 认证 ====================
@@ -442,22 +442,6 @@ class UserStatsAPIView(APIView):
 VALID_LANGUAGES = ['C', 'C++', 'Java', 'Python']
 
 
-def _run_judge_in_background(submission_id: int, problem_id: int):
-    """在独立线程里执行评测，避免阻塞请求线程。"""
-    # 延迟导入，避免模块循环引用
-    from .views import judge_submission as _judge
-
-    try:
-        sub = Submission.objects.get(id=submission_id)
-        prob = Problem.objects.get(id=problem_id)
-        sub.status = 'Judging'
-        sub.save(update_fields=['status'])
-        _judge(sub, prob)
-    except Exception:
-        # 评测异常时把状态置为 RE，保证前端不会一直轮询
-        Submission.objects.filter(id=submission_id).update(status='RE', error_info='Internal judge error')
-
-
 class SubmitCodeAPIView(APIView):
     """
     POST /api/problems/<id>/submit/
@@ -517,13 +501,8 @@ class SubmitCodeAPIView(APIView):
         Problem.objects.filter(id=pk).update(submit_count=F('submit_count') + 1)
         UserProfile.objects.filter(user=request.user).update(submit_count=F('submit_count') + 1)
 
-        # 后台线程评测（不阻塞响应）
-        t = threading.Thread(
-            target=_run_judge_in_background,
-            args=(submission.id, problem.id),
-            daemon=True,
-        )
-        t.start()
+        # 入评测队列（固定 worker 池，不阻塞响应；并发上限见 JUDGE_WORKERS）
+        enqueue(submission.id, problem.id)
 
         return Response(
             {'submission_id': submission.id, 'status': 'Pending'},

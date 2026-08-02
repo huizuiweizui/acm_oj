@@ -127,6 +127,11 @@ LOGOUT_REDIRECT_URL = '/'
 JUDGE_TEMP_DIR = os.path.join(BASE_DIR, 'judge_tmp')
 JUDGE_TIMEOUT = 10
 
+# 评测并发上限：进程内 worker 池同时最多跑这么多个评测，其余排队等待。
+# 按评测机 CPU 核数配置（Docker 沙箱下每个评测约占 1 核）。多进程部署时
+# 总并发 = Web 进程数 × JUDGE_WORKERS。
+JUDGE_WORKERS = env.int('JUDGE_WORKERS', default=4)
+
 # 沙箱隔离 — 生产环境必须设为 True，开发/Windows 可保持 False
 # True  → 每次评测启动 Docker 容器隔离执行（需提前 build Dockerfile.sandbox）
 # False → 直接在主机进程执行（无隔离，仅限本地开发）
