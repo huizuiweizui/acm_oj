@@ -166,6 +166,12 @@ JUDGE_TIMEOUT = 10
 # 总并发 = Web 进程数 × JUDGE_WORKERS。
 JUDGE_WORKERS = env.int('JUDGE_WORKERS', default=4)
 
+# 自定义运行（题目页的"运行"按钮）的并发上限，与评测名额相互独立，
+# 保证它抢不走判题的 worker。0 表示取 JUDGE_WORKERS 的一半（至少 1）。
+JUDGE_RUN_WORKERS = env.int('JUDGE_RUN_WORKERS', default=0)
+# 排不到名额时最多等几秒，超过就回 503，避免请求堆积把 web 进程占满。
+JUDGE_RUN_QUEUE_WAIT = env.float('JUDGE_RUN_QUEUE_WAIT', default=15.0)
+
 # 单个测试点输出硬上限（KB）。选手程序疯狂打印时，主机读取管道会把输出全缓冲进内存，
 # 超过此上限即强制终止并判 OLE，保护评测机不被打爆。默认 64 MB。
 JUDGE_OUTPUT_LIMIT_KB = env.int('JUDGE_OUTPUT_LIMIT_KB', default=65536)
@@ -187,6 +193,10 @@ JUDGE_DOCKER_IMAGE = env('JUDGE_DOCKER_IMAGE', default='acm-oj-sandbox:latest')
 LLM_API_KEY = env('LLM_API_KEY', default='')
 LLM_API_URL = env('LLM_API_URL', default='')
 LLM_MODEL   = env('LLM_MODEL',   default='')
+
+# AI 反馈的后台并发上限。每个 worker 会挂一次几十秒的 LLM 请求并占一条数据库连接，
+# 给小一点即可——反馈晚几秒无所谓，绝不该和评测抢资源。
+AI_FEEDBACK_WORKERS = env.int('AI_FEEDBACK_WORKERS', default=2)
 
 # ===== RAG 向量检索（可选） =====
 # EMBED_API_KEY / EMBED_API_BASE 留空时自动复用 LLM_API_KEY / LLM_API_URL 的 base

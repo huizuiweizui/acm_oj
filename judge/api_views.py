@@ -1,3 +1,4 @@
+import secrets
 import shutil
 import tempfile
 from datetime import date, timedelta
@@ -6,7 +7,6 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.http import StreamingHttpResponse
 from rest_framework import generics, status
@@ -30,9 +30,14 @@ from .serializers import (
     AlgorithmListSerializer, AlgorithmDetailSerializer,
     ContestSerializer, DiscussionReplySerializer, DiscussionSerializer,
     ProblemListSerializer, ProblemDetailSerializer,
-    SubmissionSerializer, UserSerializer,
+    SubmissionListSerializer, SubmissionSerializer, UserSerializer,
 )
-from .services.judge_queue import enqueue
+from .permissions import (
+    can_access_problem, can_manage_contest, can_view_submission_code,
+    contest_problems_visible,
+)
+from .services.judge_queue import RunQueueBusy, enqueue, run_slot
+from .services.judger import PROBLEM_FULL_SCORE
 
 
 # ==================== 认证 ====================
@@ -253,10 +258,12 @@ class ProblemDetailAPIView(generics.RetrieveAPIView):
 
     def get_object(self):
         problem_id = self.kwargs['pk']
-        qs = Problem.objects.filter(id=problem_id, is_published=True)
+        # 不再直接按 is_published 过滤：未公开的赛题要放行给正在比赛的选手，
+        # 判定统一交给 can_access_problem。
+        qs = Problem.objects.filter(id=problem_id)
         qs = _annotate_problems(qs).prefetch_related('tags')
         obj = qs.first()
-        if obj is None:
+        if obj is None or not can_access_problem(self.request.user, obj):
             raise NotFound('题目不存在或未公开')
         return obj
 
@@ -283,7 +290,7 @@ class SubmissionListAPIView(generics.ListAPIView):
     查询参数：all=1（全站）、problem_id、status、page
     未登录或不传 all=1 时只返回自己的提交
     """
-    serializer_class = SubmissionSerializer
+    serializer_class = SubmissionListSerializer
     pagination_class = ProblemPagination
     permission_classes = [AllowAny]
 
@@ -309,10 +316,18 @@ class SubmissionListAPIView(generics.ListAPIView):
 
 
 class SubmissionDetailAPIView(generics.RetrieveAPIView):
-    """GET /api/submissions/<id>/"""
+    """
+    GET /api/submissions/<id>/
+    评测结果对所有人可见；源代码只对本人 / 教师 / 管理员返回。
+    """
     serializer_class = SubmissionSerializer
     permission_classes = [AllowAny]
     queryset = Submission.objects.select_related('user', 'problem')
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['can_view_code'] = can_view_submission_code(self.request.user, self.get_object())
+        return ctx
 
 
 # ==================== 用户主页 ====================
@@ -377,7 +392,7 @@ class UserProfileAPIView(APIView):
 
         return Response({
             'user': UserSerializer(target).data,
-            'recent_submissions': SubmissionSerializer(recent_subs, many=True).data,
+            'recent_submissions': SubmissionListSerializer(recent_subs, many=True).data,
             'language_dist': {item['language']: item['count'] for item in lang_stats},
             'ac_problem_count': ac_problem_ids.count(),
             'ac_problems': ac_problems,
@@ -458,8 +473,8 @@ class SubmitCodeAPIView(APIView):
     throttle_scope = 'submit'
 
     def post(self, request, pk):
-        problem = Problem.objects.filter(id=pk, is_published=True).first()
-        if problem is None:
+        problem = Problem.objects.filter(id=pk).first()
+        if problem is None or not can_access_problem(request.user, problem):
             raise NotFound('题目不存在或未公开')
 
         language = request.data.get('language', '').strip()
@@ -556,6 +571,10 @@ class ContestDetailAPIView(APIView):
             .order_by('sort_order')
         )
 
+        # 赛前不放题目清单：连标题都不给，否则光看题名就能提前准备。
+        # 见 permissions.contest_problems_visible。
+        problems_visible = contest_problems_visible(request.user, contest)
+
         is_registered = False
         problem_status = {}
         if request.user.is_authenticated:
@@ -582,11 +601,14 @@ class ContestDetailAPIView(APIView):
                 'user_status': problem_status.get(cp.problem_id, 'todo'),
             }
             for cp in contest_problems
-        ]
+        ] if problems_visible else []
 
         return Response({
             'contest': ContestSerializer(contest).data,
             'problems': problems_data,
+            'problems_visible': problems_visible,
+            # 题目不可见时也告诉前端有几道，方便显示占位说明
+            'problem_count': len(contest_problems),
             'is_registered': is_registered,
             'participant_count': ContestParticipant.objects.filter(contest=contest).count(),
         })
@@ -604,6 +626,26 @@ class ContestRegisterAPIView(APIView):
         now = timezone.now()
         if now > contest.end_time:
             return Response({'detail': '比赛已结束，无法报名'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 私有赛校验密码。报名现在同时是"能否看到赛题"的闸门（见 can_access_problem），
+        # 这里放开就等于私有赛形同虚设。管理者不受限制。
+        if not contest.is_public and not can_manage_contest(request.user, contest):
+            if not contest.password:
+                return Response(
+                    {'detail': '这是私有比赛，请联系组织者添加'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            supplied = str(request.data.get('password', ''))
+            if not supplied:
+                return Response(
+                    {'detail': '请输入比赛密码'}, status=status.HTTP_403_FORBIDDEN,
+                )
+            # 定长比较，避免逐字符比较泄漏密码长度/内容
+            if not secrets.compare_digest(supplied, contest.password):
+                return Response(
+                    {'detail': '比赛密码不正确'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
         _, created = ContestParticipant.objects.get_or_create(
             contest=contest, user=request.user
@@ -918,6 +960,76 @@ class DiscussionDetailAPIView(APIView):
 
 # ==================== 比赛排行榜 ====================
 
+def _ioi_ranking(contest, participants, problem_ids, problem_labels, subs):
+    """
+    IOI 榜：每题取最高分的一次提交，总分为各题之和，不计罚时。
+
+    并列判定用"达成当前总分的时刻"——即各题最高分中最早取得该分数的提交里
+    最晚的一个。同分时先到者靠前；IOI 官方无此规则，但榜单需要一个稳定顺序。
+    """
+    # user_id → problem_id → {score, reached_at, attempts}
+    best = {
+        uid: {pid: {'score': 0, 'reached_at': None, 'attempts': 0} for pid in problem_ids}
+        for uid in (p.user_id for p in participants)
+    }
+    for sub in subs:
+        cell = best[sub.user_id][sub.problem_id]
+        if sub.status in ('Pending', 'Judging'):
+            continue
+        cell['attempts'] += 1
+        # subs 已按 submitted_at 升序，严格大于才更新 → reached_at 自然是
+        # "首次达到该最高分"的时刻
+        if sub.score > cell['score']:
+            cell['score'] = sub.score
+            cell['reached_at'] = sub.submitted_at
+
+    ranked = []
+    for p in participants:
+        cells = best[p.user_id]
+        total = sum(c['score'] for c in cells.values())
+        reached = [c['reached_at'] for c in cells.values() if c['reached_at']]
+        final_min = (
+            int((max(reached) - contest.start_time).total_seconds() / 60) if reached else 0
+        )
+
+        try:
+            avatar_color = p.user.profile.avatar_color
+        except Exception:
+            avatar_color = '#4F46E5'
+
+        ranked.append({
+            'user_id': p.user_id,
+            'username': p.user.username,
+            'avatar_color': avatar_color,
+            'score': total,
+            'time_min': final_min,
+            # 满分题数，给前端当"通过"列用
+            'solved': sum(1 for c in cells.values() if c['score'] >= PROBLEM_FULL_SCORE),
+            'problems': {
+                problem_labels[pid]: {
+                    'score': c['score'],
+                    'attempts': c['attempts'],
+                    'time_min': (
+                        int((c['reached_at'] - contest.start_time).total_seconds() / 60)
+                        if c['reached_at'] else None
+                    ),
+                }
+                for pid, c in cells.items()
+            },
+        })
+
+    ranked.sort(key=lambda r: (-r['score'], r['time_min']))
+    prev = None
+    for i, r in enumerate(ranked):
+        val = (r['score'], r['time_min'])
+        if val != prev:
+            r['rank'] = i + 1
+            prev = val
+        else:
+            r['rank'] = ranked[i - 1]['rank']
+    return ranked
+
+
 class ContestRankingAPIView(APIView):
     """GET /api/contests/<id>/rank/"""
     permission_classes = [AllowAny]
@@ -955,6 +1067,16 @@ class ContestRankingAPIView(APIView):
                 problem_id__in=problem_ids,
             ).order_by('submitted_at')
         )
+
+        if contest.rule_type == 'IOI':
+            return Response({
+                'contest': ContestSerializer(contest).data,
+                'problem_labels': [cp.label for cp in contest_problems],
+                'ranked_users': _ioi_ranking(
+                    contest, participants, problem_ids, problem_labels, subs
+                ),
+                'full_score': PROBLEM_FULL_SCORE,
+            })
 
         # user_id → problem_id → {ac_time, wrong_count}
         user_problem = {
@@ -1428,7 +1550,9 @@ class CustomRunAPIView(APIView):
     def post(self, request, pk):
         from .services.sandbox import compile_code, run_code, source_path
 
-        get_object_or_404(Problem, id=pk, is_published=True)
+        problem = Problem.objects.filter(id=pk).first()
+        if problem is None or not can_access_problem(request.user, problem):
+            raise NotFound('题目不存在或未公开')
 
         code = request.data.get('code', '').strip()
         language = request.data.get('language', 'C++')
@@ -1445,13 +1569,23 @@ class CustomRunAPIView(APIView):
             with open(src, 'w', encoding='utf-8') as f:
                 f.write(code)
 
-            ok, err_msg = compile_code(language, tmp_dir)
-            if not ok:
-                return Response({'status': 'CE', 'output': '', 'error': err_msg[:2000]})
+            # 编译和执行都要占名额：这一段和评测一样吃 CPU / 起沙箱，
+            # 不设闸的话几十个人同时点"运行"就能把评测机压垮，
+            # JUDGE_WORKERS 那道限制管不到这里。
+            try:
+                with run_slot():
+                    ok, err_msg = compile_code(language, tmp_dir)
+                    if not ok:
+                        return Response({'status': 'CE', 'output': '', 'error': err_msg[:2000]})
 
-            returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
-                language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
-            )
+                    returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
+                        language, tmp_dir, custom_input, timeout_sec=10.0, memory_mb=256,
+                    )
+            except RunQueueBusy:
+                return Response(
+                    {'detail': '评测机繁忙，请稍后再试'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
 
             if timed_out:
                 run_status = 'TLE'

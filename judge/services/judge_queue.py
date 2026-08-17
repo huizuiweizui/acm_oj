@@ -19,12 +19,44 @@
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 _MAX_WORKERS: int = int(getattr(settings, 'JUDGE_WORKERS', 4))
+
+# ── 自定义运行（/api/problems/<id>/run/）的并发闸 ──────────────────────────
+# 自定义运行同样要编译 + 起沙箱，和评测一样吃 CPU，但它是同步接口：请求线程
+# 必须原地拿到输出。所以这里不用线程池（不需要把活挪走），只用信号量卡住
+# "同时有几个在跑"。
+#
+# 单独一组名额而不是共用评测池，是为了让自定义运行永远抢不走评测的 worker——
+# 比赛时判题优先级更高。
+# 只给"排队等待"设超时：拿不到名额就立刻回 503 泄掉负载，而不是让请求
+# 一直挂着把 web 进程占满。真正开跑之后不再受这个时限约束，否则 Java 那种
+# 编译慢的语言会被误判成繁忙。
+_RUN_WORKERS: int = int(getattr(settings, 'JUDGE_RUN_WORKERS', 0)) or max(1, _MAX_WORKERS // 2)
+_RUN_QUEUE_WAIT: float = float(getattr(settings, 'JUDGE_RUN_QUEUE_WAIT', 15.0))
+
+_run_slots = threading.BoundedSemaphore(_RUN_WORKERS)
+
+
+class RunQueueBusy(Exception):
+    """名额等不到——上层应回 503，让用户稍后重试。"""
+
+
+@contextmanager
+def run_slot():
+    """占一个自定义运行名额；等待超过 JUDGE_RUN_QUEUE_WAIT 秒抛 RunQueueBusy。"""
+    if not _run_slots.acquire(timeout=_RUN_QUEUE_WAIT):
+        logger.warning('自定义运行排队超时，当前上限 %d', _RUN_WORKERS)
+        raise RunQueueBusy
+    try:
+        yield
+    finally:
+        _run_slots.release()
 
 # 懒初始化：第一次入队时才创建线程池，避免在 migrate 等无需评测的命令里凭空起线程。
 _executor: ThreadPoolExecutor | None = None

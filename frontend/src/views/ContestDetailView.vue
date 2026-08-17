@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getContest, registerContest } from '@/api/contests'
 import { useUserStore } from '@/stores/user'
@@ -11,6 +11,8 @@ const userStore = useUserStore()
 
 const contest = ref(null)
 const problems = ref([])
+const problemsVisible = ref(true)
+const problemCount = ref(0)
 const isRegistered = ref(false)
 const participantCount = ref(0)
 const loading = ref(true)
@@ -40,12 +42,18 @@ async function fetchContest() {
     const { data } = await getContest(route.params.id)
     contest.value = data.contest
     problems.value = data.problems
+    problemsVisible.value = data.problems_visible !== false
+    problemCount.value = data.problem_count ?? data.problems.length
     isRegistered.value = data.is_registered
     participantCount.value = data.participant_count
   } finally {
     loading.value = false
   }
 }
+
+// 私有赛需要密码；公开赛这一栏不出现
+const needPassword = computed(() => contest.value && !contest.value.is_public)
+const regPassword = ref('')
 
 async function handleRegister() {
   if (!userStore.isLoggedIn) {
@@ -55,10 +63,13 @@ async function handleRegister() {
   registering.value = true
   regMsg.value = ''
   try {
-    const { data } = await registerContest(route.params.id)
+    const { data } = await registerContest(route.params.id, regPassword.value.trim())
     isRegistered.value = true
     participantCount.value += 1
     regMsg.value = data.detail
+    regPassword.value = ''
+    // 报名后才拿得到题目清单，重新取一次
+    await fetchContest()
   } catch (e) {
     regMsg.value = e.response?.data?.detail || '报名失败'
   } finally {
@@ -97,12 +108,22 @@ onMounted(fetchContest)
         </button>
         <template v-if="contest.status !== 'ended'">
           <div v-if="isRegistered" class="reg-ok">✓ 已报名</div>
-          <button
-            v-else
-            class="btn-register"
-            :disabled="registering"
-            @click="handleRegister"
-          >{{ registering ? '报名中...' : '立即报名' }}</button>
+          <template v-else>
+            <input
+              v-if="needPassword"
+              v-model="regPassword"
+              type="password"
+              class="reg-password"
+              placeholder="比赛密码"
+              autocomplete="off"
+              @keyup.enter="handleRegister"
+            />
+            <button
+              class="btn-register"
+              :disabled="registering"
+              @click="handleRegister"
+            >{{ registering ? '报名中...' : '立即报名' }}</button>
+          </template>
           <div v-if="regMsg" class="reg-msg">{{ regMsg }}</div>
         </template>
       </div>
@@ -137,7 +158,20 @@ onMounted(fetchContest)
             </td>
             <td><DifficultyBadge :difficulty="p.difficulty" /></td>
           </tr>
-          <tr v-if="problems.length === 0">
+          <!-- 赛前 / 未报名时题目不公开，说明清楚原因，避免看起来像"这场没题" -->
+          <tr v-if="!problemsVisible">
+            <td colspan="4" class="empty locked">
+              <div class="locked-title">
+                本场共 {{ problemCount }} 道题，题目将在比赛开始后公开
+              </div>
+              <div class="locked-hint">
+                {{ contest.status === 'upcoming'
+                  ? '请先报名，开赛后即可查看题面并提交'
+                  : '报名后即可查看题面并提交' }}
+              </div>
+            </td>
+          </tr>
+          <tr v-else-if="problems.length === 0">
             <td colspan="4" class="empty">暂无题目</td>
           </tr>
         </tbody>
@@ -190,6 +224,12 @@ onMounted(fetchContest)
 }
 .btn-register:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-register:disabled { opacity: 0.6; cursor: not-allowed; }
+.reg-password {
+  padding: 0.55rem 0.8rem; margin-bottom: 0.5rem; width: 100%;
+  background: var(--bg-input); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 7px; font-size: 0.9rem;
+}
+.reg-password:focus { border-color: var(--accent); outline: none; }
 .btn-rank {
   padding: 0.45rem 1.2rem; background: transparent;
   border: 1px solid var(--border); color: var(--accent);
@@ -224,4 +264,6 @@ onMounted(fetchContest)
 .problem-link:hover { color: var(--accent-text); }
 .reg-ok { color: var(--status-ac-text); font-weight: 600; font-size: 0.95rem; }
 .empty { text-align: center; padding: 2rem; color: var(--text-muted); }
+.locked-title { color: var(--text-secondary); font-size: 0.95rem; font-weight: 600; }
+.locked-hint { margin-top: 0.4rem; font-size: 0.85rem; color: var(--text-muted); }
 </style>

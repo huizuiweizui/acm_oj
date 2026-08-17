@@ -166,6 +166,10 @@ class Submission(models.Model):
     contest = models.ForeignKey('Contest', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='所属比赛', related_name='submissions')
     ai_feedback = models.TextField('AI评测反馈', blank=True, default='')
     test_results = models.JSONField('测试点结果', default=list, blank=True)
+    # 通过测试点占比换算的百分制得分。IOI 赛制按它算分（取每题最高分的一次提交），
+    # ICPC 只看 status，但这个值照样记录，前端可以展示"过了几成"。
+    # 编译失败 / 无测试点记 0。
+    score = models.IntegerField('得分', default=0)
     submitted_at = models.DateTimeField('提交时间', auto_now_add=True)
 
     class Meta:

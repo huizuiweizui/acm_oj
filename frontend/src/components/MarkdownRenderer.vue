@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import katex from 'katex'
 
 const props = defineProps({
@@ -9,35 +10,58 @@ const props = defineProps({
 
 marked.setOptions({ breaks: true, gfm: true })
 
+// marked 自 v5 起不再内置净化，输出会原样带上正文里的 <script>/onerror。
+// 这里的内容有用户产出的部分（讨论帖、回复、AI 回答），直接 v-html 等于把
+// JWT（存在 localStorage）交给任何一个发帖的人，所以必须过一遍 DOMPurify。
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ))
+}
+
 function renderContent(raw) {
   if (!raw) return ''
 
-  // 1. 提取数学块，用占位符替换，防止 marked 破坏 LaTeX 语法
+  // 1. 提取数学块，用占位符替换，防止 marked 破坏 LaTeX 语法。
+  //    占位符必须是纯 ASCII 文本：它要原样穿过下面的 DOMPurify。
+  //    加随机后缀，避免正文里恰好写了同样的字面量而被误替换。
   const maths = []
+  const token = `MATHTOKEN${Math.random().toString(36).slice(2, 10)}`
 
   // $$ ... $$ 块级（先处理，避免被 $ ... $ 误匹配）
   let text = raw.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
     maths.push({ display: true, expr: expr.trim() })
-    return `\x00MATH${maths.length - 1}\x00`
+    return `${token}${maths.length - 1}END`
   })
 
   // $ ... $ 行内（不跨行，排除空格仅包含的情况）
   text = text.replace(/\$([^$\n]{1,300}?)\$/g, (_, expr) => {
     if (!expr.trim()) return _
     maths.push({ display: false, expr: expr })
-    return `\x00MATH${maths.length - 1}\x00`
+    return `${token}${maths.length - 1}END`
   })
 
   // 2. marked 处理剩余 Markdown
   let html = marked.parse(text)
 
-  // 3. 将占位符替换为 KaTeX 渲染结果
-  html = html.replace(/\x00MATH(\d+)\x00/g, (_, i) => {
+  // 3. 净化。必须在插入 KaTeX 之前做：KaTeX 的输出（大量 span + style + MathML）
+  //    是可信的，反倒容易被净化规则误伤。
+  //    额外禁掉表单元素：DOMPurify 默认放行 <form>，一个伪造的登录框贴在帖子里
+  //    就能钓走密码。Markdown 正文也从来不需要它们。
+  html = DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['form', 'input', 'button', 'select', 'option', 'textarea'],
+  })
+
+  // 4. 将占位符替换为 KaTeX 渲染结果。
+  //    KaTeX 默认 trust:false，会禁掉 \href/\url/\includegraphics，输出可安全内联；
+  //    但异常分支里的 expr 仍是原始用户输入，必须转义后再拼进 HTML。
+  html = html.replace(new RegExp(`${token}(\\d+)END`, 'g'), (_, i) => {
     const { display, expr } = maths[+i]
     try {
       return katex.renderToString(expr, { displayMode: display, throwOnError: false, strict: false })
     } catch {
-      return `<code class="math-err">${expr}</code>`
+      return `<code class="math-err">${escapeHtml(expr)}</code>`
     }
   })
 

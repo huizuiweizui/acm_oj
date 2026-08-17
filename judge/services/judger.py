@@ -1,13 +1,28 @@
-import os
+import shutil
 import tempfile
 import time as _time
 
-from django.db.models import F
+from django.db.models import F, Max
 
-from ..models import ContestParticipant, Problem, Submission, UserProfile
+from ..models import ContestParticipant, ContestProblem, Problem, Submission, UserProfile
 from .ai_feedback import _async_ai_feedback
 from .rating import _update_rating
 from .sandbox import compile_code, run_code, source_path
+
+
+# IOI 赛制下每道题的满分。测试点没有单独的分值字段，所以按"通过数 / 总数"
+# 折算百分制——这也是 IOI 的通行设定（每题 100 分）。
+PROBLEM_FULL_SCORE = 100
+
+
+def _score_of(case_results):
+    """按通过的测试点占比折算百分制得分；全过必得满分（避免四舍五入丢分）。"""
+    if not case_results:
+        return 0
+    passed = sum(1 for c in case_results if c['status'] == 'AC')
+    if passed == len(case_results):
+        return PROBLEM_FULL_SCORE
+    return int(PROBLEM_FULL_SCORE * passed / len(case_results))
 
 
 def _normalize(s):
@@ -34,66 +49,75 @@ def judge_submission(submission, problem):
         return {'status': 'NT', 'ai_feedback': ''}
 
     lang = submission.language
+    # 编译产物和源码都落在 tmp_dir 里，函数有多个出口（CE 提前 return、评测中抛异常），
+    # 所以清理必须放 finally——否则每评一次就留下一份源码+可执行文件，
+    # 一场几千次提交的比赛足够把评测机磁盘写满。
     tmp_dir = tempfile.mkdtemp(prefix='judge_')
-    src_file = source_path(lang, tmp_dir)
-    with open(src_file, 'w', encoding='utf-8') as f:
-        f.write(submission.code)
+    try:
+        src_file = source_path(lang, tmp_dir)
+        with open(src_file, 'w', encoding='utf-8') as f:
+            f.write(submission.code)
 
-    # ── 编译阶段 ──────────────────────────────────────────────────────────
-    ok, err_msg = compile_code(lang, tmp_dir)
-    if not ok:
-        submission.status = 'CE'
-        submission.error_info = err_msg[:2000]
-        submission.test_results = []
-        submission.save(update_fields=['status', 'error_info', 'test_results'])
-        _async_ai_feedback(submission.id, problem.id)
-        return {'status': 'CE', 'error_info': err_msg[:2000], 'ai_feedback': ''}
+        # ── 编译阶段 ──────────────────────────────────────────────────────
+        ok, err_msg = compile_code(lang, tmp_dir)
+        if not ok:
+            submission.status = 'CE'
+            submission.error_info = err_msg[:2000]
+            submission.test_results = []
+            submission.save(update_fields=['status', 'error_info', 'test_results'])
+            _async_ai_feedback(submission.id, problem.id)
+            return {'status': 'CE', 'error_info': err_msg[:2000], 'ai_feedback': ''}
 
-    # ── 运行阶段：逐测试点（全部跑完，收集每个测试点结果） ────────────────
-    time_limit_sec = problem.time_limit / 1000.0
-    memory_mb = problem.memory_limit
-    max_time_ms = 0
-    overall_status = 'AC'
-    last_re_error = ''
-    case_results = []
+        # ── 运行阶段：逐测试点（全部跑完，收集每个测试点结果） ────────────
+        time_limit_sec = problem.time_limit / 1000.0
+        memory_mb = problem.memory_limit
+        max_time_ms = 0
+        overall_status = 'AC'
+        last_re_error = ''
+        case_results = []
 
-    for idx, tc in enumerate(test_cases, 1):
-        t0 = _time.monotonic()
-        returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
-            lang, tmp_dir, tc.input_data, time_limit_sec, memory_mb,
-        )
-        elapsed_ms = int((_time.monotonic() - t0) * 1000)
+        for idx, tc in enumerate(test_cases, 1):
+            t0 = _time.monotonic()
+            returncode, stdout_data, stderr_data, timed_out, output_exceeded = run_code(
+                lang, tmp_dir, tc.input_data, time_limit_sec, memory_mb,
+            )
+            elapsed_ms = int((_time.monotonic() - t0) * 1000)
 
-        if timed_out:
-            case_status = 'TLE'
-        elif returncode == 137:
-            case_status = 'MLE'
-        elif output_exceeded:
-            case_status = 'OLE'
-        elif returncode != 0:
-            case_status = 'RE'
-            last_re_error = stderr_data[:1000]
-        else:
-            actual = _normalize(stdout_data)
-            expected = _normalize(tc.expected_output)
-            case_status = 'AC' if actual == expected else 'WA'
+            if timed_out:
+                case_status = 'TLE'
+            elif returncode == 137:
+                case_status = 'MLE'
+            elif output_exceeded:
+                case_status = 'OLE'
+            elif returncode != 0:
+                case_status = 'RE'
+                last_re_error = stderr_data[:1000]
+            else:
+                actual = _normalize(stdout_data)
+                expected = _normalize(tc.expected_output)
+                case_status = 'AC' if actual == expected else 'WA'
 
-        if case_status == 'AC':
-            max_time_ms = max(max_time_ms, elapsed_ms)
+            if case_status == 'AC':
+                max_time_ms = max(max_time_ms, elapsed_ms)
 
-        case_results.append({'idx': idx, 'status': case_status, 'time_ms': elapsed_ms})
+            case_results.append({'idx': idx, 'status': case_status, 'time_ms': elapsed_ms})
 
-        if overall_status == 'AC' and case_status != 'AC':
-            overall_status = case_status
+            if overall_status == 'AC' and case_status != 'AC':
+                overall_status = case_status
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
     # ── 保存结果 ──────────────────────────────────────────────────────────
     submission.status = overall_status
     submission.test_results = case_results
+    submission.score = _score_of(case_results)
     if overall_status == 'AC':
         submission.time_used = max_time_ms
     elif overall_status == 'RE':
         submission.error_info = last_re_error
-    submission.save(update_fields=['status', 'time_used', 'error_info', 'test_results'])
+    submission.save(
+        update_fields=['status', 'time_used', 'error_info', 'test_results', 'score']
+    )
 
     if overall_status == 'AC':
         already_ac = Submission.objects.filter(
@@ -115,6 +139,9 @@ def judge_submission(submission, problem):
 def update_contest_score(submission):
     """更新比赛参与者的分数和罚时 — 对应技术方案书 §4.2.1"""
     contest = submission.contest
+    if contest.rule_type == 'IOI':
+        _update_ioi_score(submission)
+        return
     if contest.rule_type != 'ICPC':
         return
 
@@ -143,3 +170,32 @@ def update_contest_score(submission):
         score=F('score') + 1,
         penalty=F('penalty') + ac_minutes + wrong_count * 20,
     )
+
+
+def _update_ioi_score(submission):
+    """
+    IOI 赛制计分：每题取该选手得分最高的一次提交，总分为各题之和，无罚时。
+
+    和 ICPC 的关键差别是"最高分"而不是"首次 AC"——后交的提交可能比先前的更高分，
+    也可能更低（选手改崩了），所以不能像 ICPC 那样只累加增量。这里直接按当前所有
+    提交重算一次总分：一条聚合查询，既避免累加漂移，也天然处理重测、改判的情况。
+    """
+    contest = submission.contest
+    ContestParticipant.objects.get_or_create(contest=contest, user=submission.user)
+
+    # 只统计计入本场比赛的题目，防止题目被移出比赛后旧提交仍在贡献分数
+    problem_ids = ContestProblem.objects.filter(
+        contest=contest
+    ).values_list('problem_id', flat=True)
+
+    best_per_problem = (
+        Submission.objects
+        .filter(user=submission.user, contest=contest, problem_id__in=problem_ids)
+        .values('problem_id')
+        .annotate(best=Max('score'))
+    )
+    total = sum(row['best'] or 0 for row in best_per_problem)
+
+    ContestParticipant.objects.filter(
+        contest=contest, user=submission.user
+    ).update(score=total, penalty=0)

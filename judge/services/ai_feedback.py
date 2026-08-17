@@ -1,11 +1,38 @@
+import logging
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import requests as http_req
 from django.conf import settings
+from django.db import close_old_connections
 
 from ..models import Problem, Submission
 
+logger = logging.getLogger(__name__)
+
 _LANG_CODE = {'C': 'c', 'C++': 'cpp', 'Java': 'java', 'Python': 'python'}
+
+# AI 反馈池。原实现每条提交都 `threading.Thread(...).start()`，和评测队列修掉的
+# 是同一类问题：比赛时上百条提交同时评完，就瞬间起上百个线程，每个都挂着一次
+# 30 秒的 LLM 请求、各自占一条数据库连接，MySQL 的 max_connections 很快被打满。
+#
+# 这里用固定大小的池子接住。反馈是锦上添花的功能，慢一点没关系，绝不该拖垮评测。
+_AI_WORKERS: int = int(getattr(settings, 'AI_FEEDBACK_WORKERS', 2))
+
+_executor: ThreadPoolExecutor | None = None
+_lock = threading.Lock()
+
+
+def _get_executor() -> ThreadPoolExecutor:
+    global _executor
+    if _executor is None:
+        with _lock:
+            if _executor is None:
+                _executor = ThreadPoolExecutor(
+                    max_workers=_AI_WORKERS, thread_name_prefix='ai-feedback',
+                )
+                logger.info('AI 反馈线程池已启动，max_workers=%d', _AI_WORKERS)
+    return _executor
 
 
 def _ai_call(prompt):
@@ -33,20 +60,30 @@ def _ai_call(prompt):
         return ''
 
 
-def _async_ai_feedback(submission_id, problem_id):
-    """评测结束后在后台线程填写 AI 反馈，不阻塞 verdict 返回。"""
-    def _worker():
-        try:
-            sub = Submission.objects.get(id=submission_id)
-            prob = Problem.objects.get(id=problem_id)
-            fb = _ai_call(_ai_suggest_prompt(sub, prob))
-            if fb:
-                sub.ai_feedback = fb
-                sub.save(update_fields=['ai_feedback'])
-        except Exception:
-            pass
+def _feedback_task(submission_id, problem_id):
+    """在池子里跑一次 AI 反馈。异常只记日志——反馈失败不该影响已经判完的结果。"""
+    # 池子里的线程是复用的，Django 不会像处理请求那样帮忙收连接，
+    # 必须自己在首尾回收，否则每个 worker 会各自攥着一条 MySQL 连接不放。
+    close_old_connections()
+    try:
+        sub = Submission.objects.get(id=submission_id)
+        prob = Problem.objects.get(id=problem_id)
+        fb = _ai_call(_ai_suggest_prompt(sub, prob))
+        if fb:
+            Submission.objects.filter(id=submission_id).update(ai_feedback=fb)
+    except Exception:
+        logger.exception('AI 反馈生成失败 submission_id=%s', submission_id)
+    finally:
+        close_old_connections()
 
-    threading.Thread(target=_worker, daemon=True).start()
+
+def _async_ai_feedback(submission_id, problem_id):
+    """评测结束后在后台补 AI 反馈，不阻塞 verdict 返回；并发上限见 _AI_WORKERS。"""
+    # 没配 LLM 就别白占线程了（判定与 _ai_call 保持一致）
+    if not getattr(settings, 'LLM_API_KEY', '').strip() \
+            or not getattr(settings, 'LLM_API_URL', '').strip():
+        return
+    _get_executor().submit(_feedback_task, submission_id, problem_id)
 
 
 def _ai_verdict_prompt(submission, problem):

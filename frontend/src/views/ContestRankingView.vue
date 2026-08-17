@@ -11,6 +11,7 @@ const problemLabels = ref([])
 const rankedUsers = ref([])
 const loading = ref(true)
 const lastUpdated = ref(null)
+const fullScore = ref(100)
 let timer = null
 
 async function fetchRank() {
@@ -19,6 +20,7 @@ async function fetchRank() {
     contest.value = data.contest
     problemLabels.value = data.problem_labels
     rankedUsers.value = data.ranked_users
+    if (data.full_score) fullScore.value = data.full_score
     lastUpdated.value = new Date()
   } finally {
     loading.value = false
@@ -26,6 +28,17 @@ async function fetchRank() {
 }
 
 const isRunning = computed(() => contest.value?.status === 'running')
+
+// IOI 榜按总分排，没有罚时；ICPC 榜按通过数 + 罚时排
+const isIOI = computed(() => contest.value?.rule_type === 'IOI')
+
+// 得分格配色：满分绿、零分红、部分分按比例取橙黄，一眼看出拿了几成
+function scoreCellStyle(score) {
+  const ratio = fullScore.value ? score / fullScore.value : 0
+  if (ratio >= 1) return { color: '#22c55e' }
+  if (ratio <= 0) return { color: 'var(--text-muted)' }
+  return { color: `hsl(${Math.round(48 * ratio)}, 85%, 52%)` }
+}
 
 function formatTime(iso) {
   if (!iso) return '-'
@@ -91,8 +104,8 @@ onBeforeUnmount(() => {
           <tr>
             <th class="th-rank">名次</th>
             <th class="th-user">选手</th>
-            <th class="th-solved">通过</th>
-            <th class="th-penalty">罚时</th>
+            <th class="th-solved">{{ isIOI ? '总分' : '通过' }}</th>
+            <th class="th-penalty">{{ isIOI ? '用时' : '罚时' }}</th>
             <th
               v-for="label in problemLabels"
               :key="label"
@@ -124,34 +137,52 @@ onBeforeUnmount(() => {
               </div>
             </td>
 
-            <!-- 通过数 -->
-            <td class="td-solved">{{ user.solved }}</td>
+            <!-- 总分 / 通过数 -->
+            <td class="td-solved">{{ isIOI ? user.score : user.solved }}</td>
 
-            <!-- 罚时 -->
-            <td class="td-penalty">{{ user.solved ? formatPenalty(user.penalty) : '-' }}</td>
+            <!-- 用时 / 罚时 -->
+            <td class="td-penalty">
+              {{ isIOI
+                ? (user.score ? formatPenalty(user.time_min) : '-')
+                : (user.solved ? formatPenalty(user.penalty) : '-') }}
+            </td>
 
-            <!-- 各题结果 -->
+            <!-- 各题结果：IOI 显示得分，ICPC 显示 AC 时间 / 错误次数 -->
             <td
               v-for="label in problemLabels"
               :key="label"
               class="td-problem"
             >
-              <div
-                v-if="user.problems[label]?.ac"
-                class="cell-ac"
-              >
-                <div class="cell-time">{{ user.problems[label].time_min }}m</div>
-                <div v-if="user.problems[label].wrong_count" class="cell-wrong">
+              <template v-if="isIOI">
+                <div v-if="user.problems[label]?.attempts" class="cell-score">
+                  <div class="score-num" :style="scoreCellStyle(user.problems[label].score)">
+                    {{ user.problems[label].score }}
+                  </div>
+                  <div class="cell-time">
+                    {{ user.problems[label].time_min != null ? user.problems[label].time_min + 'm' : '' }}
+                  </div>
+                </div>
+                <div v-else class="cell-empty">—</div>
+              </template>
+
+              <template v-else>
+                <div
+                  v-if="user.problems[label]?.ac"
+                  class="cell-ac"
+                >
+                  <div class="cell-time">{{ user.problems[label].time_min }}m</div>
+                  <div v-if="user.problems[label].wrong_count" class="cell-wrong">
+                    -{{ user.problems[label].wrong_count }}
+                  </div>
+                </div>
+                <div
+                  v-else-if="user.problems[label]?.wrong_count > 0"
+                  class="cell-wa"
+                >
                   -{{ user.problems[label].wrong_count }}
                 </div>
-              </div>
-              <div
-                v-else-if="user.problems[label]?.wrong_count > 0"
-                class="cell-wa"
-              >
-                -{{ user.problems[label].wrong_count }}
-              </div>
-              <div v-else class="cell-empty">—</div>
+                <div v-else class="cell-empty">—</div>
+              </template>
             </td>
           </tr>
         </tbody>
@@ -263,6 +294,14 @@ onBeforeUnmount(() => {
 .cell-wrong { color: rgba(34,197,94,0.5); font-size: 0.72rem; }
 .cell-wa { color: #ef4444; font-size: 0.82rem; font-weight: 600; }
 .cell-empty { color: var(--text-muted); font-size: 0.85rem; }
+
+/* IOI 得分格：分数用行内 style 按得分比例着色，时间保持中性色 */
+.cell-score {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1px; line-height: 1.2;
+}
+.score-num { font-size: 0.9rem; font-weight: 700; }
+.cell-score .cell-time { color: var(--text-muted); font-size: 0.72rem; font-weight: 400; }
 
 @media (max-width: 700px) {
   .page-header { flex-direction: column; }

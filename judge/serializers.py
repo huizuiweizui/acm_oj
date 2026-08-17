@@ -125,7 +125,11 @@ class ProblemDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class SubmissionSerializer(serializers.ModelSerializer):
+class SubmissionListSerializer(serializers.ModelSerializer):
+    """
+    提交列表用。不含源代码、编译错误、AI 反馈——列表可以匿名翻（全站评测流、
+    个人主页的近期提交），这些字段跟着一起发出去就等于公开导出所有人的代码。
+    """
     username = serializers.CharField(source='user.username', read_only=True)
     problem_id = serializers.IntegerField(source='problem.id', read_only=True)
     problem_title = serializers.CharField(source='problem.title', read_only=True)
@@ -134,13 +138,41 @@ class SubmissionSerializer(serializers.ModelSerializer):
         model = Submission
         fields = [
             'id', 'username', 'problem_id', 'problem_title',
-            'language', 'status', 'time_used', 'memory_used',
+            'language', 'status', 'time_used', 'memory_used', 'score', 'submitted_at',
+        ]
+
+
+class SubmissionSerializer(serializers.ModelSerializer):
+    """
+    提交详情。源代码等私密字段是否返回，由视图通过 context['can_view_code'] 决定
+    （见 permissions.can_view_submission_code）。context 缺省时按"不可见"处理，
+    这样将来漏传 context 的调用点是少给数据，而不是多给。
+    """
+    username = serializers.CharField(source='user.username', read_only=True)
+    problem_id = serializers.IntegerField(source='problem.id', read_only=True)
+    problem_title = serializers.CharField(source='problem.title', read_only=True)
+
+    # 都会泄漏代码内容：CE 信息里带源码片段，AI 反馈会复述实现思路
+    PRIVATE_FIELDS = ('code', 'error_info', 'ai_feedback')
+
+    class Meta:
+        model = Submission
+        fields = [
+            'id', 'username', 'problem_id', 'problem_title',
+            'language', 'status', 'time_used', 'memory_used', 'score',
             'error_info', 'ai_feedback', 'test_results', 'code', 'submitted_at',
         ]
         read_only_fields = [
-            'status', 'time_used', 'memory_used',
+            'status', 'time_used', 'memory_used', 'score',
             'error_info', 'ai_feedback', 'test_results', 'submitted_at',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if not self.context.get('can_view_code'):
+            for name in self.PRIVATE_FIELDS:
+                data[name] = ''
+        return data
 
 
 class ContestSerializer(serializers.ModelSerializer):
