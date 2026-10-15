@@ -1,0 +1,134 @@
+/* 星语 · 教师端。沿用站点设计令牌（跟随亮 / 暗主题），风格同教学管理：克制、表格为主、无装饰。 */
+.st-page { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.st-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.st-head h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; color: var(--text-primary); }
+.st-head .st-head-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.st-muted { color: var(--text-secondary); font-size: 13px; margin: 0; }
+
+.st-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+}
+.st-card h2 { font-size: 16px; font-weight: 600; margin: 0 0 14px; color: var(--text-primary); }
+.st-card h3 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; color: var(--text-primary); }
+
+.st-notice {
+  border: 1px solid var(--status-tle-dot);
+  background: var(--status-tle-bg);
+  color: var(--status-tle-text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+.st-error {
+  border: 1px solid var(--status-wa-dot);
+  background: var(--status-wa-bg);
+  color: var(--status-wa-text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.st-btn {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.st-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.st-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.st-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.st-btn-primary:hover:not(:disabled) { background: var(--accent-hover); color: #fff; }
+.st-btn-danger { color: var(--status-wa-text); }
+.st-btn-sm { height: 28px; padding: 0 10px; font-size: 13px; }
+
+.st-table-wrap { overflow-x: auto; }
+.st-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.st-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.st-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text-primary); }
+.st-table tr:last-child td { border-bottom: none; }
+.st-num { font-family: var(--font-mono); }
+.st-empty { text-align: center; padding: 28px; color: var(--text-secondary); }
+
+/* 状态徽章：图标 + 文字 + 颜色 */
+.st-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.st-badge.ok { background: var(--status-ac-bg); color: var(--status-ac-text); }
+.st-badge.warn { background: var(--status-tle-bg); color: var(--status-tle-text); }
+.st-badge.bad { background: var(--status-wa-bg); color: var(--status-wa-text); }
+.st-badge.info { background: var(--status-pending-bg); color: var(--status-pending-text); }
+.st-badge.plain { background: var(--bg-secondary); color: var(--text-secondary); }
+
+.st-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.st-tab {
+  border: none;
+  background: none;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.st-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+.st-form { display: grid; grid-template-columns: 110px 1fr; gap: 12px 14px; align-items: center; font-size: 14px; }
+.st-form > label { color: var(--text-secondary); }
+.st-input, .st-select, .st-textarea {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 14px;
+  width: 100%;
+}
+.st-textarea { height: auto; padding: 8px 10px; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; }
+.st-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.st-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 14px; margin: 0; }
+.st-kv dt { color: var(--text-secondary); }
+.st-kv dd { margin: 0; color: var(--text-primary); }
+
+.st-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.st-stat { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--bg-card); }
+.st-stat .v { font-size: 24px; font-weight: 600; font-family: var(--font-mono); color: var(--text-primary); }
+.st-stat .k { font-size: 12.5px; color: var(--text-secondary); }
+
+.st-code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--code-bg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0;
+}
+.st-err-list { margin: 6px 0 0; padding-left: 20px; font-size: 13px; color: var(--status-wa-text); }

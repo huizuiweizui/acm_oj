@@ -9,6 +9,11 @@ const route = useRoute()
 
 const isAuthPage = computed(() => ['login', 'teacher-login', 'admin-login', 'register'].includes(route.name))
 const isFullPage = computed(() => route.name === 'problem-detail')
+// 星语学生端自带低刺激外壳，不显示站点导航栏和页脚
+const isStarShell = computed(() => !!route.meta.starShell)
+// 首屏路由解析完之前 route.meta 还是空的，导航栏会先闪一下再消失；等路由就绪再画
+const routerReady = ref(false)
+router.isReady().then(() => { routerReady.value = true })
 const isDark = ref(false)
 
 function applyTheme(dark) {
@@ -35,7 +40,7 @@ function logout() {
 
 <template>
   <div id="app">
-    <nav v-if="!isAuthPage" class="navbar">
+    <nav v-if="routerReady && !isAuthPage && !isStarShell" class="navbar">
       <div class="nav-inner">
         <RouterLink to="/" class="brand">
           <span class="brand-icon">&lt;/&gt;</span>
@@ -49,6 +54,7 @@ function logout() {
           <RouterLink to="/discussions">讨论</RouterLink>
           <RouterLink to="/learn">算法学习</RouterLink>
           <RouterLink to="/learn/graph">知识图谱</RouterLink>
+          <RouterLink v-if="userStore.isLoggedIn" :to="userStore.isTeacherOrAdmin ? '/star/teacher' : '/star'">星语</RouterLink>
           <!-- 学生：我的团队 -->
           <RouterLink v-if="userStore.isLoggedIn && !userStore.isTeacherOrAdmin" to="/my-teams">我的团队</RouterLink>
           <!-- 教师：教学管理 -->
@@ -83,11 +89,11 @@ function logout() {
       </div>
     </nav>
 
-    <main :class="isAuthPage ? 'auth-content' : isFullPage ? 'full-content' : 'main-content'">
+    <main :class="isAuthPage ? 'auth-content' : (isFullPage || isStarShell) ? 'full-content' : 'main-content'">
       <RouterView />
     </main>
 
-    <footer v-if="!isAuthPage && !isFullPage" class="footer">
+    <footer v-if="routerReady && !isAuthPage && !isFullPage && !isStarShell" class="footer">
       <div class="footer-inner">
         <p>ACM OJ 算法竞赛在线评测平台</p>
       </div>

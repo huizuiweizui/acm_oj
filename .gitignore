@@ -28,3 +28,9 @@ logs/crawl_luogu_progress.json
 frontend/dist/
 frontend/node_modules/
 frontend/.eslintcache
+
+# 账号密码表（含明文密码，禁止提交）
+accounts.xlsx
+
+# 星语消融实验输出（manage.py star_eval）
+star_eval_results/

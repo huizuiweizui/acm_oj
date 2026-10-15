@@ -1,0 +1,797 @@
+[
+ {
+  "name": "直走到终点",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "arrived",
+  "final": {
+   "x": 3,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   0,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "踏上终点立即停止，多余卡片不执行",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "arrived",
+  "final": {
+   "x": 3,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   0,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "卡片用完还没到",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "not_reached",
+  "final": {
+   "x": 1,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 2,
+  "cards": [
+   -1,
+   0
+  ]
+ },
+ {
+  "name": "出界",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "left"
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "out",
+  "final": {
+   "x": 0,
+   "y": 0,
+   "dir": "N"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   0,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "撞墙停在原地",
+  "level": {
+   "grid": {
+    "w": 4,
+    "h": 4
+   },
+   "start": {
+    "x": 0,
+    "y": 3,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 2,
+    "y": 1
+   },
+   "walls": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "wall",
+  "final": {
+   "x": 1,
+   "y": 3,
+   "dir": "E"
+  },
+  "frames": 3,
+  "cards": [
+   -1,
+   0,
+   1
+  ]
+ },
+ {
+  "name": "左转后向上走",
+  "level": {
+   "grid": {
+    "w": 4,
+    "h": 4
+   },
+   "start": {
+    "x": 0,
+    "y": 3,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 2,
+    "y": 1
+   },
+   "walls": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "forward"
+   },
+   {
+    "type": "left"
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "wall",
+  "final": {
+   "x": 1,
+   "y": 2,
+   "dir": "N"
+  },
+  "frames": 5,
+  "cards": [
+   -1,
+   0,
+   1,
+   2,
+   3
+  ]
+ },
+ {
+  "name": "重复卡只管下一张",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "repeat",
+    "times": 3
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "arrived",
+  "final": {
+   "x": 3,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "name": "重复次数超过 5 按 5 算",
+  "level": {
+   "grid": {
+    "w": 8,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 7,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "repeat",
+    "times": 9
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "not_reached",
+  "final": {
+   "x": 6,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 7,
+  "cards": [
+   -1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "重复次数小于 2 按 2 算",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "repeat",
+    "times": 0
+   },
+   {
+    "type": "forward"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "arrived",
+  "final": {
+   "x": 3,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   1,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "末尾悬空的重复卡不起作用",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "forward"
+   },
+   {
+    "type": "repeat",
+    "times": 4
+   }
+  ],
+  "result": "not_reached",
+  "final": {
+   "x": 1,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 2,
+  "cards": [
+   -1,
+   0
+  ]
+ },
+ {
+  "name": "重复卡后面跟重复卡：前一张不起作用",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "repeat",
+    "times": 2
+   },
+   {
+    "type": "repeat",
+    "times": 3
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "arrived",
+  "final": {
+   "x": 3,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   2,
+   2,
+   2
+  ]
+ },
+ {
+  "name": "重复转向：转两次掉头",
+  "level": {
+   "grid": {
+    "w": 4,
+    "h": 4
+   },
+   "start": {
+    "x": 0,
+    "y": 3,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 2,
+    "y": 1
+   },
+   "walls": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "repeat",
+    "times": 2
+   },
+   {
+    "type": "left"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "out",
+  "final": {
+   "x": 0,
+   "y": 3,
+   "dir": "W"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   1,
+   1,
+   2
+  ]
+ },
+ {
+  "name": "重复前进中途撞墙",
+  "level": {
+   "grid": {
+    "w": 4,
+    "h": 4
+   },
+   "start": {
+    "x": 0,
+    "y": 3,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 2,
+    "y": 1
+   },
+   "walls": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "left"
+   },
+   {
+    "type": "repeat",
+    "times": 3
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "wall",
+  "final": {
+   "x": 0,
+   "y": 2,
+   "dir": "N"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   0,
+   2,
+   2
+  ]
+ },
+ {
+  "name": "重复前进中途到达终点即停止",
+  "level": {
+   "grid": {
+    "w": 5,
+    "h": 3
+   },
+   "start": {
+    "x": 0,
+    "y": 1,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 3,
+    "y": 1
+   },
+   "walls": [],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "repeat",
+    "times": 5
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "arrived",
+  "final": {
+   "x": 3,
+   "y": 1,
+   "dir": "E"
+  },
+  "frames": 4,
+  "cards": [
+   -1,
+   1,
+   1,
+   1
+  ]
+ },
+ {
+  "name": "右转",
+  "level": {
+   "grid": {
+    "w": 4,
+    "h": 4
+   },
+   "start": {
+    "x": 0,
+    "y": 3,
+    "dir": "E"
+   },
+   "goal": {
+    "x": 2,
+    "y": 1
+   },
+   "walls": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     3
+    ]
+   ],
+   "cards": [
+    "forward",
+    "left",
+    "right",
+    "repeat"
+   ]
+  },
+  "program": [
+   {
+    "type": "right"
+   },
+   {
+    "type": "forward"
+   }
+  ],
+  "result": "out",
+  "final": {
+   "x": 0,
+   "y": 3,
+   "dir": "S"
+  },
+  "frames": 3,
+  "cards": [
+   -1,
+   0,
+   1
+  ]
+ }
+]

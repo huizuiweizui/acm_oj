@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'judge',
+    'star',
 ]
 
 MIDDLEWARE = [
@@ -139,6 +140,8 @@ REST_FRAMEWORK = {
         'submit':   env('THROTTLE_SUBMIT',   default='30/min'),   # 防刷评测，比赛正常提交够用
         'run':      env('THROTTLE_RUN',      default='30/min'),   # 自定义运行同样会执行代码
         'ai':       env('THROTTLE_AI',       default='30/hour'),  # 每次调用 LLM 都花钱
+        # 星语对话助手：学生学习时会连续提问，额度比通用问答宽
+        'star_ai':  env('THROTTLE_STAR_AI',  default='120/hour'),
     },
 }
 

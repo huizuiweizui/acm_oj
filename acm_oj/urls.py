@@ -12,6 +12,7 @@ _FRONTEND_DIST = BASE_DIR / 'frontend' / 'dist'
 # 两者同名时 Django 会先匹配，管理端页面永远打不开。
 urlpatterns = [
     path('django-admin/', admin.site.urls),
+    path('api/star/', include('star.urls')),
     path('api/', include('judge.api_urls')),
 ]
 

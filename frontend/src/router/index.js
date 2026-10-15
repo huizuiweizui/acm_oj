@@ -163,6 +163,45 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresRole: 'admin' },
     },
 
+    // ==================== 星语 · 编程学伴 ====================
+    // 学生端用独立的低刺激外壳（starShell）：隐藏站点导航栏与页脚，不出现排行榜、计时等元素
+    {
+      path: '/star',
+      name: 'star-home',
+      component: () => import('@/views/star/StarHomeView.vue'),
+      meta: { requiresAuth: true, starShell: true },
+    },
+    {
+      path: '/star/start',
+      name: 'star-start',
+      component: () => import('@/views/star/StarOnboardView.vue'),
+      meta: { requiresAuth: true, starShell: true },
+    },
+    {
+      path: '/star/tasks/:id',
+      name: 'star-task',
+      component: () => import('@/views/star/StarTaskView.vue'),
+      meta: { requiresAuth: true, starShell: true },
+    },
+    {
+      path: '/star/teacher',
+      name: 'star-teacher',
+      component: () => import('@/views/star/teacher/StarLearnersView.vue'),
+      meta: { requiresAuth: true, requiresRole: 'teacher' },
+    },
+    {
+      path: '/star/teacher/learners/:uid',
+      name: 'star-learner',
+      component: () => import('@/views/star/teacher/StarLearnerView.vue'),
+      meta: { requiresAuth: true, requiresRole: 'teacher' },
+    },
+    {
+      path: '/star/teacher/tasks/:id',
+      name: 'star-review',
+      component: () => import('@/views/star/teacher/StarTaskReviewView.vue'),
+      meta: { requiresAuth: true, requiresRole: 'teacher' },
+    },
+
     // ==================== 修改密码 ====================
     {
       path: '/change-password',
