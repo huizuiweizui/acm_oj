@@ -24,10 +24,10 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-name-resolve
-      # 评测线程池（judge/services/judge_queue.py）的线程常驻、各自长期持有一条数据库连接，
-      # 评测前后不回收。MySQL 默认 8 小时（wait_timeout=28800）断开空闲连接，之后这些线程
-      # 每次评测都报 "MySQL server has gone away"，提交卡在 Pending。连接数有上限
-      # （≈ 进程数 × 线程池大小），放宽到最大值即可。
+      # 保险：后台线程（评测池、AI 反馈池）常驻复用，若有代码长期攥着连接不放，MySQL 默认
+      # 8 小时（wait_timeout=28800）断开空闲连接后就会报 "MySQL server has gone away"。
+      # judge_queue / ai_feedback 已在每个任务首尾回收连接，这里放宽到最大值只是多一层保险；
+      # 连接数有上限（≈ 进程数 × 线程数），不会堆积。
       - --wait-timeout=31536000
       - --interactive-timeout=31536000
     volumes:

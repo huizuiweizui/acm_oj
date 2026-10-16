@@ -318,14 +318,16 @@ AC 数和 Rating 被加两次）。
   SLB / CDN，需要改用 nginx 的 `real_ip` 模块取真实 IP，否则所有人会共用同一个限流额度。
 - 上游地址通过 Docker 内置 DNS 动态解析：web 容器重建换了 IP，nginx 无需重启。
 
-### 3.4 MySQL 空闲连接超时
+### 3.4 评测线程的数据库连接
 
-评测线程池的线程常驻进程，各自长期持有一条数据库连接，评测前后不回收
-（`judge_queue._judge_task` 没有调用 `close_old_connections()`）。MySQL 默认 8 小时断开空闲连接，
-之后这些线程每次评测都会报 `MySQL server has gone away`，提交一直停在 Pending——演示机放一晚上就会中招。
-编排把 `wait_timeout` 放宽到最大值（一年）规避；连接数有上限（约「进程数 ×（线程池 + 请求线程）」，
-远低于 `max_connections=151`）。同理，db 容器重启后这些旧连接全部失效，需要随手
-`docker compose restart web`。代码层面的根治是在 `_judge_task` 首尾调用 `close_old_connections()`。
+评测线程池的线程常驻进程、反复复用，Django 不会像处理请求那样替它们回收数据库连接。早先的代码从不回收：
+MySQL 断开空闲连接（`wait_timeout` 默认 8 小时）或重启之后，这些线程每次评测都报
+`MySQL server has gone away`，提交一直停在 Pending。现在 `judge_queue._judge_task` 在每次评测的首尾
+调用 `close_old_connections()`（与 AI 反馈池一致）；评测中途连接断开时，也会换一条连接写入兜底的 RE。
+db 容器重启后，新的提交会自动重连、正常评测。
+
+编排里仍把 MySQL 的 `wait_timeout` 放宽到最大值（一年），只是多一层保险；连接数有上限
+（约「进程数 ×（线程池 + 请求线程）」，远低于 `max_connections=151`），不会堆积。
 
 ---
 
@@ -420,7 +422,7 @@ docker compose restart web
 | 所有提交都是 CE，信息里有 `Unable to find image` | 沙箱镜像没构建：`docker compose --profile sandbox build sandbox` |
 | 所有提交都是 CE，信息里有 `Permission denied` | web 没以 root 运行，或宿主机 SELinux 处于 Enforcing（`getenforce` 查看） |
 | 提交一直停在 Pending | `docker compose logs web` 看评测线程的异常；数据库连接问题见「3.4」 |
-| 重启过 db（或 MySQL 崩溃重启）后评测全部卡住 | 评测线程手里的旧连接都断了且不会自动重连，`docker compose restart web` 即可（原因见「3.4」） |
+| db 重启（或 MySQL 崩溃）那一刻正在评测的提交停在 Judging | 之后的提交会自动重连、正常评测；卡住的那几条用 `docker compose restart web` 重新入队（启动时自动恢复） |
 | 构建时拉镜像超时 | 配置 Docker Hub 加速（第 1 步）|
 | 构建前端时被 Killed（内存不足） | 加 swap：`fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile`，并把 `/swapfile none swap sw 0 0` 写入 `/etc/fstab` |
 | 「大模型改造」超时 | 先看 `LLM_API_KEY` 是否填写、服务器能否访问 `api.deepseek.com`；nginx 等 300 秒、前端等 180 秒 |
