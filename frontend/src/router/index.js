@@ -69,6 +69,11 @@ const router = createRouter({
       component: () => import('@/views/SubmissionsView.vue'),
     },
     {
+      path: '/submissions/:id',
+      name: 'submission-detail',
+      component: () => import('@/views/SubmissionDetailView.vue'),
+    },
+    {
       path: '/rank',
       name: 'rank',
       component: () => import('@/views/LeaderboardView.vue'),
@@ -143,6 +148,12 @@ const router = createRouter({
       meta: { requiresAuth: true },   // 后端控制权限
     },
     {
+      path: '/teacher/teams/:id/assignments/:aid',
+      name: 'teacher-assignment-matrix',
+      component: () => import('@/views/teacher/AssignmentMatrixView.vue'),
+      meta: { requiresAuth: true },   // 后端控制权限（教师+队长只读）
+    },
+    {
       path: '/teacher/teams/:teamId/students/:userId',
       name: 'teacher-student-detail',
       component: () => import('@/views/teacher/StudentDetailView.vue'),
@@ -215,6 +226,11 @@ const router = createRouter({
       path: '/403',
       name: 'forbidden',
       component: () => import('@/views/ForbiddenView.vue'),
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFoundView.vue'),
     },
   ],
 })

@@ -1,15 +1,29 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  getTeam, updateTeam, resetInviteCode,
+  getTeam, resetInviteCode,
   getMembers, updateMember, removeMember,
   getRequests, approveRequest, rejectRequest, batchApprove,
   setContestPerm,
   searchStudent, addStudent, importTemplate, importStudents,
   getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement,
   getAssignments, createAssignment, updateAssignment, deleteAssignment,
+  saveBlobResponse,
 } from '@/api/team'
+import { getProblems } from '@/api/problems'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+
+// ISO 时间 ↔ <input type="datetime-local"> 的本地时间字符串
+function toLocalInput(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function fromLocalInput(v) {
+  return v ? new Date(v).toISOString() : null
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -75,21 +89,13 @@ async function doAddStudent(u) {
   }
 }
 
-function downloadTemplate() {
-  // 带 token 跳转下载
-  const token = localStorage.getItem('access_token')
-  const a = document.createElement('a')
-  a.href = `/api/teams/${teamId}/import-template/`
-  a.download = `import_template_${teamId}.xlsx`
-  // 用 fetch 带鉴权下载
-  fetch(a.href, { headers: { Authorization: `Bearer ${token}` } })
-    .then(r => r.blob())
-    .then(blob => {
-      const url = URL.createObjectURL(blob)
-      a.href = url
-      a.click()
-      URL.revokeObjectURL(url)
-    })
+async function downloadTemplate() {
+  // 走 axios 实例：自动带 token，过期时自动刷新
+  try {
+    saveBlobResponse(await importTemplate(teamId), `import_template_${teamId}.xlsx`)
+  } catch {
+    flash('模板下载失败')
+  }
 }
 
 async function onFileChange(e) {
@@ -102,10 +108,10 @@ async function onFileChange(e) {
     form.append('file', file)
     const { data } = await importStudents(teamId, form)
     importReport.value = data
-    // 刷新成员列表
+    // 刷新成员列表（接口返回 { members, can_manage }）
     const { data: ml } = await getMembers(teamId)
-    members.value = ml
-    if (team.value) team.value.member_count = ml.length
+    members.value = ml.members ?? ml
+    if (team.value) team.value.member_count = members.value.length
     flash(`导入完成：成功 ${data.success} / 已存在 ${data.already_member} / 失败 ${data.failed}`)
   } catch (e) {
     flash(e.response?.data?.detail || '导入失败')
@@ -136,23 +142,31 @@ function openAnnModal(a = null) {
 
 async function saveAnn() {
   if (!annForm.value.title.trim()) return
-  if (annEdit.value) {
-    const { data } = await updateAnnouncement(teamId, annEdit.value.id, annForm.value)
-    const idx = announcements.value.findIndex(a => a.id === data.id)
-    if (idx >= 0) announcements.value[idx] = data
-  } else {
-    const { data } = await createAnnouncement(teamId, annForm.value)
-    announcements.value.unshift(data)
+  try {
+    if (annEdit.value) {
+      const { data } = await updateAnnouncement(teamId, annEdit.value.id, annForm.value)
+      const idx = announcements.value.findIndex(a => a.id === data.id)
+      if (idx >= 0) announcements.value[idx] = data
+    } else {
+      const { data } = await createAnnouncement(teamId, annForm.value)
+      announcements.value.unshift(data)
+    }
+    annModal.value = false
+    flash(annEdit.value ? '公告已更新' : '公告已发布')
+  } catch (e) {
+    flash(e.response?.data?.detail || '保存失败')
   }
-  annModal.value = false
-  flash(annEdit.value ? '公告已更新' : '公告已发布')
 }
 
 async function deleteAnn(a) {
   if (!confirm(`删除公告「${a.title}」？`)) return
-  await deleteAnnouncement(teamId, a.id)
-  announcements.value = announcements.value.filter(x => x.id !== a.id)
-  flash('已删除')
+  try {
+    await deleteAnnouncement(teamId, a.id)
+    announcements.value = announcements.value.filter(x => x.id !== a.id)
+    flash('已删除')
+  } catch (e) {
+    flash(e.response?.data?.detail || '删除失败')
+  }
 }
 
 async function togglePin(a) {
@@ -165,7 +179,8 @@ async function togglePin(a) {
 const assignments = ref([])
 const asgnModal = ref(false)
 const asgnEdit = ref(null)
-const asgnForm = ref({ title: '', description: '', deadline: '', is_active: true, problem_ids: [] })
+const asgnForm = ref({ title: '', description: '', start_at: '', deadline: '', is_active: true, problem_ids: [] })
+const asgnError = ref('')
 const problemSearch = ref('')
 const problemResults = ref([])
 const problemSearching = ref(false)
@@ -181,13 +196,16 @@ function openAsgnModal(a = null) {
     ? {
         title: a.title,
         description: a.description,
-        deadline: a.deadline ? a.deadline.slice(0, 16) : '',
+        start_at: toLocalInput(a.start_at),
+        deadline: toLocalInput(a.deadline),
         is_active: a.is_active,
         problem_ids: a.problems.map(p => p.id),
+        _problems: Object.fromEntries(a.problems.map(p => [p.id, p])),
       }
-    : { title: '', description: '', deadline: '', is_active: true, problem_ids: [] }
-  problemResults.value = a ? a.problems.map(p => ({ id: p.id, title: p.title, difficulty: p.difficulty })) : []
+    : { title: '', description: '', start_at: '', deadline: '', is_active: true, problem_ids: [], _problems: {} }
+  problemResults.value = []
   problemSearch.value = ''
+  asgnError.value = ''
   asgnModal.value = true
 }
 
@@ -195,14 +213,20 @@ async function searchProblems() {
   if (!problemSearch.value.trim()) return
   problemSearching.value = true
   try {
-    const { default: api } = await import('@/api/index')
-    const { data } = await api.get('/problems/', { params: { search: problemSearch.value, limit: 10, is_published: true } })
-    // 过滤掉已添加的
+    // 题目列表接口的搜索参数是 keyword（匹配题号或标题）
+    const { data } = await getProblems({ keyword: problemSearch.value.trim().replace(/^#/, ''), page_size: 20 })
     const ids = new Set(asgnForm.value.problem_ids)
     problemResults.value = (data.results || data).filter(p => !ids.has(p.id)).slice(0, 8)
   } finally {
     problemSearching.value = false
   }
+}
+
+function moveProblem(idx, delta) {
+  const ids = asgnForm.value.problem_ids
+  const j = idx + delta
+  if (j < 0 || j >= ids.length) return
+  ;[ids[idx], ids[j]] = [ids[j], ids[idx]]
 }
 
 function addProblemToAssignment(p) {
@@ -220,39 +244,59 @@ function removeProblemFromAssignment(pid) {
 
 async function saveAssignment() {
   if (!asgnForm.value.title.trim()) return
+  asgnError.value = ''
   const payload = {
     title: asgnForm.value.title.trim(),
     description: asgnForm.value.description,
-    deadline: asgnForm.value.deadline || null,
+    start_at: fromLocalInput(asgnForm.value.start_at),
+    deadline: fromLocalInput(asgnForm.value.deadline),
     is_active: asgnForm.value.is_active,
     problem_ids: asgnForm.value.problem_ids,
   }
-  if (asgnEdit.value) {
-    const { data } = await updateAssignment(teamId, asgnEdit.value.id, payload)
-    const idx = assignments.value.findIndex(a => a.id === data.id)
-    if (idx >= 0) assignments.value[idx] = data
-  } else {
-    const { data } = await createAssignment(teamId, payload)
-    assignments.value.unshift(data)
+  try {
+    if (asgnEdit.value) {
+      const { data } = await updateAssignment(teamId, asgnEdit.value.id, payload)
+      const idx = assignments.value.findIndex(a => a.id === data.id)
+      if (idx >= 0) assignments.value[idx] = data
+    } else {
+      const { data } = await createAssignment(teamId, payload)
+      assignments.value.unshift(data)
+    }
+    asgnModal.value = false
+    flash(asgnEdit.value ? '作业已更新' : '作业已创建')
+  } catch (e) {
+    asgnError.value = e.response?.data?.detail || '保存失败'
   }
-  asgnModal.value = false
-  flash(asgnEdit.value ? '作业已更新' : '作业已创建')
 }
 
 async function deleteAsgn(a) {
   if (!confirm(`删除作业「${a.title}」？`)) return
-  await deleteAssignment(teamId, a.id)
-  assignments.value = assignments.value.filter(x => x.id !== a.id)
-  flash('已删除')
+  try {
+    await deleteAssignment(teamId, a.id)
+    assignments.value = assignments.value.filter(x => x.id !== a.id)
+    flash('已删除')
+  } catch (e) {
+    flash(e.response?.data?.detail || '删除失败')
+  }
 }
+
+function fmtDateTime(dt) {
+  return dt ? new Date(dt).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
+}
+
+const loadError = ref('')
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     const [td, ml] = await Promise.all([getTeam(teamId), getMembers(teamId)])
     team.value = td.data
     canManage.value = !!td.data.can_manage
     members.value = ml.data.members ?? ml.data   // 兼容旧格式
+  } catch (e) {
+    const s = e.response?.status
+    loadError.value = s === 403 ? '无权访问该团队' : s === 404 ? '团队不存在' : '加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -305,7 +349,8 @@ async function doRemove(ms) {
 // ── 操作：申请 ────────────────────────────────────────────────────
 function toggleSelect(id) {
   const s = new Set(selectedIds.value)
-  s.has(id) ? s.delete(id) : s.add(id)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
   selectedIds.value = s
 }
 
@@ -388,7 +433,7 @@ onMounted(load)
   <div class="team-detail" v-if="team">
     <!-- 顶部 -->
     <div class="detail-header">
-      <button class="btn-back" @click="router.push('/teacher')">← 返回</button>
+      <button class="btn-back" @click="router.push(canManage ? '/teacher' : `/my-teams/${teamId}`)">← 返回</button>
       <div class="header-info">
         <h1 class="team-name">{{ team.name }}</h1>
         <p v-if="team.description" class="team-desc">{{ team.description }}</p>
@@ -433,13 +478,14 @@ onMounted(load)
         <button :class="['tab', activeTab === 'add' && 'tab-active']" @click="switchTab('add')">
           添加学生
         </button>
-        <button :class="['tab', activeTab === 'announcements' && 'tab-active']" @click="switchTab('announcements')">
-          公告
-        </button>
-        <button :class="['tab', activeTab === 'assignments' && 'tab-active']" @click="switchTab('assignments')">
-          作业
-        </button>
       </template>
+      <!-- 公告 / 作业：队长只读可见 -->
+      <button :class="['tab', activeTab === 'announcements' && 'tab-active']" @click="switchTab('announcements')">
+        公告
+      </button>
+      <button :class="['tab', activeTab === 'assignments' && 'tab-active']" @click="switchTab('assignments')">
+        作业
+      </button>
     </div>
 
     <!-- ── 成员列表 Tab ── -->
@@ -456,7 +502,11 @@ onMounted(load)
           <tbody>
             <tr v-for="ms in members" :key="ms.user_id">
               <td>
-                <span class="display-name">{{ ms.display_name }}</span>
+                <RouterLink
+                  :to="`/teacher/teams/${teamId}/students/${ms.user_id}`"
+                  class="display-name member-link"
+                  title="查看刷题详情"
+                >{{ ms.display_name }}</RouterLink>
                 <span v-if="ms.role === 'captain'" class="crown" title="队长">👑</span>
               </td>
               <td class="text-muted">{{ ms.username }}</td>
@@ -586,10 +636,13 @@ onMounted(load)
             <span class="ir-skip">↺ 已在团队 {{ importReport.already_member }}</span>
             <span class="ir-fail">✗ 失败 {{ importReport.failed }}</span>
           </div>
-          <div v-if="importReport.errors?.length > 0" class="ir-errors">
-            <div v-for="(e, i) in importReport.errors" :key="i" class="ir-error-row">
-              第 {{ e.row }} 行（{{ e.student_id }}）：{{ e.reason }}
+          <div v-if="importReport.fail_list?.length > 0" class="ir-errors">
+            <div v-for="(e, i) in importReport.fail_list" :key="i" class="ir-error-row">
+              第 {{ e.row }} 行<template v-if="e.student_id">（{{ e.student_id }}）</template>：{{ e.reason }}
             </div>
+          </div>
+          <div v-if="importReport.success_list?.some(s => s.created)" class="ir-created text-muted">
+            新建账号 {{ importReport.success_list.filter(s => s.created).length }} 个，初始密码为学号，首次登录需修改密码
           </div>
         </div>
       </div>
@@ -598,7 +651,7 @@ onMounted(load)
 
     <!-- ── 公告 Tab ── -->
     <div v-if="activeTab === 'announcements'" class="ann-section">
-      <div class="ann-toolbar">
+      <div v-if="canManage" class="ann-toolbar">
         <button class="btn-primary btn-sm-solid" @click="openAnnModal()">+ 发布公告</button>
       </div>
       <div v-if="announcements.length === 0" class="empty-tip">暂无公告</div>
@@ -607,13 +660,13 @@ onMounted(load)
           <div class="ann-head">
             <span class="ann-pin" v-if="a.is_pinned" title="已置顶">📌</span>
             <span class="ann-title">{{ a.title }}</span>
-            <div class="ann-actions">
+            <div v-if="canManage" class="ann-actions">
               <button class="btn-xs" @click="togglePin(a)">{{ a.is_pinned ? '取消置顶' : '置顶' }}</button>
               <button class="btn-xs" @click="openAnnModal(a)">编辑</button>
               <button class="btn-xs btn-danger" @click="deleteAnn(a)">删除</button>
             </div>
           </div>
-          <p v-if="a.content" class="ann-content">{{ a.content }}</p>
+          <MarkdownRenderer v-if="a.content" :content="a.content" class="ann-content-md" />
           <div class="ann-meta text-muted">{{ a.created_by }} · {{ fmt(a.created_at) }}</div>
         </div>
       </div>
@@ -621,7 +674,7 @@ onMounted(load)
 
     <!-- ── 作业 Tab ── -->
     <div v-if="activeTab === 'assignments'" class="asgn-section">
-      <div class="asgn-toolbar">
+      <div v-if="canManage" class="asgn-toolbar">
         <button class="btn-primary btn-sm-solid" @click="openAsgnModal()">+ 创建作业</button>
       </div>
       <div v-if="assignments.length === 0" class="empty-tip">暂无作业</div>
@@ -633,14 +686,18 @@ onMounted(load)
               <span v-if="!a.is_active" class="asgn-draft">草稿</span>
             </div>
             <div class="asgn-actions">
-              <button class="btn-xs" @click="openAsgnModal(a)">编辑</button>
-              <button class="btn-xs btn-danger" @click="deleteAsgn(a)">删除</button>
+              <button class="btn-xs btn-accent" @click="router.push(`/teacher/teams/${teamId}/assignments/${a.id}`)">完成情况</button>
+              <template v-if="canManage">
+                <button class="btn-xs" @click="openAsgnModal(a)">编辑</button>
+                <button class="btn-xs btn-danger" @click="deleteAsgn(a)">删除</button>
+              </template>
             </div>
           </div>
           <p v-if="a.description" class="asgn-desc text-muted">{{ a.description }}</p>
           <div class="asgn-footer text-muted">
             <span>{{ a.problem_count }} 道题</span>
-            <span v-if="a.deadline"> · 截止 {{ fmt(a.deadline) }}</span>
+            <span v-if="a.start_at"> · 开始 {{ fmtDateTime(a.start_at) }}</span>
+            <span v-if="a.deadline"> · 截止 {{ fmtDateTime(a.deadline) }}</span>
             <span> · {{ a.created_by }}</span>
           </div>
           <div v-if="a.problems.length > 0" class="asgn-problems">
@@ -655,13 +712,17 @@ onMounted(load)
   </div>
 
   <div v-else-if="loading" class="loading-tip">加载中…</div>
+  <div v-else-if="loadError" class="loading-tip load-error">
+    {{ loadError }}
+    <button class="btn-back" @click="router.back()">← 返回</button>
+  </div>
 
   <!-- 公告弹窗 -->
   <div v-if="annModal" class="modal-overlay" @click.self="annModal = false">
     <div class="modal modal-wide">
       <h2 class="modal-title">{{ annEdit ? '编辑公告' : '发布公告' }}</h2>
       <input v-model="annForm.title" class="form-input" placeholder="公告标题" maxlength="200" />
-      <textarea v-model="annForm.content" class="form-textarea" placeholder="公告内容（可选，支持换行）" rows="5"></textarea>
+      <textarea v-model="annForm.content" class="form-textarea" placeholder="公告内容（可选，支持 Markdown）" rows="6"></textarea>
       <label class="check-label">
         <input type="checkbox" v-model="annForm.is_pinned" />
         置顶此公告
@@ -681,10 +742,17 @@ onMounted(load)
       <h2 class="modal-title">{{ asgnEdit ? '编辑作业' : '创建作业' }}</h2>
       <input v-model="asgnForm.title" class="form-input" placeholder="作业名称" maxlength="200" />
       <textarea v-model="asgnForm.description" class="form-textarea" placeholder="作业说明（可选）" rows="3"></textarea>
-      <div class="form-row">
-        <label class="form-label">截止时间（可选）</label>
-        <input v-model="asgnForm.deadline" type="datetime-local" class="form-input" />
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-label">开始时间（可选）</label>
+          <input v-model="asgnForm.start_at" type="datetime-local" class="form-input" />
+        </div>
+        <div class="form-row">
+          <label class="form-label">截止时间（可选）</label>
+          <input v-model="asgnForm.deadline" type="datetime-local" class="form-input" />
+        </div>
       </div>
+      <p class="form-hint">时间窗内 AC 记为「按时完成」，窗口外 AC 记为「补交」</p>
       <label class="check-label">
         <input type="checkbox" v-model="asgnForm.is_active" />
         立即发布（取消则保存为草稿）
@@ -712,13 +780,17 @@ onMounted(load)
       <!-- 已选题目 -->
       <div v-if="asgnForm.problem_ids.length > 0" class="selected-problems">
         <div class="sp-label text-muted">已选题目（{{ asgnForm.problem_ids.length }}）</div>
-        <div v-for="pid in asgnForm.problem_ids" :key="pid" class="sp-row">
+        <div v-for="(pid, idx) in asgnForm.problem_ids" :key="pid" class="sp-row">
+          <span class="sp-label">{{ String.fromCharCode(65 + (idx % 26)) }}</span>
           <span class="sp-id">#{{ pid }}</span>
-          <span class="sp-title">{{ asgnForm._problems?.[pid]?.title || asgnEdit?.problems?.find(p=>p.id===pid)?.title || '' }}</span>
+          <span class="sp-title">{{ asgnForm._problems?.[pid]?.title || '' }}</span>
+          <button class="btn-xs" :disabled="idx === 0" title="上移" @click="moveProblem(idx, -1)">↑</button>
+          <button class="btn-xs" :disabled="idx === asgnForm.problem_ids.length - 1" title="下移" @click="moveProblem(idx, 1)">↓</button>
           <button class="btn-xs btn-danger" @click="removeProblemFromAssignment(pid)">✕</button>
         </div>
       </div>
 
+      <p v-if="asgnError" class="form-error">{{ asgnError }}</p>
       <div class="modal-actions">
         <button class="btn-secondary" @click="asgnModal = false">取消</button>
         <button class="btn-primary" :disabled="!asgnForm.title.trim()" @click="saveAssignment">
@@ -988,4 +1060,16 @@ onMounted(load)
 .ir-fail { color: #f87171; font-size: 0.875rem; }
 .ir-errors { display: flex; flex-direction: column; gap: 0.25rem; }
 .ir-error-row { font-size: 0.8rem; color: #f87171; padding-left: 0.5rem; border-left: 2px solid #f87171; }
+.ir-created { font-size: 0.8rem; }
+
+.member-link { text-decoration: none; }
+.member-link:hover { color: var(--accent); text-decoration: underline; }
+.btn-xs.btn-accent { border-color: rgba(99,102,241,0.4); color: var(--accent); }
+.btn-xs:disabled { opacity: 0.35; cursor: default; }
+.ann-content-md { font-size: 0.875rem; color: var(--text-secondary); margin: 0.3rem 0 0.5rem; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.form-hint { font-size: 0.75rem; color: var(--text-muted); margin: -0.5rem 0 0; }
+.form-error { color: #f87171; font-size: 0.82rem; margin: 0; }
+.sp-label { font-family: monospace; font-weight: 700; color: var(--accent); width: 1rem; }
+.load-error { color: #f87171; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 </style>

@@ -131,13 +131,14 @@ class SubmissionListSerializer(serializers.ModelSerializer):
     个人主页的近期提交），这些字段跟着一起发出去就等于公开导出所有人的代码。
     """
     username = serializers.CharField(source='user.username', read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     problem_id = serializers.IntegerField(source='problem.id', read_only=True)
     problem_title = serializers.CharField(source='problem.title', read_only=True)
 
     class Meta:
         model = Submission
         fields = [
-            'id', 'username', 'problem_id', 'problem_title',
+            'id', 'username', 'user_id', 'problem_id', 'problem_title',
             'language', 'status', 'time_used', 'memory_used', 'score', 'submitted_at',
         ]
 
@@ -149,6 +150,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
     这样将来漏传 context 的调用点是少给数据，而不是多给。
     """
     username = serializers.CharField(source='user.username', read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     problem_id = serializers.IntegerField(source='problem.id', read_only=True)
     problem_title = serializers.CharField(source='problem.title', read_only=True)
 
@@ -158,7 +160,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Submission
         fields = [
-            'id', 'username', 'problem_id', 'problem_title',
+            'id', 'username', 'user_id', 'problem_id', 'problem_title',
             'language', 'status', 'time_used', 'memory_used', 'score',
             'error_info', 'ai_feedback', 'test_results', 'code', 'submitted_at',
         ]
@@ -169,7 +171,8 @@ class SubmissionSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        if not self.context.get('can_view_code'):
+        data['can_view_code'] = bool(self.context.get('can_view_code'))   # 前端据此显示"代码不可见"
+        if not data['can_view_code']:
             for name in self.PRIVATE_FIELDS:
                 data[name] = ''
         return data

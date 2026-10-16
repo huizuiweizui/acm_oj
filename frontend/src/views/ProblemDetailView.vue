@@ -141,7 +141,7 @@ async function loadMyStats() {
       lastAt:   sorted.at(-1)?.submitted_at ? fmtDate(sorted.at(-1).submitted_at) : '',
       bestTime: bestMs != null && isFinite(bestMs) ? bestMs : null,
     }
-  } catch {}
+  } catch { /* 统计信息非关键，失败时不展示 */ }
 }
 
 // ── Discussions ───────────────────────────────────────────────────
@@ -156,7 +156,7 @@ async function loadDiscussions() {
     const { data } = await getDiscussions({ problem_id: problem.value.id })
     discussions.value = data.results || []
     discussLoaded.value = true
-  } catch {} finally {
+  } catch { /* 讨论加载失败时保持空列表 */ } finally {
     discussLoading.value = false
   }
 }

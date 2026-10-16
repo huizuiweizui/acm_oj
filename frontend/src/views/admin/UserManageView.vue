@@ -70,7 +70,7 @@ function canEdit(u) {
 }
 
 // 当前操作者能看到的角色选项
-function roleOptions(u) {
+function roleOptions() {
   if (isSuperAdmin.value) return ['student', 'teacher', 'admin']
   // 普通管理员：只能在 student/teacher 之间切换，且目标不能是 admin
   return ['student', 'teacher']
@@ -188,7 +188,7 @@ async function doTransfer() {
                     :class="['inline-role-select', ROLE_CLS[u.role]]"
                     @change="changeRole(u, $event.target.value)"
                   >
-                    <option v-for="r in roleOptions(u)" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
+                    <option v-for="r in roleOptions()" :key="r" :value="r">{{ ROLE_LABEL[r] }}</option>
                   </select>
                   <span v-else :class="['role-tag', ROLE_CLS[u.role]]">{{ ROLE_LABEL[u.role] }}</span>
                   <span v-if="saving === u.id" class="saving-dot">…</span>

@@ -124,7 +124,10 @@ onMounted(load)
             </div>
             <div class="team-row-right">
               <span class="t-remark" v-if="t.my_remark">备注：{{ t.my_remark }}</span>
-              <span class="t-count">{{ t.member_count }} 人</span>
+              <span class="t-rank" v-if="t.my_rank" title="团队内 AC 排名">
+                第 <b>{{ t.my_rank }}</b> / {{ t.member_count }} 名 · AC {{ t.my_ac }}
+              </span>
+              <span class="t-count" v-else>{{ t.member_count }} 人</span>
               <button class="btn-view" @click="router.push(`/my-teams/${t.id}`)">公告/作业</button>
               <button class="btn-leave" @click="doLeave(t)">退出</button>
             </div>
@@ -231,6 +234,8 @@ onMounted(load)
 .t-name { font-weight: 600; color: var(--text-primary); font-size: 0.95rem; }
 .role-cap { background: #f59e0b22; color: #f59e0b; border-radius: 10px; padding: 0.1rem 0.5rem; font-size: 0.75rem; }
 .t-teacher, .t-remark, .t-count { font-size: 0.8rem; color: var(--text-muted); }
+.t-rank { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+.t-rank b { color: var(--accent); font-size: 0.9rem; }
 
 /* Request list */
 .req-list { display: flex; flex-direction: column; gap: 0.5rem; }

@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
         </thead>
         <tbody>
           <tr
-            v-for="(user, idx) in rankedUsers"
+            v-for="user in rankedUsers"
             :key="user.user_id"
             :class="['rank-row', { 'top3': user.rank <= 3 }]"
           >

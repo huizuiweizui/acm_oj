@@ -1,7 +1,7 @@
 """评测队列：自定义运行的并发闸（名额上限、超时泄载、名额归还）与评测线程的数据库连接回收。"""
 import threading
 import time
-from unittest import mock
+from unittest import mock, skipUnless
 
 from django.db import connection, connections
 from django.test import SimpleTestCase, TransactionTestCase
@@ -118,6 +118,7 @@ def kill_current_connection():
         other.close()
 
 
+@skipUnless(connection.vendor == 'mysql', '依赖 MySQL 的 CONNECTION_ID() 与断线行为，SQLite 下跳过')
 class JudgeTaskConnectionTests(TransactionTestCase):
     """
     评测池的线程常驻复用，Django 不会像处理请求那样替它回收数据库连接。连接一旦被

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -9,12 +9,20 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+const STATUS_OPTIONS = ['AC', 'WA', 'TLE', 'MLE', 'RE', 'CE', 'NT']
+
 const submissions = ref([])
 const total = ref(0)
-const page = ref(Number(route.query.page) || 1)
-const showAll = ref(route.query.all === '1' || !userStore.isLoggedIn)
 const loading = ref(false)
 const pageSize = 20
+
+// 所有筛选条件都以 URL query 为唯一来源，便于从教师端「知识点下钻」直接跳转
+const page = computed(() => Number(route.query.page) || 1)
+const showAll = computed(() => route.query.all === '1' || !userStore.isLoggedIn || !!route.query.user_id)
+const filterUser = computed(() => route.query.user_id || '')
+const filterProblem = computed(() => route.query.problem_id || '')
+const filterStatus = computed(() => route.query.status || '')
+const problemInput = ref(filterProblem.value)
 
 function timeAgo(iso) {
   const diff = Date.now() - new Date(iso)
@@ -31,31 +39,54 @@ async function fetchSubmissions() {
   try {
     const params = { page: page.value, page_size: pageSize }
     if (showAll.value) params.all = 1
+    if (filterUser.value) params.user_id = filterUser.value
+    if (filterProblem.value) params.problem_id = filterProblem.value
+    if (filterStatus.value) params.status = filterStatus.value
     const { data } = await api.get('/submissions/', { params })
     submissions.value = data.results
     total.value = data.count
+  } catch {
+    submissions.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
 
+function updateQuery(patch) {
+  const q = { ...route.query, ...patch }
+  if (!('page' in patch)) delete q.page
+  for (const k of Object.keys(q)) if (q[k] === '' || q[k] == null) delete q[k]
+  router.replace({ query: q })
+}
+
 function switchMode(all) {
-  showAll.value = all
-  page.value = 1
-  router.replace({ query: all ? { all: '1' } : {} })
-  fetchSubmissions()
+  updateQuery({ all: all ? '1' : '', user_id: '' })
+}
+
+function applyProblem() {
+  updateQuery({ problem_id: String(problemInput.value).trim().replace(/^#/, '') })
+}
+
+function clearFilters() {
+  problemInput.value = ''
+  updateQuery({ problem_id: '', status: '', user_id: '' })
 }
 
 function goPage(p) {
-  page.value = p
-  const q = showAll.value ? { all: '1', page: p } : { page: p }
-  router.replace({ query: q })
-  fetchSubmissions()
+  updateQuery({ page: p })
   window.scrollTo(0, 0)
 }
 
 const totalPages = () => Math.ceil(total.value / pageSize)
+const hasFilter = computed(() => !!(filterUser.value || filterProblem.value || filterStatus.value))
+const filterUserName = computed(() =>
+  filterUser.value && submissions.value.length ? submissions.value[0].username : filterUser.value)
 
+watch(() => route.query, () => {
+  problemInput.value = filterProblem.value
+  fetchSubmissions()
+})
 onMounted(fetchSubmissions)
 </script>
 
@@ -66,14 +97,37 @@ onMounted(fetchSubmissions)
       <div class="mode-tabs">
         <button
           v-if="userStore.isLoggedIn"
-          class="mode-btn" :class="{ active: !showAll }"
+          class="mode-btn" :class="{ active: !showAll && !filterUser }"
           @click="switchMode(false)"
         >我的记录</button>
         <button
-          class="mode-btn" :class="{ active: showAll }"
+          class="mode-btn" :class="{ active: showAll && !filterUser }"
           @click="switchMode(true)"
         >全站记录</button>
       </div>
+    </div>
+
+    <div class="filter-bar">
+      <input
+        v-model="problemInput"
+        class="filter-input"
+        placeholder="题号，如 1001"
+        @keyup.enter="applyProblem"
+        @blur="applyProblem"
+      />
+      <select
+        class="filter-select"
+        :value="filterStatus"
+        @change="updateQuery({ status: $event.target.value })"
+      >
+        <option value="">全部结果</option>
+        <option v-for="st in STATUS_OPTIONS" :key="st" :value="st">{{ st }}</option>
+      </select>
+      <span v-if="filterUser" class="filter-chip">
+        用户：{{ filterUserName }}
+        <button class="chip-x" title="移除" @click="updateQuery({ user_id: '' })">×</button>
+      </span>
+      <button v-if="hasFilter" class="filter-clear" @click="clearFilters">清除筛选</button>
     </div>
 
     <div class="table-wrap">
@@ -92,7 +146,9 @@ onMounted(fetchSubmissions)
         </thead>
         <tbody>
           <tr v-for="s in submissions" :key="s.id" class="sub-row">
-            <td class="id-cell">{{ s.id }}</td>
+            <td class="id-cell">
+              <RouterLink :to="`/submissions/${s.id}`" class="id-link">{{ s.id }}</RouterLink>
+            </td>
             <td class="user-cell">
               <span
                 class="sub-avatar"
@@ -107,7 +163,9 @@ onMounted(fetchSubmissions)
                 #{{ s.problem_id }} {{ s.problem_title }}
               </RouterLink>
             </td>
-            <td><StatusBadge :status="s.status" /></td>
+            <td>
+              <RouterLink :to="`/submissions/${s.id}`" class="status-link"><StatusBadge :status="s.status" /></RouterLink>
+            </td>
             <td class="lang-cell">{{ s.language }}</td>
             <td class="time-used-cell">{{ s.time_used ? s.time_used + 'ms' : '-' }}</td>
             <td class="time-cell">{{ timeAgo(s.submitted_at) }}</td>
@@ -143,6 +201,24 @@ onMounted(fetchSubmissions)
 }
 .mode-btn:hover { border-color: var(--accent); color: var(--text-primary); }
 .mode-btn.active { background: var(--accent-light); border-color: var(--accent); color: var(--accent-text); }
+
+.filter-bar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.filter-input, .filter-select {
+  padding: 0.35rem 0.7rem; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-primary); font-size: 0.85rem;
+}
+.filter-input { width: 150px; }
+.filter-input:focus, .filter-select:focus { outline: none; border-color: var(--accent); }
+.filter-chip {
+  display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.4rem 0.2rem 0.7rem;
+  background: var(--accent-light); color: var(--accent-text); border-radius: 999px; font-size: 0.8rem;
+}
+.chip-x { background: none; border: none; color: inherit; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0 0.2rem; }
+.filter-clear { background: none; border: none; color: var(--text-muted); font-size: 0.82rem; cursor: pointer; }
+.filter-clear:hover { color: var(--accent-text); }
+.id-link { color: inherit; text-decoration: none; }
+.id-link:hover { color: var(--accent-text); text-decoration: underline; }
+.status-link { text-decoration: none; }
 
 .table-wrap { background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
 .loading { padding: 3rem; text-align: center; color: var(--text-muted); }

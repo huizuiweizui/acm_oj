@@ -13,6 +13,8 @@ from .team_api_views import (
     TeamStudentDetailAPIView,
     AnnouncementListCreateAPIView, AnnouncementDetailAPIView,
     AssignmentListCreateAPIView, AssignmentDetailAPIView,
+    AssignmentMatrixAPIView, AssignmentMatrixExportAPIView,
+    TeamRankAPIView,
 )
 from .api_views import (
     AlgorithmListAPIView, AlgorithmDetailAPIView, AlgorithmChunksAPIView, AlgorithmGraphAPIView,
@@ -104,11 +106,14 @@ urlpatterns = [
     path('teams/<int:pk>/import-students/', TeamImportStudentsAPIView.as_view(), name='api-team-import-students'),
     path('teams/<int:pk>/dashboard/', TeamDashboardAPIView.as_view(), name='api-team-dashboard'),
     path('teams/<int:pk>/dashboard/export/', TeamDashboardExportAPIView.as_view(), name='api-team-dashboard-export'),
+    path('teams/<int:pk>/rank/', TeamRankAPIView.as_view(), name='api-team-rank'),
     path('teams/<int:pk>/students/<int:user_id>/', TeamStudentDetailAPIView.as_view(), name='api-team-student-detail'),
     path('teams/<int:pk>/announcements/', AnnouncementListCreateAPIView.as_view(), name='api-team-announcements'),
     path('teams/<int:pk>/announcements/<int:aid>/', AnnouncementDetailAPIView.as_view(), name='api-team-announcement-detail'),
     path('teams/<int:pk>/assignments/', AssignmentListCreateAPIView.as_view(), name='api-team-assignments'),
     path('teams/<int:pk>/assignments/<int:aid>/', AssignmentDetailAPIView.as_view(), name='api-team-assignment-detail'),
+    path('teams/<int:pk>/assignments/<int:aid>/matrix/', AssignmentMatrixAPIView.as_view(), name='api-team-assignment-matrix'),
+    path('teams/<int:pk>/assignments/<int:aid>/matrix/export/', AssignmentMatrixExportAPIView.as_view(), name='api-team-assignment-matrix-export'),
 
     # 讨论区
     path('discussions/', DiscussionListAPIView.as_view(), name='api-discussion-list'),

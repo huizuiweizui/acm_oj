@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { login as apiLogin, register as apiRegister, getMe } from '@/api/auth'
+import { login as apiLogin, register as apiRegister, getMe, logout as apiLogout } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(null)
@@ -46,6 +46,10 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function logout() {
+    // 服务端拉黑 refresh token（失败不影响本地退出）
+    if (refreshToken.value && accessToken.value) {
+      apiLogout(refreshToken.value, accessToken.value).catch(() => {})
+    }
     user.value = null
     accessToken.value = ''
     refreshToken.value = ''

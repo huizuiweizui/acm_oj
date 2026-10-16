@@ -182,6 +182,7 @@ class Submission(models.Model):
             models.Index(fields=['problem', 'status']),
             models.Index(fields=['contest', 'submitted_at']),
             models.Index(fields=['user', 'submitted_at']),
+            models.Index(fields=['user', 'status', 'submitted_at']),
         ]
 
     def __str__(self):
@@ -498,6 +499,7 @@ class Assignment(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='assignments', verbose_name='团队')
     title = models.CharField('作业名称', max_length=200)
     description = models.TextField('作业说明', blank=True, default='')
+    start_at = models.DateTimeField('开始时间', null=True, blank=True)
     deadline = models.DateTimeField('截止时间', null=True, blank=True)
     is_active = models.BooleanField('是否发布', default=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_assignments')

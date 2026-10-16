@@ -37,3 +37,7 @@ star_eval_results/
 
 # 生产部署：服务器上的环境变量（deploy/.env 已被上面的 .env 规则覆盖）与 TLS 证书私钥
 deploy/nginx/certs/
+
+# 本地工具产物
+*.sqlite3
+.playwright-mcp/

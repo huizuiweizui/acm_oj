@@ -46,10 +46,13 @@ export const importStudents = (teamId, formData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 
-// Dashboard
-export const getTeamDashboard = (teamId) => api.get(`/teams/${teamId}/dashboard/`)
-export const exportDashboard = (teamId) =>
-  api.get(`/teams/${teamId}/dashboard/export/`, { responseType: 'blob' })
+// Dashboard（params: { range: 'all'|'week'|'month'|'custom', start, end }）
+export const getTeamDashboard = (teamId, params) => api.get(`/teams/${teamId}/dashboard/`, { params })
+export const exportDashboard = (teamId, params) =>
+  api.get(`/teams/${teamId}/dashboard/export/`, { params, responseType: 'blob' })
+
+// 团队内排行（成员视角）
+export const getTeamRank = (teamId) => api.get(`/teams/${teamId}/rank/`)
 
 // 学生详情
 export const getStudentDetail = (teamId, userId) =>
@@ -66,3 +69,20 @@ export const getAssignments = (teamId) => api.get(`/teams/${teamId}/assignments/
 export const createAssignment = (teamId, data) => api.post(`/teams/${teamId}/assignments/`, data)
 export const updateAssignment = (teamId, aid, data) => api.patch(`/teams/${teamId}/assignments/${aid}/`, data)
 export const deleteAssignment = (teamId, aid) => api.delete(`/teams/${teamId}/assignments/${aid}/`)
+export const getAssignmentMatrix = (teamId, aid) => api.get(`/teams/${teamId}/assignments/${aid}/matrix/`)
+export const exportAssignmentMatrix = (teamId, aid) =>
+  api.get(`/teams/${teamId}/assignments/${aid}/matrix/export/`, { responseType: 'blob' })
+
+// 下载 blob 响应（文件名优先取后端 Content-Disposition）
+export function saveBlobResponse(resp, fallbackName) {
+  let name = fallbackName
+  const cd = resp.headers?.['content-disposition'] || ''
+  const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i)
+  if (m) name = decodeURIComponent(m[1])
+  const url = URL.createObjectURL(resp.data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  URL.revokeObjectURL(url)
+}

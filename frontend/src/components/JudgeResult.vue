@@ -49,7 +49,7 @@ function tcClass(s) { return STATUS_COLOR[s] ?? 'tc-muted' }
           {{ (submission.memory_used / 1024).toFixed(1) }} MB
         </span>
         <span class="sub-id">
-          <a :href="`/submissions`" target="_blank" class="sub-link">#{{ submission.id }}</a>
+          <a :href="`/submissions/${submission.id}`" target="_blank" class="sub-link">#{{ submission.id }}</a>
         </span>
       </div>
 

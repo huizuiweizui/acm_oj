@@ -2,13 +2,16 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { use } from 'echarts/core'
-import { PieChart, LineChart, HeatmapChart } from 'echarts/charts'
+import { BarChart, LineChart, HeatmapChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, VisualMapComponent, CalendarComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { getStudentDetail } from '@/api/team'
+import DifficultyBadge from '@/components/DifficultyBadge.vue'
+import StatusBadge from '@/components/StatusBadge.vue'
+import { DIFF_COLORS, DIFF_SHORT } from '@/utils/difficulty'
 
-use([PieChart, LineChart, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent, CalendarComponent, CanvasRenderer])
+use([BarChart, LineChart, HeatmapChart, GridComponent, TooltipComponent, VisualMapComponent, CalendarComponent, CanvasRenderer])
 
 const route = useRoute()
 const router = useRouter()
@@ -17,11 +20,19 @@ const userId = Number(route.params.userId)
 
 const loading = ref(true)
 const data = ref(null)
+const apiError = ref('')
 
 onMounted(async () => {
   try {
     const { data: d } = await getStudentDetail(teamId, userId)
     data.value = d
+    // 默认展开未 AC 比例最高的知识点
+    if (d.knowledge?.length && d.knowledge[0].unsolved_ratio > 0) expanded.value = new Set([d.knowledge[0].tag])
+  } catch (e) {
+    const s = e.response?.status
+    apiError.value = s === 403 ? '无权限查看该学生（仅团队创建者、队长和管理员可访问）'
+      : s === 404 ? (e.response?.data?.detail || '学生不存在')
+      : '加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
@@ -32,52 +43,42 @@ const diffDist = computed(() => data.value?.diff_dist ?? [])
 const trend = computed(() => data.value?.trend ?? [])
 const heatmap = computed(() => data.value?.heatmap ?? {})
 const acProblems = computed(() => data.value?.ac_problems ?? [])
+const knowledge = computed(() => data.value?.knowledge ?? [])
 
-// ── 难度分布饼图 ──────────────────────────────────────────────────
-const DIFF_COLORS = {
-  '入门': '#fe4c61',
-  '普及': '#f39c11',
-  '提高': '#3498db',
-  'NOI': '#0e1d69',
-  '其他': '#bfbfbf',
+const tooltipStyle = {
+  backgroundColor: '#fff',
+  borderColor: '#e5e7eb',
+  textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
 }
 
-const pieOption = computed(() => {
-  const series_data = diffDist.value
-    .filter(d => d.count > 0)
-    .map(d => ({ value: d.count, name: d.group, itemStyle: { color: DIFF_COLORS[d.group] } }))
-
-  return {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      backgroundColor: '#fff',
-      borderColor: '#e5e7eb',
-      textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
-      formatter: '{b}: {c} 题 ({d}%)',
-    },
-    series: [{
-      type: 'pie',
-      radius: ['45%', '75%'],
-      center: ['50%', '52%'],
-      data: series_data.length ? series_data : [{ value: 1, name: '暂无数据', itemStyle: { color: '#e5e7eb' } }],
-      label: { show: true, color: '#52525b', fontSize: 12, formatter: '{b}\n{c}' },
-      emphasis: { itemStyle: { shadowBlur: 8, shadowColor: 'rgba(0,0,0,0.3)' } },
-    }],
-  }
-})
+// ── 难度分布柱状图 ────────────────────────────────────────────────
+const barOption = computed(() => ({
+  backgroundColor: 'transparent',
+  grid: { top: 16, right: 12, bottom: 28, left: 32 },
+  tooltip: { trigger: 'axis', ...tooltipStyle, formatter: (p) => `${p[0].name}<br/>AC：<b>${p[0].value}</b> 题` },
+  xAxis: {
+    type: 'category',
+    data: diffDist.value.map(d => d.level),
+    axisLabel: { color: '#a1a1aa', fontSize: 10, interval: 0, formatter: (v) => DIFF_SHORT[v] ?? v },
+    axisLine: { lineStyle: { color: '#e5e7eb' } },
+  },
+  yAxis: {
+    type: 'value', minInterval: 1,
+    splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
+    axisLabel: { color: '#a1a1aa', fontSize: 11 },
+  },
+  series: [{
+    type: 'bar',
+    barMaxWidth: 22,
+    data: diffDist.value.map(d => ({ value: d.count, itemStyle: { color: DIFF_COLORS[d.level], borderRadius: [3, 3, 0, 0] } })),
+  }],
+}))
 
 // ── 近 30 天折线图 ─────────────────────────────────────────────────
 const lineOption = computed(() => ({
   backgroundColor: 'transparent',
-  grid: { top: 20, right: 20, bottom: 40, left: 40 },
-  tooltip: {
-    trigger: 'axis',
-    backgroundColor: '#fff',
-    borderColor: '#e5e7eb',
-    textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
-    formatter: (params) => `${params[0].axisValue}<br/>AC 数：<b>${params[0].value}</b>`,
-  },
+  grid: { top: 20, right: 20, bottom: 30, left: 40 },
+  tooltip: { trigger: 'axis', ...tooltipStyle },
   xAxis: {
     type: 'category',
     data: trend.value.map(t => t.date.slice(5)),
@@ -90,76 +91,93 @@ const lineOption = computed(() => ({
     splitLine: { lineStyle: { color: '#e5e7eb', type: 'dashed' } },
     axisLabel: { color: '#a1a1aa', fontSize: 11 },
   },
-  series: [{
-    type: 'line',
-    data: trend.value.map(t => t.count),
-    smooth: true,
-    symbol: 'circle',
-    symbolSize: 5,
-    lineStyle: { color: '#6366f1', width: 2 },
-    itemStyle: { color: '#6366f1' },
-    areaStyle: {
-      color: {
-        type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-        colorStops: [{ offset: 0, color: '#6366f140' }, { offset: 1, color: '#6366f100' }],
+  series: [
+    {
+      name: '提交数', type: 'line', data: trend.value.map(t => t.submit), smooth: true,
+      symbol: 'circle', symbolSize: 4,
+      lineStyle: { color: '#94a3b8', width: 1.5 }, itemStyle: { color: '#94a3b8' },
+    },
+    {
+      name: 'AC 数', type: 'line', data: trend.value.map(t => t.count), smooth: true,
+      symbol: 'circle', symbolSize: 5,
+      lineStyle: { color: '#6366f1', width: 2 }, itemStyle: { color: '#6366f1' },
+      areaStyle: {
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: '#6366f140' }, { offset: 1, color: '#6366f100' }],
+        },
       },
     },
-  }],
+  ],
 }))
 
-// ── 热力图（Calendar）──────────────────────────────────────────────
-const heatmapData = computed(() =>
-  Object.entries(heatmap.value).map(([date, count]) => [date, count])
-)
-
-const heatmapYear = computed(() => {
-  const now = new Date()
-  return `${now.getFullYear() - 1}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-    + '/' + now.toISOString().slice(0, 10)
+// ── 提交热力图（近一年，GitHub 贡献图样式）──────────────────────
+const calRange = computed(() => {
+  const end = new Date()
+  const start = new Date(end.getTime() - 364 * 86400000)
+  const f = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return [f(start), f(end)]
 })
 
 const calOption = computed(() => ({
   backgroundColor: 'transparent',
   tooltip: {
-    trigger: 'item',
-    backgroundColor: '#fff',
-    borderColor: '#e5e7eb',
-    textStyle: { color: '#52525b', fontSize: 12 }, borderRadius: 8,
-    formatter: (p) => `${p.data[0]}<br/>AC 数：<b>${p.data[1]}</b>`,
+    trigger: 'item', ...tooltipStyle,
+    formatter: (p) => `${p.data[0]}<br/>提交：<b>${p.data[1]}</b> 次`,
   },
   visualMap: {
-    min: 0, max: 8, show: false,
-    inRange: { color: ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a'] },
+    min: 0, max: 10, show: false,
+    inRange: { color: ['#e0f2e9', '#9fe1cb', '#5dcaa5', '#1d9e75'] },
   },
   calendar: {
-    range: heatmapYear.value,
-    left: 50, right: 20, top: 20,
-    cellSize: ['auto', 14],
-    dayLabel: { nameMap: 'ZH', color: '#a1a1aa', fontSize: 11 },
-    monthLabel: { color: '#a1a1aa', fontSize: 11 },
+    range: calRange.value,
+    left: 36, right: 12, top: 24, bottom: 4,
+    cellSize: ['auto', 13],
+    dayLabel: { nameMap: 'ZH', color: '#a1a1aa', fontSize: 10, firstDay: 1 },
+    monthLabel: { nameMap: 'ZH', color: '#a1a1aa', fontSize: 10 },
     yearLabel: { show: false },
     splitLine: { show: false },
-    itemStyle: { borderColor: 'transparent', color: '#f3f4f6' },
+    itemStyle: { borderColor: 'transparent', borderWidth: 2, color: 'rgba(148,163,184,0.15)' },
   },
   series: [{
     type: 'heatmap',
     coordinateSystem: 'calendar',
-    data: heatmapData.value,
+    data: Object.entries(heatmap.value),
   }],
 }))
 
-// ── 难度样式 ─────────────────────────────────────────────────────
-const DIFF_LABEL_MAP = {
-  '暂无评定': { cls: 'diff-none', label: '暂无' },
-  '入门': { cls: 'diff-easy', label: '入门' },
-  '普及-': { cls: 'diff-normal', label: '普及-' },
-  '普及/提高-': { cls: 'diff-normal', label: '普及/提高' },
-  '普及+/提高': { cls: 'diff-normal', label: '普及+/提高' },
-  '提高+/省选-': { cls: 'diff-hard', label: '提高+' },
-  '省选/NOI-': { cls: 'diff-hard', label: '省选-' },
-  'NOI/NOI+/CTSC': { cls: 'diff-noi', label: 'NOI' },
+// ── 知识点下钻 ───────────────────────────────────────────────────
+const expanded = ref(new Set())
+const onlyUnsolved = ref(false)
+
+function toggleTag(tag) {
+  const s = new Set(expanded.value)
+  if (s.has(tag)) s.delete(tag)
+  else s.add(tag)
+  expanded.value = s
 }
-function diffInfo(d) { return DIFF_LABEL_MAP[d] ?? { cls: 'diff-none', label: d } }
+
+function expandAll(open) {
+  expanded.value = open ? new Set(knowledge.value.map(k => k.tag)) : new Set()
+}
+
+const visibleKnowledge = computed(() =>
+  onlyUnsolved.value ? knowledge.value.filter(k => k.ac_count < k.tried_count) : knowledge.value,
+)
+
+function problemsOf(k) {
+  return onlyUnsolved.value ? k.problems.filter(p => !p.ac) : k.problems
+}
+
+function resultText(p) {
+  if (p.ac) return p.submits_to_ac === 1 ? '一次 AC' : `${p.submits_to_ac} 次提交后 AC`
+  return `最近：${p.last_status}`
+}
+
+function openSubmissions(p) {
+  router.push({ path: '/submissions', query: { user_id: userId, problem_id: p.problem_id } })
+}
+
 function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
 </script>
 
@@ -170,7 +188,10 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
     <div class="sd-header">
       <button class="btn-back" @click="router.back()">← 返回</button>
       <div class="header-info">
-        <h1 class="sd-name">{{ member.display_name }}</h1>
+        <h1 class="sd-name">
+          {{ member.display_name }}
+          <span v-if="member.role === 'captain'" class="crown" title="队长">👑</span>
+        </h1>
         <p class="sd-meta">
           {{ member.username }}
           <span v-if="member.student_id"> · {{ member.student_id }}</span>
@@ -184,38 +205,96 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
           <span class="summ-label">AC 题数</span>
         </div>
         <div class="summ-item">
+          <span class="summ-val">{{ member.tried_count }}</span>
+          <span class="summ-label">尝试题数</span>
+        </div>
+        <div class="summ-item">
           <span class="summ-val">{{ member.total_submit }}</span>
           <span class="summ-label">总提交</span>
+        </div>
+        <div class="summ-item">
+          <span class="summ-val">{{ member.ac_rate }}%</span>
+          <span class="summ-label">AC 率</span>
         </div>
       </div>
     </div>
 
     <!-- 图表行 -->
     <div class="chart-row">
-      <!-- 难度分布 -->
-      <div class="section-card chart-card-pie">
-        <h3 class="sc-title">难度分布</h3>
-        <v-chart class="pie-chart" :option="pieOption" autoresize />
-        <div class="diff-legend">
-          <div v-for="d in diffDist.filter(x => x.count > 0)" :key="d.group" class="legend-row">
-            <span class="legend-dot" :style="{ background: DIFF_COLORS[d.group] }"></span>
-            <span class="legend-name">{{ d.group }}</span>
-            <span class="legend-count">{{ d.count }}</span>
-          </div>
-        </div>
+      <div class="section-card">
+        <h3 class="sc-title">难度分布（去重 AC）</h3>
+        <v-chart class="bar-chart" :option="barOption" autoresize />
       </div>
-
-      <!-- 近 30 天趋势 -->
-      <div class="section-card chart-card-line">
-        <h3 class="sc-title">近 30 天 AC 趋势</h3>
+      <div class="section-card">
+        <h3 class="sc-title">近 30 天趋势 <span class="sc-hint">灰：提交 · 紫：AC</span></h3>
         <v-chart class="line-chart" :option="lineOption" autoresize />
       </div>
     </div>
 
     <!-- 热力图 -->
     <div class="section-card">
-      <h3 class="sc-title">过去一年提交热力图</h3>
+      <h3 class="sc-title">近一年提交热力图</h3>
       <v-chart class="cal-chart" :option="calOption" autoresize />
+    </div>
+
+    <!-- 知识点下钻 -->
+    <div class="section-card">
+      <div class="kp-head">
+        <div>
+          <h3 class="sc-title kp-title">知识点掌握情况</h3>
+          <p class="sc-hint">按「尝试未通过」比例排序，越靠前越需要关注；点击题目查看该生的提交记录</p>
+        </div>
+        <div class="kp-tools">
+          <label class="kp-check"><input v-model="onlyUnsolved" type="checkbox" /> 只看未 AC</label>
+          <button class="btn-xs" @click="expandAll(true)">全部展开</button>
+          <button class="btn-xs" @click="expandAll(false)">全部收起</button>
+        </div>
+      </div>
+
+      <div v-if="visibleKnowledge.length === 0" class="empty-td">
+        {{ onlyUnsolved ? '没有尝试未通过的题目 🎉' : '暂无提交记录' }}
+      </div>
+      <div v-else class="kp-list">
+        <div
+          v-for="k in visibleKnowledge" :key="k.tag"
+          :class="['kp-item', k.ac_count < k.tried_count && 'kp-warn']"
+        >
+          <button class="kp-row" @click="toggleTag(k.tag)">
+            <span class="kp-caret">{{ expanded.has(k.tag) ? '▾' : '▸' }}</span>
+            <span class="kp-name">{{ k.tag }}</span>
+            <span class="kp-bar">
+              <span class="kp-bar-fill" :style="{ width: (k.ac_count / k.tried_count * 100) + '%' }"></span>
+            </span>
+            <span class="kp-count">
+              AC <b>{{ k.ac_count }}</b> 题 / 尝试 <b>{{ k.tried_count }}</b> 题
+            </span>
+            <span v-if="k.tried_count > k.ac_count" class="kp-unsolved">{{ k.tried_count - k.ac_count }} 道未通过</span>
+          </button>
+
+          <table v-if="expanded.has(k.tag)" class="prob-table kp-table">
+            <tbody>
+              <tr
+                v-for="p in problemsOf(k)" :key="p.problem_id"
+                :class="['kp-prob', !p.ac && 'kp-prob-fail']"
+                @click="openSubmissions(p)"
+              >
+                <td class="kp-icon">{{ p.ac ? '✓' : '✗' }}</td>
+                <td>
+                  <RouterLink :to="`/problems/${p.problem_id}`" class="prob-link" @click.stop>
+                    #{{ p.problem_id }} {{ p.title }}
+                  </RouterLink>
+                </td>
+                <td><DifficultyBadge :difficulty="p.difficulty" /></td>
+                <td class="text-muted nowrap">{{ p.submit_count }} 次提交</td>
+                <td class="nowrap">
+                  <span v-if="p.ac" class="res-ac">{{ resultText(p) }}</span>
+                  <span v-else class="res-fail">最近：<StatusBadge :status="p.last_status" /></span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- AC 题目列表 -->
@@ -231,12 +310,8 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
           <tbody>
             <tr v-for="p in acProblems" :key="p.problem_id">
               <td class="text-muted">#{{ p.problem_id }}</td>
-              <td>{{ p.title }}</td>
-              <td>
-                <span :class="['diff-tag', diffInfo(p.difficulty).cls]">
-                  {{ diffInfo(p.difficulty).label }}
-                </span>
-              </td>
+              <td><RouterLink :to="`/problems/${p.problem_id}`" class="prob-link">{{ p.title }}</RouterLink></td>
+              <td><DifficultyBadge :difficulty="p.difficulty" /></td>
               <td class="text-muted">{{ fmt(p.first_ac_at) }}</td>
             </tr>
             <tr v-if="acProblems.length === 0">
@@ -249,20 +324,25 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
 
   </div>
   <div v-else-if="loading" class="loading-tip">加载中…</div>
+  <div v-else class="loading-tip error-tip">
+    {{ apiError }}
+    <button class="btn-back" @click="router.back()">← 返回</button>
+  </div>
 </template>
 
 <style scoped>
 .student-detail { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
 
-.sd-header { display: flex; align-items: flex-start; gap: 1rem; }
+.sd-header { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .btn-back {
   background: none; border: 1px solid var(--border); color: var(--text-secondary);
   padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.875rem;
   flex-shrink: 0; transition: border-color 0.15s; margin-top: 0.25rem;
 }
 .btn-back:hover { border-color: var(--accent); color: var(--accent); }
-.header-info { flex: 1; }
+.header-info { flex: 1; min-width: 200px; }
 .sd-name { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 0 0 0.2rem; }
+.crown { font-size: 1rem; }
 .sd-meta { font-size: 0.82rem; color: var(--text-muted); margin: 0; }
 .sd-summary { display: flex; gap: 1.5rem; flex-shrink: 0; }
 .summ-item { display: flex; flex-direction: column; align-items: flex-end; }
@@ -270,24 +350,56 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
 .summ-val.accent { color: var(--accent); }
 .summ-label { font-size: 0.75rem; color: var(--text-muted); }
 
-.chart-row { display: grid; grid-template-columns: 260px 1fr; gap: 1.5rem; }
+.chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
 @media (max-width: 760px) { .chart-row { grid-template-columns: 1fr; } }
 .section-card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
   padding: 1.25rem;
 }
 .sc-title { font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin: 0 0 1rem; }
+.sc-hint { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; margin: 0; }
 
-.pie-chart { width: 100%; height: 200px; }
-.diff-legend { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.75rem; }
-.legend-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.legend-name { flex: 1; color: var(--text-secondary); }
-.legend-count { color: var(--text-primary); font-weight: 600; }
+.bar-chart, .line-chart { width: 100%; height: 220px; }
+.cal-chart { width: 100%; height: 150px; }
 
-.line-chart { width: 100%; height: 220px; }
+/* 知识点 */
+.kp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.kp-title { margin-bottom: 0.25rem; }
+.kp-tools { display: flex; align-items: center; gap: 0.5rem; }
+.kp-check { display: flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; }
+.btn-xs {
+  background: none; border: 1px solid var(--border); color: var(--text-secondary);
+  padding: 0.2rem 0.55rem; border-radius: 4px; cursor: pointer; font-size: 0.78rem;
+}
+.btn-xs:hover { border-color: var(--accent); color: var(--accent); }
 
-.cal-chart { width: 100%; height: 160px; }
+.kp-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.kp-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.kp-warn { border-left: 3px solid var(--status-wa-dot); }
+.kp-row {
+  width: 100%; display: flex; align-items: center; gap: 0.75rem;
+  background: none; border: none; padding: 0.65rem 0.9rem; cursor: pointer;
+  color: var(--text-primary); font-size: 0.875rem; text-align: left;
+}
+.kp-row:hover { background: var(--bg-hover); }
+.kp-caret { color: var(--text-muted); width: 0.8rem; }
+.kp-name { font-weight: 600; min-width: 6rem; }
+.kp-bar { flex: 1; max-width: 220px; height: 6px; border-radius: 3px; background: var(--status-wa-bg); overflow: hidden; }
+.kp-bar-fill { display: block; height: 100%; background: var(--status-ac-dot); }
+.kp-count { color: var(--text-secondary); font-size: 0.82rem; white-space: nowrap; }
+.kp-count b { color: var(--text-primary); }
+.kp-unsolved {
+  margin-left: auto; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+  color: var(--status-wa-text); background: var(--status-wa-bg); padding: 0.1rem 0.5rem; border-radius: 10px;
+}
+.kp-table { border-top: 1px solid var(--border); }
+.kp-prob { cursor: pointer; }
+.kp-prob:hover td { background: var(--bg-hover); }
+.kp-prob-fail td { background: rgba(239, 68, 68, 0.04); }
+.kp-icon { width: 2rem; text-align: center; font-weight: 700; color: var(--status-ac-text); }
+.kp-prob-fail .kp-icon { color: var(--status-wa-text); }
+.res-ac { color: var(--status-ac-text); font-size: 0.82rem; }
+.res-fail { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text-muted); font-size: 0.82rem; }
 
 .table-wrap { overflow-x: auto; }
 .prob-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
@@ -297,18 +409,12 @@ function fmt(dt) { return dt ? dt.slice(0, 10) : '' }
 }
 .prob-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .prob-table tr:last-child td { border-bottom: none; }
+.prob-link { color: var(--text-primary); text-decoration: none; }
+.prob-link:hover { color: var(--accent-text); text-decoration: underline; }
 .text-muted { color: var(--text-muted); }
+.nowrap { white-space: nowrap; }
 .empty-td { text-align: center; padding: 2rem; color: var(--text-muted); }
 
-.diff-tag {
-  display: inline-block; padding: 0.1rem 0.5rem; border-radius: 4px;
-  font-size: 0.75rem; font-weight: 500;
-}
-.diff-easy { background: rgba(254,76,97,.15); color: #fe4c61; }
-.diff-normal { background: rgba(243,156,17,.15); color: #f39c11; }
-.diff-hard { background: rgba(52,152,219,.15); color: #3498db; }
-.diff-noi { background: rgba(14,29,105,.2); color: #0e1d69; }
-.diff-none { background: rgba(191,191,191,0.2); color: var(--text-muted); }
-
 .loading-tip { text-align: center; padding: 4rem 2rem; color: var(--text-muted); }
+.error-tip { color: #f87171; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 </style>

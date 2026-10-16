@@ -1,8 +1,7 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProblems } from '@/api/problems'
-import { getRank } from '@/api/users'
 import DifficultyBadge from '@/components/DifficultyBadge.vue'
 
 const route = useRoute()
