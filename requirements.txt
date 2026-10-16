@@ -7,3 +7,5 @@ djangorestframework==3.15.0
 djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.3.1
 django-environ==0.11.2
+jieba>=0.42.1
+# pypinyin>=0.50  # 可选：星语 skills 的同音匹配
