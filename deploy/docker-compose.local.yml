@@ -1,0 +1,11 @@
+# 本机 Docker Desktop 用的覆盖配置：前端在本机构建（cd frontend && npm run build），
+# nginx 直接用官方镜像挂载 frontend/dist，免去在镜像里 npm ci（网络慢时能省几百 MB 下载）。
+# 启用方式：deploy/.env 里加一行 COMPOSE_FILE=docker-compose.yml;docker-compose.local.yml
+# （Windows 用分号，Linux / macOS 用冒号），之后照常 docker compose up -d。
+# 改了前端代码只需重新 npm run build，刷新浏览器即可，不用重建镜像。
+services:
+  nginx:
+    image: nginx:1.30-alpine
+    build: !reset null
+    volumes:
+      - ../frontend/dist:/usr/share/nginx/html:ro

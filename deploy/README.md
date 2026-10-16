@@ -29,6 +29,29 @@
 
 所有 `docker compose` 命令都在 **`deploy/` 目录**下执行。
 
+## 本机 Docker Desktop 运行（Windows）
+
+和服务器部署用同一套编排，差别只有三处（都写在 `deploy/.env` 里）：
+
+```ini
+ALLOWED_HOSTS=localhost,127.0.0.1
+CORS_ORIGINS=http://localhost
+HTTP_PORT=80
+# 443 常被 VMware 等占用，换个端口
+HTTPS_PORT=8443
+# 前端在本机构建、nginx 直接挂载 frontend/dist，免去在镜像里 npm ci
+COMPOSE_FILE=docker-compose.yml;docker-compose.local.yml
+```
+
+```powershell
+cd frontend; npm run build; cd ..\deploy          # 改了前端代码后重新 build、刷新浏览器即可
+docker compose --profile sandbox build web sandbox
+docker compose up -d                              # 打开 http://localhost/
+```
+
+导入本机开发库、生成演示数据与服务器上相同（见「六」和第 6 步）。数据存放在 Docker 卷 `acm-oj_mysql-data` 里，
+与本机 MySQL 互不影响；`docker compose down` 停止，`down -v` 连数据一起删除。
+
 ---
 
 ## 一、从空服务器到能访问

@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Django + gunicorn 后端镜像（deploy/docker-compose.yml 的 web 服务）。
 # 构建上下文是仓库根目录：docker compose 会自动处理，手动构建时
 #   docker build -f deploy/web.Dockerfile -t acm-oj-web .

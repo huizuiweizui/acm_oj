@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # nginx 镜像：在 Linux 下构建前端（frontend/ → dist），把产物烤进 nginx。
 # 站点配置不进镜像，由 docker-compose.yml 从 deploy/nginx/ 挂载，改配置不必重新构建。
 # 构建上下文是仓库根目录：docker build -f deploy/nginx.Dockerfile -t acm-oj-nginx .
