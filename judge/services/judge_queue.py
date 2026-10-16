@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 
 from django.conf import settings
+from django.db import close_old_connections
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,11 @@ def _judge_task(submission_id: int, problem_id: int) -> None:
     from ..models import Problem, Submission
     from ..services.judger import judge_submission
 
+    # 池子里的线程常驻复用，Django 不会像处理请求那样帮忙回收数据库连接（同 ai_feedback）。
+    # 不回收的话，MySQL 断开空闲连接（wait_timeout，默认 8 小时）或重启后，这条线程手里的
+    # 连接就坏了且不会自动重连，之后它接到的每次评测都会失败、提交永远停在 Pending。
+    # 开头丢掉可能已失效的旧连接，结束时归还连接。
+    close_old_connections()
     try:
         sub = Submission.objects.get(id=submission_id)
         prob = Problem.objects.get(id=problem_id)
@@ -90,10 +96,14 @@ def _judge_task(submission_id: int, problem_id: int) -> None:
         judge_submission(sub, prob)
     except Exception:
         logger.exception('评测失败 submission_id=%s', submission_id)
+        # 出错的可能正是数据库连接本身（评测中途 MySQL 断开 / 重启），换一条连接再写兜底结果
+        close_old_connections()
         from ..models import Submission
         Submission.objects.filter(id=submission_id).update(
             status='RE', error_info='Internal judge error',
         )
+    finally:
+        close_old_connections()
 
 
 def enqueue(submission_id: int, problem_id: int) -> None:

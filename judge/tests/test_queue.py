@@ -1,12 +1,15 @@
-"""自定义运行的并发闸：名额上限、超时泄载、名额归还。"""
+"""评测队列：自定义运行的并发闸（名额上限、超时泄载、名额归还）与评测线程的数据库连接回收。"""
 import threading
 import time
 from unittest import mock
 
-from django.test import SimpleTestCase
+from django.db import connection, connections
+from django.test import SimpleTestCase, TransactionTestCase
 
 from judge.services import judge_queue
 from judge.services.judge_queue import RunQueueBusy
+
+from .base import OJTestCase
 
 
 class RunSlotTests(SimpleTestCase):
@@ -97,3 +100,70 @@ class RunSlotTests(SimpleTestCase):
         # 名额若没归还，这里会卡到超时后抛 RunQueueBusy
         with judge_queue.run_slot():
             pass
+
+
+def kill_current_connection():
+    """
+    在服务端掐断本线程的数据库连接，客户端对象仍以为自己连着——
+    与 MySQL 空闲超时（wait_timeout）断开、或 MySQL 重启后的状态一致。
+    """
+    with connection.cursor() as c:
+        c.execute('SELECT CONNECTION_ID()')
+        conn_id = c.fetchone()[0]
+    other = connections.create_connection('default')
+    try:
+        with other.cursor() as c:
+            c.execute('KILL CONNECTION %s', [conn_id])
+    finally:
+        other.close()
+
+
+class JudgeTaskConnectionTests(TransactionTestCase):
+    """
+    评测池的线程常驻复用，Django 不会像处理请求那样替它回收数据库连接。连接一旦被
+    MySQL 断开，这条线程之后的每次评测都会失败，提交永远停在 Pending。
+
+    必须用 TransactionTestCase：TestCase 把每个测试包在事务里，事务中途关闭连接会直接报错。
+    """
+
+    def setUp(self):
+        user = OJTestCase.make_user('conn_tester')
+        self.problem = OJTestCase.make_problem()
+        self.sub = OJTestCase.make_submission(user, self.problem, status='Pending', score=0)
+        # 测试失败时连接可能还是断的；收尾前换掉，免得清库和后续测试跟着报错
+        self.addCleanup(connection.close)
+
+    @staticmethod
+    def _judge_ok(sub, prob):
+        """替代真实评测：只写库，不起沙箱。"""
+        sub.status = 'AC'
+        sub.save(update_fields=['status'])
+
+    def _run_task(self, judge):
+        with mock.patch('judge.services.judger.judge_submission', side_effect=judge):
+            judge_queue._judge_task(self.sub.id, self.problem.id)
+
+    def test_recovers_after_connection_dropped_while_idle(self):
+        """线程空闲期间连接被 MySQL 断开，下一次评测照常完成。"""
+        kill_current_connection()
+        self._run_task(self._judge_ok)
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, 'AC')
+
+    def test_releases_connection_after_task(self):
+        """评测结束就归还连接，线程不再长期攥着一条连接。"""
+        self._run_task(self._judge_ok)
+        self.assertIsNone(connection.connection)
+
+    def test_fallback_result_written_when_connection_drops_mid_task(self):
+        """评测中途数据库断开：换一条连接写入兜底的 RE，前端不会一直轮询。"""
+        def judge_then_lose_db(sub, prob):
+            kill_current_connection()
+            self._judge_ok(sub, prob)       # 连接已断，这里抛 OperationalError
+
+        with mock.patch.object(judge_queue.logger, 'exception') as log_exception:
+            self._run_task(judge_then_lose_db)
+        log_exception.assert_called_once()
+        self.sub.refresh_from_db()
+        self.assertEqual(self.sub.status, 'RE')
+        self.assertEqual(self.sub.error_info, 'Internal judge error')
