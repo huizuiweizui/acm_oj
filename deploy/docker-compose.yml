@@ -1,0 +1,139 @@
+# acm_oj 生产编排：MySQL 8 + Redis + web（gunicorn）+ nginx，外加评测沙箱镜像的构建。
+# 完整步骤见 deploy/README.md。所有 docker compose 命令都在 deploy/ 目录下执行，
+# 变量来自同目录的 .env（由 env.production.example 复制而来，不进 git）。
+name: acm-oj
+
+x-logging: &logging
+  # Docker 默认日志不轮转，长期运行会把磁盘写满
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 deploy/.env 中设置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-acm_oj}
+      MYSQL_USER: ${DB_USER:-acm_oj}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?请在 deploy/.env 中设置 DB_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-name-resolve
+      # 评测线程池（judge/services/judge_queue.py）的线程常驻、各自长期持有一条数据库连接，
+      # 评测前后不回收。MySQL 默认 8 小时（wait_timeout=28800）断开空闲连接，之后这些线程
+      # 每次评测都报 "MySQL server has gone away"，提交卡在 Pending。连接数有上限
+      # （≈ 进程数 × 线程池大小），放宽到最大值即可。
+      - --wait-timeout=31536000
+      - --interactive-timeout=31536000
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # 走 TCP（-h 127.0.0.1）：首次初始化时临时实例只开 socket，避免 web 过早连上
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # 只存限流计数和缓存，丢了无所谓，不做持久化
+    command: ["redis-server", "--save", "", "--appendonly", "no",
+              "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: *logging
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    image: acm-oj-web:latest
+    restart: unless-stopped
+    # tini 做 1 号进程：转发信号给 gunicorn、回收评测时派生的 docker 客户端子进程
+    init: true
+    # 必须以 root 运行（镜像默认用户）：沙箱的编译容器以 root 身份、在 --cap-drop=ALL 下
+    # 往评测临时目录写编译产物，没有 CAP_DAC_OVERRIDE 时只有目录属主是 root 才写得进去；
+    # 而临时目录由 web 进程用 mkdtemp(0700) 创建。详见 deploy/README.md。
+    env_file: .env
+    environment:
+      # 以下由编排固定，.env 里同名的值会被覆盖
+      DEBUG: "False"
+      # root 密码只给 MySQL 容器初始化用，不必出现在 web 容器的环境变量里
+      MYSQL_ROOT_PASSWORD: ""
+      DB_HOST: db
+      DB_PORT: "3306"
+      REDIS_URL: redis://redis:6379/1
+      USE_DOCKER_SANDBOX: "True"
+      JUDGE_DOCKER_IMAGE: ${JUDGE_DOCKER_IMAGE:-acm-oj-sandbox:latest}
+      # 评测 / 自定义运行 / 星语排序题的临时目录都来自 tempfile.mkdtemp()，即 $TMPDIR。
+      # 沙箱容器由宿主机的 Docker 创建，`-v <临时目录>:/sandbox` 按宿主机路径解析，
+      # 所以这个目录在宿主机和 web 容器里必须是同一个绝对路径（见下方 volumes）。
+      TMPDIR: ${JUDGE_TMP_DIR:-/var/lib/acm-oj/judge_tmp}
+    volumes:
+      # 让容器里的 docker 客户端驱动宿主机 Docker 起沙箱容器（安全取舍见 README）
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${JUDGE_TMP_DIR:-/var/lib/acm-oj/judge_tmp}:${JUDGE_TMP_DIR:-/var/lib/acm-oj/judge_tmp}
+      - static:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    # 必须大于 gunicorn 的 graceful_timeout（默认 60 秒），否则 Docker 先 SIGKILL
+    stop_grace_period: 75s
+    logging: *logging
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: deploy/nginx.Dockerfile
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    image: acm-oj-nginx:latest
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/${NGINX_SITE_CONF:-site-http.conf}:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/site-common.inc:/etc/nginx/site-common.inc:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - static:/srv/static:ro
+    depends_on:
+      - web
+    logging: *logging
+
+  # 评测沙箱镜像：只构建、不启动（web 里的 docker run 按镜像名使用它）。
+  # 构建：docker compose --profile sandbox build sandbox
+  sandbox:
+    image: ${JUDGE_DOCKER_IMAGE:-acm-oj-sandbox:latest}
+    build:
+      context: ..
+      dockerfile: Dockerfile.sandbox
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
+    profiles: ["sandbox"]
+
+volumes:
+  mysql-data:
+  static:

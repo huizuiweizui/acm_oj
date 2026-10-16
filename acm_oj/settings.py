@@ -156,6 +156,24 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = env('CORS_ORIGINS')
 
+# Django 后台（/django-admin/）表单的可信来源。经 nginx 同源访问时不用配；
+# 前面再套一层反代 / CDN、导致 Origin 与 Host 对不上时才需要，如 https://oj.example.com
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+# ===================== HTTPS（生产：nginx 终止 TLS） =====================
+# 用公网 IP + HTTP 演示时保持 False。有域名与证书、nginx 换成 site-https.conf 后设为 True，
+# 一次打开 HTTPS 相关的安全项（manage.py check --deploy 的 W004/W008/W012/W016）。
+USE_HTTPS = env.bool('USE_HTTPS', default=False)
+if USE_HTTPS:
+    # nginx 终止 TLS 后以 HTTP 转发给 gunicorn，靠这个头告诉 Django 原始请求是 HTTPS。
+    # nginx 每次都覆盖该头（deploy/nginx/site-common.inc），客户端伪造不了。
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # 先给 1 小时，确认全站 HTTPS 正常后再调大——浏览器会记住 HSTS，配错了不好撤回
+    SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=3600)
+
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
@@ -206,3 +224,20 @@ AI_FEEDBACK_WORKERS = env.int('AI_FEEDBACK_WORKERS', default=2)
 EMBED_API_KEY  = env('EMBED_API_KEY',  default='')
 EMBED_API_BASE = env('EMBED_API_BASE', default='')   # e.g. https://ark.cn-beijing.volces.com/api/v3
 EMBED_MODEL    = env('EMBED_MODEL',    default='')   # e.g. ep-xxxx（Ark embedding 端点）
+
+# ===================== 日志 =====================
+# Django 默认只在 DEBUG=True 时把日志打到控制台：生产（DEBUG=False）下 500 错误的堆栈、
+# 评测线程里的异常哪里都看不到。生产环境统一输出到 stderr，用 docker compose logs web 查看。
+# 开发环境沿用 Django 默认配置，避免同一条日志打两遍。
+if not DEBUG:
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'plain': {'format': '%(asctime)s %(levelname)s %(name)s: %(message)s'},
+        },
+        'handlers': {
+            'console': {'class': 'logging.StreamHandler', 'formatter': 'plain'},
+        },
+        'root': {'handlers': ['console'], 'level': env('LOG_LEVEL', default='INFO')},
+    }

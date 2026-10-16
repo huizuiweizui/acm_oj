@@ -276,7 +276,12 @@ npm install
 npm run dev     # http://localhost:5173（/api/* 自动代理到 8000）
 ```
 
-### 生产构建
+### 生产部署
+
+对外部署用 Docker Compose（MySQL + Redis + gunicorn + nginx + 评测沙箱），完整步骤见
+[deploy/README.md](deploy/README.md)。
+
+只想在本机预览生产构建（自用，`runserver` 是开发服务器，不要对外）：
 
 ```bash
 cd frontend && npm run build

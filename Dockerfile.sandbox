@@ -9,6 +9,13 @@
 
 FROM debian:bookworm-slim
 
+# 可选：国内服务器构建时换 apt 源加速，如 --build-arg APT_MIRROR=mirrors.aliyun.com
+# （deploy/docker-compose.yml 会从 deploy/.env 传入）。留空则用 Debian 官方源。
+ARG APT_MIRROR=
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    fi
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         gcc \
         g++ \
