@@ -10,6 +10,7 @@ from judge.tests.base import OJTestCase
 from star.content.levels import get_level, themed
 from star.content.problems import get_problem, source_of
 from star.models import AdaptedTask, LearnerProfile
+from star.services import profile as profile_svc
 
 LLM_ON = override_settings(LLM_API_KEY='test-key', LLM_API_URL='http://llm.test/chat/completions',
                            LLM_MODEL='test-model')
@@ -50,8 +51,8 @@ class StarTestCase(OJTestCase):
         base.update(profile)
         return LearnerProfile.objects.create(
             user=user, layer=layer, status=status, profile=base,
-            survey={'interest': 'dinosaur', 'view': 'both', 'reading': 'sentence', 'typing': 'yes',
-                    'coding': 'no', 'pace': 'few', 'help': 'hint', 'companion': 'self'},
+            survey=profile_svc.example_answers(interest='dinosaur', reading='sentence', typing='yes',
+                                               pace='few', help='hint'),
         )
 
     def make_problem_row(self, slug='sum_two'):

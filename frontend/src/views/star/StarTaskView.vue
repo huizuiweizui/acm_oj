@@ -7,6 +7,7 @@ import LevelPlayer from '@/components/star/LevelPlayer.vue'
 import StepsPlayer from '@/components/star/StepsPlayer.vue'
 import StarAssistant from '@/components/star/StarAssistant.vue'
 import { getMyTask, getStarMe } from '@/api/star'
+import { setStarUi, useStarTheme } from '@/components/star/starUi'
 
 const route = useRoute()
 const task = ref(null)
@@ -15,6 +16,8 @@ const step = ref(0)
 const finished = ref(false)
 const levelSolved = ref(false)
 const error = ref('')
+
+const { style: themeStyle } = useStarTheme()
 
 async function load() {
   task.value = null
@@ -26,6 +29,7 @@ async function load() {
     const [t, me] = await Promise.all([getMyTask(route.params.id), getStarMe()])
     task.value = t.data
     nickname.value = me.data.nickname
+    setStarUi(me.data.ui)
     levelSolved.value = t.data.done
   } catch (e) {
     error.value = e.response?.status === 404 ? '没有找到这个任务。' : '没有连上，请刷新一下。'
@@ -36,7 +40,7 @@ watch(() => route.params.id, load, { immediate: true })
 </script>
 
 <template>
-  <div class="star-app">
+  <div class="star-app" :style="themeStyle">
     <StarHeader :nickname="nickname" :title="task ? task.content.title : ''" />
     <main class="star-main">
       <div v-if="error" class="s-feedback is-bad" role="alert">

@@ -16,6 +16,10 @@ THEMES = {
     'animal':   {'name': '小动物', 'hero': '🐱', 'goal': '🐟', 'wall': '🌳', 'hero_name': '小猫', 'goal_name': '小鱼'},
     'car':      {'name': '汽车', 'hero': '🚗', 'goal': '🏁', 'wall': '🚧', 'hero_name': '小汽车', 'goal_name': '终点'},
     'ocean':    {'name': '海洋', 'hero': '🐠', 'goal': '🐚', 'wall': '🦀', 'hero_name': '小鱼', 'goal_name': '贝壳'},
+    'robot':    {'name': '机器人', 'hero': '🤖', 'goal': '🔋', 'wall': '🧱', 'hero_name': '小机器人', 'goal_name': '电池'},
+    'plane':    {'name': '飞机', 'hero': '✈️', 'goal': '🛬', 'wall': '⛰️', 'hero_name': '小飞机', 'goal_name': '机场'},
+    'music':    {'name': '音乐', 'hero': '🎵', 'goal': '🎹', 'wall': '🔇', 'hero_name': '小音符', 'goal_name': '钢琴'},
+    'ball':     {'name': '踢球', 'hero': '⚽', 'goal': '🥅', 'wall': '🧍', 'hero_name': '足球', 'goal_name': '球门'},
 }
 DEFAULT_THEME = 'train'
 

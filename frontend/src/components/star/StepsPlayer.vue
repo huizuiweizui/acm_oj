@@ -341,7 +341,7 @@ async function check() {
   gap: 8px;
   background: #fbfaf6;
 }
-.line-list.answer { border-style: solid; border-color: var(--s-accent); background: var(--s-card); }
+.line-list.answer { border-style: solid; border-color: var(--s-accent-ink, var(--s-accent)); background: var(--s-card); }
 .answer-row { display: flex; align-items: center; gap: 8px; }
 .line-no { width: 24px; text-align: right; font-family: var(--font-mono); font-size: 15px; color: var(--s-text-2); }
 .line {

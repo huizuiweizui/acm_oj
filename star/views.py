@@ -102,6 +102,7 @@ class MeView(APIView):
                     lp.survey, len((lp.dialogue or {}).get('intro', [])), request.user.username)
         if lp:
             data['theme_key'] = (lp.profile or {}).get('theme_key', '')
+        data['ui'] = _learner_ui(lp)
         return Response(data)
 
 
@@ -118,7 +119,8 @@ class SurveyView(APIView):
         lp.survey = answers
         lp.dialogue = dict(lp.dialogue or {}, intro=[])
         lp.save()
-        return Response({'dialogue': profile_svc.dialogue_question(answers, 0, request.user.username)})
+        return Response({'dialogue': profile_svc.dialogue_question(answers, 0, request.user.username),
+                         'ui': _learner_ui(lp)})
 
 
 class DialogueView(APIView):
@@ -289,10 +291,17 @@ def _survey_rows(lp):
     rows = []
     for q in profile_svc.SURVEY:
         v = (lp.survey or {}).get(q['key'])
-        opt = next((o for o in q['options'] if o['value'] == v), None)
-        rows.append({'key': q['key'], 'title': q['title'], 'value': v,
-                     'label': opt['label'] if opt else '', 'icon': opt['icon'] if opt else ''})
+        opt = next((o for o in q.get('options', []) if o['value'] == v), None)   # 单选题才有单个图标
+        rows.append({'key': q['key'], 'title': q['title'], 'type': profile_svc.qtype(q), 'value': v,
+                     'label': profile_svc.answer_text(q, lp.survey), 'icon': opt['icon'] if opt else ''})
     return rows
+
+
+def _learner_ui(lp):
+    """学生端界面设置：优先用画像里定下的；刚填完问卷、画像还没生成时按问卷现算。"""
+    if lp is None:
+        return dict(profile_svc.DEFAULT_UI)
+    return (lp.profile or {}).get('ui') or profile_svc.build_ui(lp.survey)
 
 
 def _learner_payload(lp):
@@ -305,6 +314,7 @@ def _learner_payload(lp):
         'layer': lp.layer,
         'status': lp.status,
         'survey': _survey_rows(lp),
+        'ui': _learner_ui(lp),
         'profile': lp.profile,
         'vocabulary': lp.vocabulary,
         'intro_dialogue': (lp.dialogue or {}).get('intro', []),

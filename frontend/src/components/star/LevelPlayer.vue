@@ -385,7 +385,7 @@ async function askHint() {
   background: #fbfaf6;
 }
 .slot.is-filled { border-style: solid; background: var(--s-card); }
-.slot.is-active { border-color: var(--s-accent); background: var(--s-accent-soft); }
+.slot.is-active { border-color: var(--s-accent-ink, var(--s-accent)); background: var(--s-accent-soft); }
 .slot-no {
   width: 28px;
   font-family: var(--font-mono);

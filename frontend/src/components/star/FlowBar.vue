@@ -35,10 +35,10 @@ defineProps({
   margin: 0;
   flex: 1;
   min-width: 200px;
+  flex-wrap: wrap;   /* 题目多（问卷 19 题）时换行，不撑出卡片 */
 }
 .flow-bar li {
-  flex: 1;
-  min-width: 40px;
+  flex: 1 0 40px;
   height: 40px;
   border: 2px solid var(--s-border-strong);
   border-radius: 6px;
@@ -50,7 +50,7 @@ defineProps({
   background: var(--s-card);
 }
 .flow-bar li.is-done { border-color: var(--s-ok); background: var(--s-ok-soft); color: var(--s-ok); }
-.flow-bar li.is-current { border-color: var(--s-accent); background: var(--s-accent); color: #fff; }
+.flow-bar li.is-current { border-color: var(--s-accent-ink, var(--s-accent)); background: var(--s-accent); color: #fff; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }

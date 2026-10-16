@@ -7,6 +7,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
+import { ACCENTS } from '@/components/star/starUi'
 import {
   createTask, getLearner, getLearnerReport, getMaterials, regenerateProfile, updateLearner,
 } from '@/api/star'
@@ -242,6 +243,10 @@ function metaTags(m) {
   if (meta.fallback) t.push({ cls: 'plain', text: '兜底回复' })
   return t
 }
+
+// 学生端界面定制（与 starUi.js / profile.build_ui 对应）
+const UI_BG = { warm: '默认米色', white: '白色', gray: '浅灰色', blue: '浅蓝色', green: '浅绿色', dark: '深色' }
+const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
 </script>
 
 <template>
@@ -282,6 +287,19 @@ function metaTags(m) {
               <dd>{{ s.icon }} {{ s.label || '—' }}</dd>
             </template>
           </dl>
+          <template v-if="learner.ui">
+            <h3>按问卷定制的学生界面</h3>
+            <div class="ui-preview" :class="`bg-${learner.ui.bg}`">
+              <span class="ui-chip" :style="{ background: ACCENTS[learner.ui.accent]?.accent }">
+                主色：{{ ACCENTS[learner.ui.accent]?.name || learner.ui.accent }}
+              </span>
+              <span>背景：{{ UI_BG[learner.ui.bg] || learner.ui.bg }}</span>
+              <span>按钮：{{ UI_BUTTON[learner.ui.button] || learner.ui.button }}</span>
+              <span>选中标记：{{ learner.ui.mark }}</span>
+              <span v-if="learner.ui.font_adjust">✔ 可调字号</span>
+              <span v-if="learner.ui.color_choice">✔ 可自己换颜色</span>
+            </div>
+          </template>
           <h3>引导对话</h3>
           <ul class="qa">
             <li v-for="(d, i) in learner.intro_dialogue" :key="i">
@@ -519,4 +537,10 @@ function metaTags(m) {
 .chat-log .who { color: var(--text-secondary); }
 .chat-log li.bot .who { color: var(--accent); }
 .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.ui-preview {
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.85rem;
+}
+.ui-preview.bg-dark { background: #26292e; color: #eceef1; }
+.ui-chip { color: #fff; padding: 2px 10px; border-radius: 999px; font-weight: 600; }
 </style>

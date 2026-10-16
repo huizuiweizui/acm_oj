@@ -25,6 +25,7 @@ from star.content.learners import LEARNERS, TEACHER_USERNAME, TEAM_NAME
 from star.content.levels import LEVELS, themed
 from star.content.problems import PROBLEMS, source_of
 from star.models import AdaptedTask, LearnerProfile
+from star.services import profile as profile_svc
 from star.services.adapt import check_content
 from star.services.runner import run_against_tests
 
@@ -117,9 +118,11 @@ class Command(BaseCommand):
     def _profile(self, user, spec, teacher, reset):
         lp, _ = LearnerProfile.objects.get_or_create(user=user)
         lp.layer = spec['layer']
-        lp.survey = spec['survey']
+        # 种子只写了与画像有关的题，其余题按默认答案补齐，保证问卷完整、可在教师端展示
+        lp.survey = profile_svc.example_answers(**_full_scales(spec['survey']))
         lp.profile = dict(spec['profile'], nickname=spec['nickname'], layer=spec['layer'],
-                          help_preference=spec['survey']['help'], source='seed')
+                          help_preference=spec['survey']['help'], ui=profile_svc.build_ui(lp.survey),
+                          source='seed')
         lp.vocabulary = spec['vocabulary']
         # 重置时连对话助手的记录一起清空，演示从干净状态开始
         lp.dialogue = dict({} if reset else (lp.dialogue or {}), intro=[
@@ -152,3 +155,13 @@ class Command(BaseCommand):
                                     'errors': [], 'at': now.isoformat()}]
             task.save()
         self.stdout.write(f'{spec["username"]}：{len(items)} 个已审核任务')
+
+
+def _full_scales(survey):
+    """打分表题只写了几行时，其余行补"一般"（3 分 / 都可以），以通过问卷完整性要求。"""
+    out = dict(survey)
+    for q in profile_svc.SURVEY:
+        if profile_svc.qtype(q) == 'scale' and q['key'] in out:
+            mid = q['levels'][len(q['levels']) // 2]['value']
+            out[q['key']] = {r['key']: out[q['key']].get(r['key'], mid) for r in q['rows']}
+    return out

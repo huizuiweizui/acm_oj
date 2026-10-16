@@ -6,8 +6,13 @@
 LEARNERS = [
     {
         'username': 'star_hang', 'nickname': '小航', 'layer': 'enlighten',
-        'survey': {'interest': 'train', 'view': 'image', 'reading': 'word', 'typing': 'no',
-                   'coding': 'no', 'pace': 'one', 'help': 'hint', 'companion': 'parent'},
+        'survey': {'interest': 'train', 'learn_style': ['image', 'repeat'], 'reading': 'word', 'typing': 'no',
+                   'coding': 'no', 'pace': 'one', 'help': 'hint', 'companion': 'parent',
+                   # 界面偏好：浅蓝背景、喜欢绿色、圆形按钮，需要能调字号
+                   'bg_color': 'blue', 'color_mix': 'too_much',
+                   'color_like': {'green': 5, 'blue': 4, 'red': 1},
+                   'shape_like': {'circle': 5, 'star': 4},
+                   'ui_needs': {'font_size': 'must', 'same_place': 'must'}},
         'intro': [
             ('favorite', '说到火车，你最喜欢哪个？', '高铁'),
             ('own_word', '你平时管它叫什么？', '呜呜'),
@@ -26,8 +31,13 @@ LEARNERS = [
     },
     {
         'username': 'star_duo', 'nickname': '朵朵', 'layer': 'enlighten',
-        'survey': {'interest': 'animal', 'view': 'image', 'reading': 'word', 'typing': 'little',
-                   'coding': 'no', 'pace': 'one', 'help': 'ask', 'companion': 'teacher'},
+        'survey': {'interest': 'animal', 'learn_style': ['image', 'watch'], 'reading': 'word', 'typing': 'little',
+                   'coding': 'no', 'pace': 'one', 'help': 'ask', 'companion': 'teacher',
+                   # 界面偏好：白色背景、喜欢粉色、心形标记，想自己选颜色
+                   'bg_color': 'white', 'color_mix': 'a_bit',
+                   'color_like': {'pink': 5, 'purple': 4},
+                   'shape_like': {'heart': 5, 'circle': 4},
+                   'ui_needs': {'choose_color': 'must'}},
         'intro': [
             ('favorite', '说到小动物，你最喜欢哪个？', '小猫'),
             ('own_word', '你平时管它叫什么？', '喵喵'),
@@ -45,8 +55,13 @@ LEARNERS = [
     },
     {
         'username': 'star_jie', 'nickname': '阿杰', 'layer': 'intro',
-        'survey': {'interest': 'dinosaur', 'view': 'text', 'reading': 'sentence', 'typing': 'yes',
-                   'coding': 'little', 'pace': 'few', 'help': 'retry', 'companion': 'self'},
+        'survey': {'interest': 'dinosaur', 'learn_style': ['text', 'do'], 'reading': 'sentence', 'typing': 'yes',
+                   'coding': 'little', 'pace': 'few', 'help': 'retry', 'companion': 'self',
+                   # 界面偏好：浅绿背景、喜欢橙色、方形按钮
+                   'bg_color': 'green', 'color_mix': 'fine',
+                   'color_like': {'orange': 5, 'green': 4},
+                   'shape_like': {'square': 5},
+                   'ui_needs': {}},
         'intro': [
             ('favorite', '说到恐龙，你最喜欢哪个？', '腕龙'),
             ('own_word', '你平时管它叫什么？', '大长脖'),
@@ -64,8 +79,13 @@ LEARNERS = [
     },
     {
         'username': 'star_yu', 'nickname': '小雨', 'layer': 'intro',
-        'survey': {'interest': 'space', 'view': 'both', 'reading': 'paragraph', 'typing': 'yes',
-                   'coding': 'no', 'pace': 'one', 'help': 'hint', 'companion': 'parent'},
+        'survey': {'interest': 'space', 'learn_style': ['image', 'text'], 'reading': 'paragraph', 'typing': 'yes',
+                   'coding': 'no', 'pace': 'one', 'help': 'hint', 'companion': 'parent',
+                   # 界面偏好：深色背景、喜欢紫色、星形标记、长方形按钮
+                   'bg_color': 'dark', 'color_mix': 'a_bit',
+                   'color_like': {'purple': 5, 'blue': 5, 'black': 5},
+                   'shape_like': {'star': 5, 'rect': 4},
+                   'ui_needs': {'font_size': 'some'}},
         'intro': [
             ('favorite', '说到太空，你最喜欢哪个？', '火箭'),
             ('own_word', '你平时管它叫什么？', '飞飞'),

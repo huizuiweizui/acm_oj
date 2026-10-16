@@ -143,7 +143,7 @@ async function send(content, via = 'text') {
   border: 1px solid var(--s-border);
   background: var(--s-bg);
 }
-.msg.user .bubble { background: var(--s-accent-soft); border-color: var(--s-accent); }
+.msg.user .bubble { background: var(--s-accent-soft); border-color: var(--s-accent-ink, var(--s-accent)); }
 .a-options { display: flex; flex-wrap: wrap; gap: 8px; }
 .a-opt { min-height: 48px; padding: 6px 16px; }
 .a-foot { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--s-border); }

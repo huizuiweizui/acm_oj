@@ -3,9 +3,11 @@ import '@/assets/star.css'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import StarHeader from '@/components/star/StarHeader.vue'
+import { setStarUi, useStarTheme } from '@/components/star/starUi'
 import { getMyTasks, getStarMe } from '@/api/star'
 
 const router = useRouter()
+const { style: themeStyle } = useStarTheme()
 const me = ref(null)
 const tasks = ref([])
 const loading = ref(true)
@@ -24,6 +26,7 @@ onMounted(async () => {
   try {
     const { data } = await getStarMe()
     me.value = data
+    setStarUi(data.ui)
     const fresh = data.status === 'new' || data.status === 'surveying'
     if (fresh && !data.is_teacher) {
       router.replace({ name: 'star-start' })
@@ -39,7 +42,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="star-app">
+  <div class="star-app" :style="themeStyle">
     <StarHeader :nickname="me?.nickname" />
     <main class="star-main">
       <p v-if="loading" class="s-muted">正在打开……</p>
@@ -125,7 +128,7 @@ onMounted(async () => {
 .next-tag {
   margin-left: auto;
   font-weight: 700;
-  color: var(--s-accent);
+  color: var(--s-accent-ink, var(--s-accent));
   white-space: nowrap;
 }
 .task .s-btn { text-decoration: none; white-space: nowrap; }

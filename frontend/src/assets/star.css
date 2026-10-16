@@ -4,6 +4,8 @@
    - 大字号（正文 20px）、大点击区域（按钮至少 52px 高）
    - 无动画：去掉一切过渡与动效；角色移动是逐格跳动，不做补间
    - 状态一律"图标 + 文字 + 颜色"三者齐备，颜色不是唯一信号
+   - 下面是默认配色；学生问卷里选的背景、主色、按钮形状由 starUi.js 以内联 CSS 变量覆盖，
+     填完问卷后固定不变
    ══════════════════════════════════════════ */
 .star-app {
   --s-bg: #f5f4ef;
@@ -45,6 +47,8 @@
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px 24px 120px;
+  /* 学生在问卷里说"需要调字号"时，页头的 A−/A+ 改这个缩放（见 starUi.js） */
+  zoom: var(--s-zoom, 1);
 }
 @media (max-width: 600px) {
   .star-main { padding: 16px 16px 120px; }
@@ -55,7 +59,7 @@
 .s-card {
   background: var(--s-card);
   border: 1px solid var(--s-border);
-  border-radius: 8px;
+  border-radius: var(--s-radius-card, 8px);
   padding: 24px;
 }
 .s-title {
@@ -72,7 +76,7 @@
 .s-btn {
   min-height: 52px;
   padding: 8px 22px;
-  border-radius: 6px;
+  border-radius: var(--s-radius, 6px);
   border: 2px solid var(--s-border-strong);
   background: var(--s-card);
   color: var(--s-text);
@@ -84,11 +88,11 @@
   justify-content: center;
   gap: 8px;
 }
-.s-btn:hover:not(:disabled) { border-color: var(--s-accent); }
+.s-btn:hover:not(:disabled) { border-color: var(--s-accent-ink, var(--s-accent)); }
 .s-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .s-btn-primary {
   background: var(--s-accent);
-  border-color: var(--s-accent);
+  border-color: var(--s-accent-ink, var(--s-accent));
   color: #fff;
 }
 .s-btn-primary:hover:not(:disabled) { background: var(--s-accent-hover); border-color: var(--s-accent-hover); }
@@ -98,7 +102,7 @@
 .s-option {
   min-height: 64px;
   padding: 12px 20px;
-  border-radius: 8px;
+  border-radius: var(--s-radius-card, 8px);
   border: 2px solid var(--s-border);
   background: var(--s-card);
   color: var(--s-text);
@@ -110,12 +114,12 @@
   gap: 14px;
   width: 100%;
 }
-.s-option:hover { border-color: var(--s-accent); }
+.s-option:hover { border-color: var(--s-accent-ink, var(--s-accent)); }
 .s-option.is-selected {
-  border-color: var(--s-accent);
+  border-color: var(--s-accent-ink, var(--s-accent));
   background: var(--s-accent-soft);
 }
-.s-option .s-check { margin-left: auto; font-weight: 700; color: var(--s-accent); }
+.s-option .s-check { margin-left: auto; font-weight: 700; color: var(--s-accent-ink, var(--s-accent)); }
 
 /* 固定反馈：图标 + 一句固定话术 */
 .s-feedback {

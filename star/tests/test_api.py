@@ -8,7 +8,7 @@ from star.services import learning, profile as profile_svc
 
 from .base import LLM_OFF, StarTestCase
 
-ALL_SURVEY = {q['key']: q['options'][0]['value'] for q in profile_svc.SURVEY}
+ALL_SURVEY = profile_svc.example_answers()
 
 
 def api(user=None):
@@ -43,6 +43,19 @@ class OnboardingTests(StarTestCase):
         self.assertEqual(words, {'呜呜': '高铁', '停停': '想休息'})
         # 问卷第一项都选了 train / image / word ... → 认字少、不会打字之外的组合由规则决定层级
         self.assertEqual(lp.layer, profile_svc.suggest_layer(ALL_SURVEY))
+
+    def test_survey_returns_custom_ui(self):
+        answers = profile_svc.example_answers(
+            bg_color='dark',
+            color_like={r['key']: 3 for r in profile_svc._SURVEY_BY_KEY['color_like']['rows']} | {'purple': 5},
+            ui_needs={r['key']: 'no' for r in profile_svc._SURVEY_BY_KEY['ui_needs']['rows']} | {'font_size': 'must'},
+        )
+        r = api(self.kid).post('/api/star/survey/', {'answers': answers}, format='json')
+        self.assertEqual(r.status_code, 200)
+        ui = r.json()['ui']
+        self.assertEqual((ui['bg'], ui['accent'], ui['font_adjust'], ui['color_choice']),
+                         ('dark', 'purple', True, False))
+        self.assertEqual(api(self.kid).get('/api/star/me/').json()['ui'], ui)
 
     def test_incomplete_survey_rejected(self):
         partial = dict(ALL_SURVEY)
