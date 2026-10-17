@@ -77,7 +77,7 @@ onMounted(async () => {
             <tr v-if="!loading && !rows.length">
               <td colspan="8" class="st-empty">
                 还没有学习者。学生加入你的团队并在"星语"里填完问卷后会出现在这里；
-                本地演示可运行 <code>python manage.py seed_star</code> 生成 4 个虚构学生。
+                本地演示可运行 <code>python manage.py seed_star</code> 生成 40 个虚构学生。
               </td>
             </tr>
             <tr v-if="loading"><td colspan="8" class="st-empty">加载中…</td></tr>

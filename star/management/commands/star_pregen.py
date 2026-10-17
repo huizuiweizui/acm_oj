@@ -1,8 +1,8 @@
 """
 提前生成演示内容（任务书 6.8："提前生成并审核演示内容，录屏时不现场等待大模型"）。
 
-    python manage.py star_pregen                      为 4 个演示学生各生成一组大模型改造草稿
-    python manage.py star_pregen --users star_jie     只给指定学生生成（逗号分隔）
+    python manage.py star_pregen                      为 4 个样例学生（SHOWCASE）各生成一组大模型改造草稿
+    python manage.py star_pregen --users star_jie     只给指定学生生成（逗号分隔，40 个演示学生都可以）
     python manage.py star_pregen --replace            先删掉这些学生"没有作答记录"的旧任务（如种子数据里的默认版本）
 
 启蒙层生成 6 个关卡、入门层生成 5 道演示题，每个都走完整的生成-校验-修复闭环。
@@ -13,7 +13,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db.models import Max
 
 from judge.services.judge_queue import RunQueueBusy
-from star.content.learners import LEARNERS, TEACHER_USERNAME
+from star.content.learners import SHOWCASE, TEACHER_USERNAME
 from star.content.levels import LEVELS
 from star.content.problems import PROBLEMS, problem_row
 from star.models import AdaptedTask, LearnerProfile
@@ -24,7 +24,7 @@ class Command(BaseCommand):
     help = '用大模型为演示学生批量生成改造任务草稿'
 
     def add_arguments(self, parser):
-        parser.add_argument('--users', default=','.join(s['username'] for s in LEARNERS))
+        parser.add_argument('--users', default=','.join(SHOWCASE))
         parser.add_argument('--replace', action='store_true', help='先删除这些学生没有作答记录的旧任务')
         parser.add_argument('--teacher', default=TEACHER_USERNAME, help='记为发起教师')
 

@@ -3,9 +3,9 @@
 
     1. 15 道入门题写入题库（不公开，source = "星语·<slug>"），测试数据整体替换；
        默认用评测机实跑一遍参考解，确认能通过全部测试数据（--no-verify 跳过）；
-    2. 演示账号：教师 1 个（star_teacher）、学生 4 个（content/learners.py），
-       建一个由该教师创建的团队，4 名学生是成员——教师端据此看到他们；
-    3. 4 名学生的画像（已确认）与个人词表；
+    2. 演示账号：教师 1 个（star_teacher）、学生 40 个（content/learners.py，启蒙层、入门层各 20 个），
+       建一个由该教师创建的团队，40 名学生都是成员——教师端据此看到他们；
+    3. 每名学生的画像（已确认）与个人词表；
     4. 每名学生一组已审核的任务：启蒙层 6 个关卡（按兴趣套主题包），入门层 5 道演示题的默认分步任务。
        已有任务的学生不动，--reset-tasks 时删掉重建（连同作答记录）。
 
@@ -55,7 +55,7 @@ class Command(BaseCommand):
         if opts['password'] == DEMO_PASSWORD:
             self.stdout.write(self.style.WARNING('演示账号使用的是默认密码（DEMO_PASSWORD），部署到公网前请用 --password 更换'))
         self.stdout.write(self.style.SUCCESS(
-            f'完成：教师 {TEACHER_USERNAME}，学生 {", ".join(s["username"] for s in LEARNERS)}，团队「{TEAM_NAME}」'))
+            f'完成：教师 {TEACHER_USERNAME}，学生 {len(LEARNERS)} 名，团队「{TEAM_NAME}」'))
 
     # ── 账号与团队 ───────────────────────────────────────────────────
     def _user(self, username, role, password, real_name=''):
