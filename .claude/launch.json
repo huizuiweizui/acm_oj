@@ -1,0 +1,28 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "venv/python.exe",
+      "runtimeArgs": ["manage.py", "runserver", "127.0.0.1:8000", "--noreload"],
+      "port": 8000
+    },
+    {
+      "name": "backend-evidence",
+      "runtimeExecutable": "venv/python.exe",
+      "runtimeArgs": ["manage.py", "runserver", "127.0.0.1:8000", "--noreload"],
+      "env": {
+        "DB_ENGINE": "sqlite",
+        "DB_NAME": "C:/Users/33607/AppData/Local/Temp/claude/C--MyCode-acm-oj/81bb6d6b-0b09-4881-8293-cb692aa197aa/scratchpad/evidence.sqlite3",
+        "PYTHONIOENCODING": "utf-8"
+      },
+      "port": 8000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
