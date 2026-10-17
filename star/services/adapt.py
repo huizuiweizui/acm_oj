@@ -22,10 +22,18 @@ from .runner import reference_passes
 from .validators import Check, check_level, check_steps, reference_lines
 
 MAX_ATTEMPTS = 3
+API_ERROR_PREFIX = '接口调用失败：'
 
 
 class MaterialError(Exception):
     """素材本身有问题（不存在、参考解跑不过测试数据……），与大模型无关，重试也没用。"""
+
+
+class LLMUnavailable(Exception):
+    """
+    每一次都是接口调用失败（地址 / key / 模型名不对、网络不通），大模型一次输出都没拿到。
+    这时生成的不是"不合格的内容"而是"没有内容"，不应留下一条空的"生成失败"任务，由调用方报错。
+    """
 
 
 def material_of(task):
@@ -78,7 +86,7 @@ def run_loop(purpose, messages, checker, *, max_attempts=MAX_ATTEMPTS, tag='', t
     for attempt in range(1, max_attempts + 1):
         res = llm.chat_json(purpose, msgs, attempt=attempt, tag=tag, task=task, learner=learner)
         if res.data is None:
-            reason = f'接口调用失败：{res.error}' if res.error else '输出不是合法的 JSON 对象'
+            reason = f'{API_ERROR_PREFIX}{res.error}' if res.error else '输出不是合法的 JSON 对象'
             chk = Check(format_errors=[reason])
         else:
             chk = checker(res.data)
@@ -116,7 +124,7 @@ def generate(task, *, mode='llm', max_attempts=MAX_ATTEMPTS, tag=''):
     最后一次输出留在 content 里，教师可以在审核页手动改好后再提交校验。
 
     mode='template'：不调用大模型，用模板主题包 / 默认分步任务生成（演示兜底）。
-    未配置大模型时 mode='llm' 抛 llm.LLMNotConfigured。
+    未配置大模型时 mode='llm' 抛 llm.LLMNotConfigured；每次都是接口调用失败时抛 LLMUnavailable，任务不改动。
     """
     kind, material = material_of(task)
     if kind == 'problem':
@@ -138,6 +146,9 @@ def generate(task, *, mode='llm', max_attempts=MAX_ATTEMPTS, tag=''):
             'P2', messages, lambda d: check_content(task, d),
             max_attempts=max_attempts, tag=tag, task=task if task.pk else None, learner=task.student,
         )
+        if good is None and last is None and attempts and all(
+                any(e.startswith(API_ERROR_PREFIX) for e in a['errors']) for a in attempts):
+            raise LLMUnavailable(attempts[-1]['errors'][0][len(API_ERROR_PREFIX):])
         entries = [dict(a, run=run_no, mode='llm', at=now) for a in attempts]
         task.gen_count += len(attempts)
         if good is not None:

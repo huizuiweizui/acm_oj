@@ -52,6 +52,14 @@ def _busy():
     return Response({'detail': '评测机繁忙，请稍后再试'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
+def _llm_unavailable(err):
+    return Response(
+        {'detail': f'大模型接口调用失败（{err}）。请检查 .env 里的 LLM_API_URL / LLM_API_KEY / LLM_MODEL；'
+                   '改过 .env 后要完全停掉后端再启动（自动重载不会重新读取）。', 'code': 'llm_unavailable'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
 def _llm_missing():
     return Response(
         {'detail': '未配置大模型（.env 中的 LLM_API_KEY / LLM_API_URL / LLM_MODEL），'
@@ -463,6 +471,9 @@ class TaskCreateView(TeacherBase):
         except adapt.MaterialError as e:
             task.delete()
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except adapt.LLMUnavailable as e:
+            task.delete()
+            return _llm_unavailable(e)
         except RunQueueBusy:
             task.delete()
             return _busy()
@@ -678,6 +689,8 @@ class TaskRegenerateView(TeacherBase):
             adapt.generate(task, mode=mode)
         except adapt.MaterialError as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except adapt.LLMUnavailable as e:
+            return _llm_unavailable(e)
         except RunQueueBusy:
             return _busy()
         return Response(_task_detail(task))

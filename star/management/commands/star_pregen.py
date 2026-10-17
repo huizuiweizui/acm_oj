@@ -59,7 +59,7 @@ class Command(BaseCommand):
                                                   sort_order=order + i, created_by=teacher)
                 try:
                     adapt.generate(task, mode='llm', tag='pregen')
-                except (adapt.MaterialError, RunQueueBusy) as e:
+                except (adapt.MaterialError, adapt.LLMUnavailable, RunQueueBusy) as e:
                     task.delete()
                     counts['error'] += 1
                     self.stdout.write(self.style.ERROR(f'  {username} · {key}：{e}'))

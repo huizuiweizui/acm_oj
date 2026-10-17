@@ -1,12 +1,13 @@
 """星语接口：学生流程、作答判定、教师审核、权限边界。"""
 from unittest import mock
 
+import requests
 from rest_framework.test import APIClient
 
 from star.models import AdaptedTask, LearnerProfile, StepAttempt
 from star.services import learning, profile as profile_svc
 
-from .base import LLM_OFF, StarTestCase
+from .base import LLM_OFF, LLM_ON, StarTestCase
 
 ALL_SURVEY = profile_svc.example_answers()
 
@@ -332,6 +333,28 @@ class TeacherTests(StarTestCase):
         self.assertEqual(r.status_code, 503)
         self.assertEqual(r.json()['code'], 'llm_not_configured')
         self.assertFalse(AdaptedTask.objects.exists())
+
+    @LLM_ON
+    def test_unreachable_model_leaves_no_empty_task(self):
+        err = requests.HTTPError(response=mock.Mock(status_code=404))
+        self.lp.layer = 'enlighten'
+        self.lp.save()
+        with mock.patch('star.services.llm._post', side_effect=err) as post:
+            r = api(self.teacher).post(f'/api/star/teacher/learners/{self.kid.id}/tasks/', {'material': 'L3'},
+                                       format='json')
+        self.assertEqual(post.call_count, 3)
+        self.assertEqual(r.status_code, 503)
+        self.assertEqual(r.json()['code'], 'llm_unavailable')
+        self.assertIn('HTTP 404', r.json()['detail'])
+        self.assertFalse(AdaptedTask.objects.exists())
+
+        task = self.make_level_task(self.kid, 'L3', status='draft')
+        before = dict(task.content)
+        with mock.patch('star.services.llm._post', side_effect=err):
+            r = api(self.teacher).post(f'/api/star/teacher/tasks/{task.id}/regenerate/', {}, format='json')
+        self.assertEqual(r.status_code, 503)
+        task.refresh_from_db()
+        self.assertEqual((task.status, task.content, task.gen_count), ('draft', before, 0))   # 原内容不动
 
     def test_layer_must_match_material(self):
         r = api(self.teacher).post(f'/api/star/teacher/learners/{self.kid.id}/tasks/',

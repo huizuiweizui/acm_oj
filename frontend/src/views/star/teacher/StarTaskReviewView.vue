@@ -127,6 +127,18 @@ async function remove() {
   router.push({ name: 'star-learner', params: { uid: task.value.student.user_id } })
 }
 
+// 最近一轮生成里，每次都是接口调用失败（大模型一次输出都没拿到）：要查配置，不是内容问题
+const apiFailure = computed(() => {
+  const log = task.value?.validation_log || []
+  const last = log.length ? log[log.length - 1].run : null
+  const entries = log.filter((e) => e.run === last && e.mode === 'llm')
+  const failed = entries.length && entries.every((e) => (e.errors || []).some((x) => x.startsWith('接口调用失败')))
+  return failed ? entries[entries.length - 1].errors[0] : ''
+})
+// 表单编辑只在结构完整时可用；空内容或结构不对时只能直接编辑 JSON 或重新生成
+const formOk = computed(() => !!task.value?.check?.format_ok && !!draft.value
+  && (isLevel.value ? !!draft.value.theme && Array.isArray(draft.value.story) : Array.isArray(draft.value.steps)))
+
 const runs = computed(() => {
   const log = task.value?.validation_log || []
   return [...log].reverse()
@@ -174,6 +186,10 @@ const runs = computed(() => {
           {{ isLevel
             ? '已检查：JSON 结构、句长（每句 ≤ 20 字）、地图合法、BFS 可解、卡槽数与最少卡片数匹配、循环关卡必须用到重复卡。'
             : '已检查：JSON 结构、句长（每句 ≤ 20 字）、步骤数 3–6、选择题答案唯一、填空答案来自参考解、排序代码行逐字来自参考解（参考解已由评测机实跑通过）。' }}
+        </p>
+        <p v-if="apiFailure" class="st-notice">
+          这次没生成出内容：{{ apiFailure }}。这是大模型接口连不上（地址、key 或模型名不对，或后端还在用旧配置），
+          不是内容不合格。检查 .env 里的 LLM_API_URL / LLM_API_KEY / LLM_MODEL，改过之后要完全重启后端，再点"大模型重新生成"。
         </p>
         <ul v-if="task.check.errors.length" class="st-err-list">
           <li v-for="(e, i) in task.check.errors" :key="i">{{ e }}</li>
@@ -251,7 +267,12 @@ const runs = computed(() => {
               <textarea v-model="jsonText" class="st-textarea" rows="26" spellcheck="false" aria-label="任务 JSON"></textarea>
             </template>
 
-            <template v-else-if="draft && isLevel">
+            <p v-else-if="!formOk" class="st-muted">
+              内容结构不完整{{ apiFailure ? '（大模型没有返回内容）' : '' }}，没法用表单修改。
+              可以点上面的"大模型重新生成"或"换成默认版本"，也可以勾选"直接编辑 JSON"。
+            </p>
+
+            <template v-else-if="isLevel">
               <label class="fld">标题<input v-model="draft.title" class="st-input" maxlength="20"></label>
               <label v-for="(s, i) in draft.story" :key="`s${i}`" class="fld">
                 故事第 {{ i + 1 }} 句 <span v-if="tooLong(draft.story[i])" class="warn-text">超过 20 字</span>
@@ -267,7 +288,7 @@ const runs = computed(() => {
               <p class="st-muted">地图（起点、终点、障碍）请用"直接编辑 JSON"修改，保存时会重新做可解性检查。</p>
             </template>
 
-            <template v-else-if="draft && draft.steps">
+            <template v-else>
               <label class="fld">标题<input v-model="draft.title" class="st-input" maxlength="20"></label>
               <label v-for="(s, i) in draft.intro" :key="`i${i}`" class="fld">
                 开场第 {{ i + 1 }} 句 <span v-if="tooLong(draft.intro[i])" class="warn-text">超过 20 字</span>
@@ -313,6 +334,7 @@ const runs = computed(() => {
 
       <section class="st-card">
         <h2>生成与校验日志</h2>
+        <p class="st-muted">每一轮生成都会留下记录，不会被删掉；最上面是最新的一轮，任务现在的状态以它为准。</p>
         <div class="st-table-wrap">
           <table class="st-table">
             <thead>
@@ -325,6 +347,9 @@ const runs = computed(() => {
                 <td class="st-num">{{ r.attempt }}</td>
                 <td>
                   <span v-if="r.ok" class="st-badge ok">✓ 通过</span>
+                  <span v-else-if="(r.errors || []).some((e) => e.startsWith('接口调用失败'))" class="st-badge warn">
+                    ⚠ 没连上大模型
+                  </span>
                   <span v-else-if="r.format_ok === false" class="st-badge bad">✗ 格式不合格</span>
                   <span v-else class="st-badge bad">✗ 规则未通过</span>
                 </td>
