@@ -4,6 +4,7 @@ import '@/assets/star-teacher.css'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LevelBoard from '@/components/star/LevelBoard.vue'
+import { ACCENTS, BG_NAMES, BUTTON_NAMES, themeVars } from '@/components/star/starUi'
 import {
   approveTask, deleteTask, getTaskForReview, regenerateTask, updateTaskContent,
 } from '@/api/star'
@@ -50,6 +51,15 @@ async function load() {
 onMounted(load)
 
 const isLevel = computed(() => task.value?.layer === 'enlighten')
+
+// 预览按这个学生的界面设置来画：背景、主色、按钮形状、选中标记都和学生端一样
+const studentUi = computed(() => task.value?.student?.ui || {})
+const skin = computed(() => themeVars(studentUi.value))
+const uiSummary = computed(() => {
+  const u = studentUi.value
+  return [`${BG_NAMES[u.bg] || '米色'}背景`, `${ACCENTS[u.accent]?.name || '蓝色'}主色`,
+    BUTTON_NAMES[u.button] || '小圆角按钮', `选中标记 ${u.mark || '✓'}`].join(' · ')
+})
 const content = computed(() => task.value?.content || {})
 const nick = computed(() => task.value?.student?.nickname || '')
 const named = (s) => String(s ?? '').replaceAll('{name}', nick.value)
@@ -139,10 +149,15 @@ const apiFailure = computed(() => {
 const formOk = computed(() => !!task.value?.check?.format_ok && !!draft.value
   && (isLevel.value ? !!draft.value.theme && Array.isArray(draft.value.story) : Array.isArray(draft.value.steps)))
 
-const runs = computed(() => {
+// 默认只显示最新一轮；更早的轮次（比如以前没连上大模型的记录）折叠起来，点开才看
+const showOlder = ref(false)
+const latestRun = computed(() => {
   const log = task.value?.validation_log || []
-  return [...log].reverse()
+  return log.length ? log[log.length - 1].run : null
 })
+const allRuns = computed(() => [...(task.value?.validation_log || [])].reverse())
+const olderCount = computed(() => allRuns.value.filter((r) => r.run !== latestRun.value).length)
+const runs = computed(() => (showOlder.value ? allRuns.value : allRuns.value.filter((r) => r.run === latestRun.value)))
 </script>
 
 <template>
@@ -200,9 +215,20 @@ const runs = computed(() => {
         <!-- ═════ 预览 ═════ -->
         <section class="st-card">
           <h2>预览（学生看到的内容）</h2>
+          <p class="st-muted">{{ nick }}的界面：{{ uiSummary }}</p>
+          <p v-if="task.student.avoid_pronouns" class="st-muted">
+            代词：{{ nick }}"你""我"容易弄反，任务文字里不用"你""我"，称呼一律用昵称（已校验）。
+          </p>
+          <div class="skin" :style="skin" aria-label="按学生界面设置画的示意">
+            <span class="skin-flow"><span class="is-done">{{ studentUi.mark || '✓' }}</span><span class="is-cur">2</span><span>3</span></span>
+            <span class="skin-opt">B　6 <b>{{ studentUi.mark || '✓' }}</b></span>
+            <span class="skin-btn">检查</span>
+          </div>
           <template v-if="isLevel && task.check.format_ok">
             <p v-for="(s, i) in content.story" :key="i" class="story">{{ named(s) }}</p>
-            <LevelBoard :level="content" :max-width="440" />
+            <div class="skin skin-board" :style="skin">
+              <LevelBoard :level="content" :max-width="440" />
+            </div>
             <dl class="st-kv gap">
               <dt>知识点</dt><dd>{{ KNOW[content.knowledge] }}</dd>
               <dt>可用卡片</dt><dd>{{ content.cards.map((c) => CARD[c]).join('　') }}</dd>
@@ -334,7 +360,12 @@ const runs = computed(() => {
 
       <section class="st-card">
         <h2>生成与校验日志</h2>
-        <p class="st-muted">每一轮生成都会留下记录，不会被删掉；最上面是最新的一轮，任务现在的状态以它为准。</p>
+        <p class="st-muted">
+          下面是最新一轮（第 {{ latestRun }} 轮），任务现在的状态以它为准。
+          <button v-if="olderCount" type="button" class="st-btn st-btn-sm" @click="showOlder = !showOlder">
+            {{ showOlder ? '收起更早的记录' : `显示更早的 ${olderCount} 条记录` }}
+          </button>
+        </p>
         <div class="st-table-wrap">
           <table class="st-table">
             <thead>
@@ -370,6 +401,49 @@ const runs = computed(() => {
 </template>
 
 <style scoped>
+.skin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 8px 0 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--s-border);
+  background: var(--s-bg);
+  color: var(--s-text);
+  font-size: 15px;
+}
+.skin-board { display: block; }
+.skin-flow { display: inline-flex; gap: 4px; }
+.skin-flow span {
+  width: 34px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--s-radius, 6px);
+  border: 2px solid var(--s-border-strong);
+  background: var(--s-card);
+  font-size: 13px;
+}
+.skin-flow .is-done { background: var(--s-accent-soft); border-color: var(--s-accent); color: var(--s-accent-ink); }
+.skin-flow .is-cur { background: var(--s-accent); border-color: var(--s-accent); color: #fff; }
+.skin-opt {
+  padding: 6px 12px;
+  border-radius: var(--s-radius-card, 8px);
+  border: 2px solid var(--s-accent);
+  background: var(--s-card);
+  color: var(--s-text);
+}
+.skin-opt b { color: var(--s-accent-ink); margin-left: 8px; }
+.skin-btn {
+  padding: 6px 18px;
+  border-radius: var(--s-radius, 6px);
+  background: var(--s-accent);
+  color: #fff;
+  font-weight: 600;
+}
 .two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 1000px) { .two-col { grid-template-columns: 1fr; } }
 .check-ok { border-color: var(--status-ac-dot); }

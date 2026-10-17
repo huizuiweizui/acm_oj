@@ -607,7 +607,8 @@ def _task_detail(task):
     content = task.content or {}
     data = {
         **_task_summary(task, with_progress=True),
-        'student': {'user_id': task.student_id, 'username': task.student.username, 'nickname': lp.nickname},
+        'student': {'user_id': task.student_id, 'username': task.student.username, 'nickname': lp.nickname,
+                    'ui': _learner_ui(lp), 'avoid_pronouns': adapt.avoid_pronouns(task)},
         'content': content,
         'validation_log': task.validation_log,
         'locked': task.status == 'approved',

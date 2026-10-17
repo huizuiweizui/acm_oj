@@ -117,6 +117,24 @@ class StepsLoopTests(StarTestCase):
         self.assertIn('s = a + b', text)                   # 参考解
         self.assertNotIn(self.kid.username, text)          # 学生账号不出平台
         self.assertNotIn(f'{self.kid.username}昵称', text)
+        self.assertNotIn('【代词】', text)                  # 没标代词逆转就不加这条要求
+
+    @LLM_ON
+    def test_pronoun_reversal_learner_gets_no_pronoun_task(self, _ref):
+        lp = self.kid.star_profile
+        lp.profile['communication'] = {'pronoun_reversal': True, 'echolalia': False, 'notes': ''}
+        lp.vocabulary = [{'word': '大长脖', 'meaning': '腕龙'}]
+        lp.save()
+        with_you = good_steps()
+        with_you['steps'][0]['prompt'] = '你先做什么？'
+        with patch_llm(llm_reply(with_you), llm_reply(good_steps())) as post:
+            adapt.generate(self.task)
+        first = str(post.call_args_list[0].args[0]['messages'])
+        self.assertIn('【代词】', first)                    # 要求写进了提示词
+        self.assertIn('"大长脖"指腕龙', first)              # 个人词表也交给了模型
+        retry = post.call_args.args[0]['messages'][-1]['content']
+        self.assertIn('里用了"你"', retry)                  # 用了"你"被校验拦下，回填重写
+        self.assertEqual(self.task.status, 'draft')
 
 
 class LevelLoopTests(StarTestCase):

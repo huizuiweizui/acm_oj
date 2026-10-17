@@ -96,6 +96,19 @@ class StepsCheckTests(SimpleTestCase):
                 self.assertTrue(chk.ok, chk.errors)
                 self.assertEqual([st['type'] for st in p['default_steps']['steps']][-2:], ['order', 'code'])
 
+    def test_no_pronouns_for_reversal_learners(self):
+        c, ref = steps_of()
+        c['steps'][0]['prompt'] = '你先做什么？'
+        c['steps'][-1]['starter'] = '# 我先读入 a 和 b\n'
+        self.assertTrue(check_steps(c, ref).ok)                       # 普通学习者不限制
+        errs = ' '.join(check_steps(c, ref, no_pronoun=True).errors)
+        self.assertIn('第 1 步的题干"你先做什么？"里用了"你"', errs)
+        self.assertIn('起始代码的注释', errs)
+        level = themed(get_level('L1'), 'train')
+        level['story'][0] = '我们去车站。'
+        self.assertTrue(check_level(level).ok)
+        self.assertIn('故事第 1 句', ' '.join(check_level(level, no_pronoun=True).errors))
+
     def test_code_step_must_be_last_after_order(self):
         c, ref = steps_of()
         c['steps'].pop()                                   # 去掉写代码

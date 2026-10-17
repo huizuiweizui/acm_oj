@@ -103,6 +103,17 @@ def _sentence_rule(errs, where, text):
             errs.append(f'{where}中的句子"{s}"有 {n} 个字，超过 {SENTENCE_MAX} 字，请拆成更短的句子')
 
 
+PRONOUNS = ('你', '您', '我')
+
+
+def _pronoun_rule(errs, where, text):
+    """代词逆转的学习者容易把"你""我"弄反：任务文字里不用这两个字，需要称呼时写 {name}。"""
+    found = [p for p in PRONOUNS if p in (text or '')]
+    if found:
+        errs.append(f'{where}"{text.strip()}"里用了"{"、".join(found)}"。这名学习者"你""我"容易弄反，'
+                    f'请改成 {{name}} 或去掉代词')
+
+
 def _is_int(v):
     return isinstance(v, int) and not isinstance(v, bool)
 
@@ -113,7 +124,7 @@ def _squash(s):
 
 # ── 启蒙层：关卡 ────────────────────────────────────────────────────
 
-def check_level(c):
+def check_level(c, no_pronoun=False):
     chk = Check()
     f = chk.format_errors
     if not isinstance(c, dict):
@@ -198,6 +209,10 @@ def check_level(c):
         r.append('story 应为 1 到 3 个短句')
     for i, s in enumerate(c['story'], 1):
         _sentence_rule(r, f'故事第 {i} 句', s)
+    if no_pronoun:
+        _pronoun_rule(r, '标题', c['title'])
+        for i, s in enumerate(c['story'], 1):
+            _pronoun_rule(r, f'故事第 {i} 句', s)
     if char_len(c['theme']['name']) > 6:
         r.append('主题名不超过 6 个字')
     for k in ('hero', 'goal', 'wall'):
@@ -238,7 +253,7 @@ def normalize_blank(code):
     return re.sub(r'_{3,}', BLANK, code or '')
 
 
-def check_steps(c, ref_lines):
+def check_steps(c, ref_lines, no_pronoun=False):
     chk = Check()
     f = chk.format_errors
     if not isinstance(c, dict):
@@ -297,6 +312,10 @@ def check_steps(c, ref_lines):
         r.append('intro 应为 1 到 3 个短句')
     for k, s in enumerate(c['intro'], 1):
         _sentence_rule(r, f'开场说明第 {k} 句', s)
+    if no_pronoun:
+        _pronoun_rule(r, '标题', c['title'])
+        for k, s in enumerate(c['intro'], 1):
+            _pronoun_rule(r, f'开场说明第 {k} 句', s)
 
     n = len(steps)
     if not STEPS_MIN <= n <= STEPS_MAX:
@@ -315,6 +334,15 @@ def check_steps(c, ref_lines):
         _sentence_rule(r, f'第 {i} 步的题干', st['prompt'])
         for k, hint in enumerate(st['hints'], 1):
             _sentence_rule(r, f'第 {i} 步的第 {k} 条提示', hint)
+        if no_pronoun:
+            _pronoun_rule(r, f'第 {i} 步的题干', st['prompt'])
+            for k, hint in enumerate(st['hints'], 1):
+                _pronoun_rule(r, f'第 {i} 步的第 {k} 条提示', hint)
+            for k, opt in enumerate(st.get('options') or [], 1):
+                _pronoun_rule(r, f'第 {i} 步的第 {k} 个选项', opt)
+            for line in (st.get('starter') or '').splitlines():
+                if line.strip().startswith('#'):
+                    _pronoun_rule(r, f'第 {i} 步起始代码的注释', line.strip())
 
         if st['type'] == 'choice':
             opts = st['options']

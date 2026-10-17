@@ -42,7 +42,8 @@ def profile_summary(profile, vocabulary=None):
     if notes:
         lines.append(f'沟通特点：{"；".join(notes)}')
     if vocabulary:
-        lines.append('个人词表：' + '；'.join(f'"{v["word"]}"指{v["meaning"]}' for v in vocabulary))
+        lines.append('个人词表：' + '；'.join(f'"{v["word"]}"指{v["meaning"]}' for v in vocabulary)
+                     + f'（{P2_VOCAB_NOTE}）')
     return '\n'.join(lines)
 
 
@@ -187,7 +188,16 @@ def _level_template_for_prompt(template):
     }
 
 
-def p2_level_messages(profile_text, template, theme_key=''):
+P2_NO_PRONOUN = ('【代词】这名学习者"你""我"容易弄反。任务里所有给学习者看的文字（标题、故事、开场、题干、选项、提示、'
+                 '注释）都不要出现"你""您""我"，需要称呼时写 {name}，或者直接说要做的事。')
+P2_VOCAB_NOTE = '个人词表只用来理解学习者平时的说法；任务文字仍用标准说法。'
+
+
+def _p2_extra(no_pronoun):
+    return f'\n\n{P2_NO_PRONOUN}' if no_pronoun else ''
+
+
+def p2_level_messages(profile_text, template, theme_key='', no_pronoun=False):
     th = THEMES.get(theme_key)
     theme_hint = f'\n可参考的主题图标：主角 {th["hero"]}，终点 {th["goal"]}，障碍 {th["wall"]}' if th else ''
     shortest = maze.shortest_solution(template)
@@ -195,7 +205,7 @@ def p2_level_messages(profile_text, template, theme_key=''):
                     f'【关卡模板】\n{_dump(_LEVEL_EXAMPLE_IN["template"])}\n\n请输出改造后的关卡 JSON。')
     user = (f'【学习者画像】\n{profile_text}{theme_hint}\n\n'
             f'【关卡模板】（模板的最少卡片数是 {len(shortest) if shortest else "未知"}）\n'
-            f'{_dump(_level_template_for_prompt(template))}\n\n请输出改造后的关卡 JSON。')
+            f'{_dump(_level_template_for_prompt(template))}{_p2_extra(no_pronoun)}\n\n请输出改造后的关卡 JSON。')
     return [
         {'role': 'system', 'content': f'{P2_SYSTEM}\n\n{_LEVEL_RULES}'},
         {'role': 'user', 'content': example_user},
@@ -204,7 +214,7 @@ def p2_level_messages(profile_text, template, theme_key=''):
     ]
 
 
-def p2_steps_messages(profile_text, problem, code, step_size='normal'):
+def p2_steps_messages(profile_text, problem, code, step_size='normal', no_pronoun=False):
     granularity = ('这名学习者一次只做一件小事：拆成 5 到 6 步。' if step_size == 'small'
                    else '拆成 3 到 5 步。')
     example_user = (f'【学习者画像】\n{_STEPS_EXAMPLE_IN["profile"]}\n\n【原题】\n{_STEPS_EXAMPLE_IN["problem"]}\n\n'
@@ -213,7 +223,7 @@ def p2_steps_messages(profile_text, problem, code, step_size='normal'):
             f'【原题】\n题目：{problem["title"]}\n描述：{problem["description"]}\n'
             f'输入：{problem["input_desc"]}\n输出：{problem["output_desc"]}\n\n'
             f'【参考解（Python）】\n```python\n{code}```\n\n'
-            f'{granularity}请输出改造后的分步任务 JSON。')
+            f'{granularity}{_p2_extra(no_pronoun)}\n\n请输出改造后的分步任务 JSON。')
     return [
         {'role': 'system', 'content': f'{P2_SYSTEM}\n\n{_STEPS_RULES}'},
         {'role': 'user', 'content': example_user},

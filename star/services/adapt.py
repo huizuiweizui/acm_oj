@@ -49,11 +49,18 @@ def material_of(task):
     return 'problem', prob
 
 
+def avoid_pronouns(task):
+    """画像标了代词逆转（"你""我"容易弄反）的学习者，任务文字里不用"你""我"。"""
+    lp = getattr(task.student, 'star_profile', None)
+    return bool(((lp.profile or {}).get('communication') or {}).get('pronoun_reversal')) if lp else False
+
+
 def check_content(task, content):
     kind, material = material_of(task)
+    no_pronoun = avoid_pronouns(task)
     if kind == 'level':
-        return check_level(content)
-    return check_steps(content, reference_lines(material['code']))
+        return check_level(content, no_pronoun=no_pronoun)
+    return check_steps(content, reference_lines(material['code']), no_pronoun=no_pronoun)
 
 
 def _ensure_reference_ok(task, material):
@@ -111,11 +118,13 @@ def run_loop(purpose, messages, checker, *, max_attempts=MAX_ATTEMPTS, tag='', t
 
 def build_messages(task, kind, material):
     lp = task.student.star_profile
-    profile_text = prompts.profile_summary(lp.profile)
+    profile_text = prompts.profile_summary(lp.profile, lp.vocabulary)
+    no_pronoun = avoid_pronouns(task)
     if kind == 'level':
-        return prompts.p2_level_messages(profile_text, material, (lp.profile or {}).get('theme_key', ''))
+        return prompts.p2_level_messages(profile_text, material, (lp.profile or {}).get('theme_key', ''),
+                                         no_pronoun=no_pronoun)
     step_size = ((lp.profile or {}).get('presentation') or {}).get('step_size', 'normal')
-    return prompts.p2_steps_messages(profile_text, material, material['code'], step_size)
+    return prompts.p2_steps_messages(profile_text, material, material['code'], step_size, no_pronoun=no_pronoun)
 
 
 def generate(task, *, mode='llm', max_attempts=MAX_ATTEMPTS, tag=''):

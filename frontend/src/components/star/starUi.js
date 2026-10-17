@@ -74,31 +74,37 @@ export const canZoomOut = computed(() => starUi.fontStep > 0)
 export const canZoomIn = computed(() => starUi.fontStep < FONT_STEPS.length - 1)
 export const starMark = computed(() => starUi.ui?.mark || '✓')
 
+export const BG_NAMES = { warm: '米色', white: '白色', gray: '浅灰', blue: '浅蓝', green: '浅绿', dark: '深色' }
+export const BUTTON_NAMES = { round: '胶囊按钮', square: '直角按钮', soft: '小圆角按钮' }
+
+// 某个学生的界面设置 → CSS 变量。学生端用它，教师审核页的预览也用它（按学生看到的样子画）
+export function themeVars(ui, { accent = '', fontStep = 1 } = {}) {
+  ui = ui || {}
+  const bg = BACKGROUNDS[ui.bg] || BACKGROUNDS.warm
+  const ac = ACCENTS[accent || ui.accent] || ACCENTS.blue
+  const shape = SHAPES[ui.button] || SHAPES.soft
+  const dark = ui.bg === 'dark'
+  return {
+    '--s-bg': bg.bg,
+    '--s-card': bg.card,
+    '--s-border': bg.border,
+    '--s-border-strong': bg.strong,
+    '--s-text': bg.text,
+    '--s-text-2': bg.text2,
+    '--s-code-bg': bg.code,
+    '--s-accent': ac.accent,
+    '--s-accent-hover': ac.hover,
+    '--s-accent-soft': dark ? ac.darkSoft : ac.soft,
+    // 文字用的主色：深色背景上换成浅色版本，保证对比度（按钮底色仍用 --s-accent，配白字）
+    '--s-accent-ink': dark ? ac.ink : ac.accent,
+    '--s-radius': shape.btn,
+    '--s-radius-card': shape.card,
+    '--s-zoom': FONT_STEPS[fontStep] ?? 1,
+    colorScheme: dark ? 'dark' : 'light',
+  }
+}
+
 export function useStarTheme() {
-  const style = computed(() => {
-    const ui = starUi.ui || {}
-    const bg = BACKGROUNDS[ui.bg] || BACKGROUNDS.warm
-    const ac = ACCENTS[starUi.accent || ui.accent] || ACCENTS.blue
-    const shape = SHAPES[ui.button] || SHAPES.soft
-    const dark = ui.bg === 'dark'
-    return {
-      '--s-bg': bg.bg,
-      '--s-card': bg.card,
-      '--s-border': bg.border,
-      '--s-border-strong': bg.strong,
-      '--s-text': bg.text,
-      '--s-text-2': bg.text2,
-      '--s-code-bg': bg.code,
-      '--s-accent': ac.accent,
-      '--s-accent-hover': ac.hover,
-      '--s-accent-soft': dark ? ac.darkSoft : ac.soft,
-      // 文字用的主色：深色背景上换成浅色版本，保证对比度（按钮底色仍用 --s-accent，配白字）
-      '--s-accent-ink': dark ? ac.ink : ac.accent,
-      '--s-radius': shape.btn,
-      '--s-radius-card': shape.card,
-      '--s-zoom': FONT_STEPS[starUi.fontStep] ?? 1,
-      colorScheme: dark ? 'dark' : 'light',
-    }
-  })
+  const style = computed(() => themeVars(starUi.ui, { accent: starUi.accent, fontStep: starUi.fontStep }))
   return { style }
 }
