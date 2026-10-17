@@ -1,0 +1,12 @@
+clips/
+slides/
+tts/
+seg/
+docshots/
+out/
+check/
+shots/
+*.mp4
+*.ass
+*.sqlite3
+tpl.*

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --ink: #1c2430; --ink2: #4a5563; --bg: #f5f4ef; --card: #ffffff; --line: #d9d5c9;
+    --accent: #2f5f8f; --accent-soft: #e7eef5; --ok: #2e6b45; --ok-soft: #e3f0e7;
+    --warn: #845400; --warn-soft: #faf0da; --navy: #12233a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #000; }
+  .slide { width: 1920px; height: 1080px; position: relative; overflow: hidden; background: var(--bg); color: var(--ink);
+    padding: 96px 120px; }
+  .kicker { font-size: 26px; letter-spacing: 6px; color: var(--accent); font-weight: 700; }
+  h1 { font-size: 64px; line-height: 1.25; margin-top: 18px; }
+  h2 { font-size: 52px; margin-top: 14px; }
+  .lead { font-size: 30px; color: var(--ink2); margin-top: 22px; line-height: 1.6; }
+  .foot { position: absolute; left: 120px; right: 120px; bottom: 56px; display: flex; justify-content: space-between;
+    font-size: 22px; color: #8a8f98; }
+
+  /* 封面 */
+  .cover { background: radial-gradient(1200px 700px at 78% 30%, #23436b 0%, var(--navy) 60%); color: #fff; padding: 0 160px;
+    display: flex; flex-direction: column; justify-content: center; }
+  .cover .star { font-size: 120px; color: #ffd36a; line-height: 1; }
+  .cover h1 { font-size: 96px; margin-top: 28px; letter-spacing: 4px; }
+  .cover .sub { font-size: 40px; margin-top: 26px; color: #cfe0f3; }
+  .cover .tags { display: flex; gap: 18px; margin-top: 56px; }
+  .cover .tag { font-size: 26px; padding: 10px 26px; border: 2px solid #5d82ad; border-radius: 40px; color: #e6eef8; }
+  .cover .meta { position: absolute; bottom: 70px; left: 160px; font-size: 24px; color: #9fb6d1; }
+  .dots span { position: absolute; border-radius: 50%; background: #ffd36a; opacity: .5; }
+
+  /* 问题页 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 54px; }
+  .col h3 { font-size: 32px; margin-bottom: 22px; display: flex; align-items: center; gap: 14px; }
+  .col h3 .n { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 24px; }
+  .item { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 20px 26px; margin-bottom: 16px;
+    font-size: 27px; line-height: 1.5; display: flex; gap: 18px; align-items: flex-start; }
+  .item b { color: var(--ink); white-space: nowrap; }
+  .item span { color: var(--ink2); }
+  .item .ic { font-size: 32px; line-height: 1.2; }
+
+  /* 架构页 */
+  .flow { display: flex; align-items: stretch; gap: 0; margin-top: 46px; }
+  .node { flex: 1; background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 22px 18px; text-align: center; }
+  .node .t { font-size: 28px; font-weight: 700; }
+  .node .d { font-size: 21px; color: var(--ink2); margin-top: 10px; line-height: 1.5; }
+  .node.llm { border-color: var(--accent); background: var(--accent-soft); }
+  .node.rule { border-color: var(--ok); background: var(--ok-soft); }
+  .node.human { border-color: var(--warn); background: var(--warn-soft); }
+  .node .badge { display: inline-block; font-size: 18px; padding: 2px 12px; border-radius: 20px; margin-bottom: 10px; color: #fff; }
+  .llm .badge { background: var(--accent); } .rule .badge { background: var(--ok); } .human .badge { background: var(--warn); }
+  .arrow { width: 46px; display: grid; place-items: center; font-size: 34px; color: #9aa1ab; }
+  .loop { margin-top: 26px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 34px; }
+  .box { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 26px 30px; }
+  .box h4 { font-size: 28px; margin-bottom: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; }
+  .chip { font-size: 23px; padding: 8px 18px; border-radius: 10px; background: var(--bg); border: 1.5px solid var(--line); }
+  .chip.g { background: var(--ok-soft); border-color: #9cc7aa; }
+  .chip.b { background: var(--accent-soft); border-color: #a9c1da; }
+  .legend { display: flex; gap: 28px; font-size: 22px; color: var(--ink2); margin-top: 22px; }
+  .legend i { display: inline-block; width: 22px; height: 22px; border-radius: 6px; vertical-align: -4px; margin-right: 8px; }
+
+  /* 结果页 */
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin-top: 50px; }
+  .metric { background: var(--card); border: 2px solid var(--line); border-radius: 18px; padding: 30px 36px; }
+  .metric .name { font-size: 26px; color: var(--ink2); }
+  .metric .val { font-size: 64px; font-weight: 800; margin-top: 10px; color: var(--accent); }
+  .metric .val small { font-size: 34px; color: #9aa1ab; font-weight: 600; margin: 0 12px; }
+  .metric .val .from { color: #9aa1ab; font-size: 48px; }
+  .metric .how { font-size: 23px; color: var(--ink2); margin-top: 10px; }
+  .note { font-size: 21px; color: #8a8f98; margin-top: 26px; }
+
+  /* 结尾 */
+  .end { background: radial-gradient(1100px 650px at 50% 40%, #23436b 0%, var(--navy) 65%); color: #fff; text-align: center;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .end .star { font-size: 110px; color: #ffd36a; }
+  .end h1 { font-size: 80px; margin-top: 20px; }
+  .end .sub { font-size: 38px; color: #cfe0f3; margin-top: 30px; }
+  .end .meta { font-size: 26px; color: #9fb6d1; margin-top: 70px; }
+</style>
+</head>
+<body>
+
+<!-- 1 封面 -->
+<section class="slide cover" id="title">
+  <div class="dots"><span style="width:10px;height:10px;left:1380px;top:180px"></span><span style="width:6px;height:6px;left:1560px;top:330px"></span>
+    <span style="width:14px;height:14px;left:1660px;top:150px"></span><span style="width:8px;height:8px;left:1480px;top:420px"></span></div>
+  <div class="star">★</div>
+  <h1>星语编程学伴</h1>
+  <div class="sub">面向孤独症学习者的大模型编程学伴</div>
+  <div class="tags"><span class="tag">大模型 + 规则校验闭环</span><span class="tag">沟通特征工程化</span><span class="tag">教师审核</span><span class="tag">可降级</span></div>
+  <div class="meta">2026 第八届全球校园人工智能算法精英大赛 · 算法创新赛 · 作品演示</div>
+</section>
+
+<!-- 2 问题 -->
+<section class="slide" id="problem">
+  <div class="kicker">问题</div>
+  <h2>通用的大模型助教，孤独症学习者用不起来</h2>
+  <div class="grid2">
+    <div class="col">
+      <h3><span class="n" style="background:#2f5f8f">1</span>学习者的特点</h3>
+      <div class="item"><span class="ic">🔤</span><div><b>按字面理解</b>　<span>比喻、反问、「差不多」都会造成困惑</span></div></div>
+      <div class="item"><span class="ic">🔁</span><div><b>坚持同一性</b>　<span>同一个问题，回答一变就会焦虑</span></div></div>
+      <div class="item"><span class="ic">🎨</span><div><b>感官敏感</b>　<span>颜色多、弹窗、动画会让人不舒服</span></div></div>
+      <div class="item"><span class="ic">💬</span><div><b>仿说、代词逆转</b>　<span>说「你不懂」，意思是「我没听懂」</span></div></div>
+    </div>
+    <div class="col">
+      <h3><span class="n" style="background:#845400">2</span>现有工具的问题</h3>
+      <div class="item"><span class="ic">📢</span><div><b>话太多</b>　<span>大段解释、比喻和追问，读不完也看不懂</span></div></div>
+      <div class="item"><span class="ic">🎲</span><div><b>不稳定</b>　<span>大模型每次说法不同，甚至给出不可解的题</span></div></div>
+      <div class="item"><span class="ic">🧩</span><div><b>听不懂特殊表达</b>　<span>仿说、自创词会被当成普通输入</span></div></div>
+      <div class="item"><span class="ic">👩‍🏫</span><div><b>老师改不过来</b>　<span>每个孩子都要单独改题、单独写反馈</span></div></div>
+    </div>
+  </div>
+  <div class="foot"><span>星语编程学伴</span><span>01 / 问题</span></div>
+</section>
+
+<!-- 3 方案 -->
+<section class="slide" id="arch">
+  <div class="kicker">方案</div>
+  <h2>把大模型放进一条受约束的流水线</h2>
+  <div class="flow">
+    <div class="node rule"><span class="badge">规则</span><div class="t">图片问卷</div><div class="d">19 屏，一屏一题<br>定界面、定层级</div></div>
+    <div class="arrow">→</div>
+    <div class="node llm"><span class="badge">P1 大模型</span><div class="t">生成画像</div><div class="d">兴趣、沟通特点<br>个人词表</div></div>
+    <div class="arrow">→</div>
+    <div class="node llm"><span class="badge">P2 大模型</span><div class="t">改造任务</div><div class="d">按画像换主题<br>拆成小步</div></div>
+    <div class="arrow">→</div>
+    <div class="node rule"><span class="badge">四层校验</span><div class="t">结构 · 规则</div><div class="d">图搜索 · 真实运行<br>错误回填 ≤ 3 次</div></div>
+    <div class="arrow">→</div>
+    <div class="node human"><span class="badge">教师</span><div class="t">审核发布</div><div class="d">按学生界面预览<br>先审后发</div></div>
+  </div>
+  <div class="loop">
+    <div class="box">
+      <h4>学生作答与对话：规则在前，大模型在后</h4>
+      <div class="chips">
+        <span class="chip g">仿说识别</span><span class="chip g">代词逆转提示</span><span class="chip g">个人词表替换</span>
+        <span class="chip g">求助护栏</span><span class="chip b">P5 意图识别</span><span class="chip b">P3 一句话回复</span>
+        <span class="chip g">句长 / 字面化检查</span><span class="chip g">30 天回复缓存</span>
+      </div>
+    </div>
+    <div class="box">
+      <h4>闭环：报告与推荐</h4>
+      <div class="chips">
+        <span class="chip">三级提示 · 提示渐褪</span><span class="chip b">P4 教师版 / 家长版报告</span>
+        <span class="chip">掌握度估计</span><span class="chip b">P6 推荐下一项任务</span>
+      </div>
+    </div>
+  </div>
+  <div class="legend"><span><i style="background:#e7eef5;border:2px solid #2f5f8f"></i>大模型</span>
+    <span><i style="background:#e3f0e7;border:2px solid #2e6b45"></i>确定性规则（无大模型时的兜底）</span>
+    <span><i style="background:#faf0da;border:2px solid #845400"></i>教师</span></div>
+  <div class="foot"><span>星语编程学伴</span><span>02 / 方案</span></div>
+</section>
+
+<!-- 4 结果 -->
+<section class="slide" id="results">
+  <div class="kicker">验证</div>
+  <h2>四组消融实验：每个设计都要有数据</h2>
+  <div class="metrics">
+    <div class="metric"><div class="name">任务改造 · 规则通过率（30 个样本）</div>
+      <div class="val"><span class="from">96.7%</span><small>→</small>100%</div><div class="how">生成 → 四层校验 → 错误回填，平均 1.03 次</div></div>
+    <div class="metric"><div class="name">沟通特征 · 意图识别准确率（50 句）</div>
+      <div class="val"><span class="from">52%</span><small>→</small>98%</div><div class="how">仿说 20% → 100%，自创词 30% → 100%</div></div>
+    <div class="metric"><div class="name">回答一致性 · 两两相似度（10 题 × 5 次）</div>
+      <div class="val"><span class="from">0.83</span><small>→</small>1.00</div><div class="how">温度 0.2 得 0.92，再加回复缓存到 1.00</div></div>
+    <div class="metric"><div class="name">卡片关卡 · 合格率（50 关）</div>
+      <div class="val"><span class="from">98%</span><small>→</small>100%</div><div class="how">BFS 最短路校验，卡槽数正好够用</div></div>
+  </div>
+  <p class="note">数据来自 star_eval 四组消融实验；样本量偏小，意图标注尚未人工逐条核验。</p>
+  <div class="foot"><span>星语编程学伴</span><span>03 / 验证</span></div>
+</section>
+
+<!-- 5 结尾 -->
+<section class="slide end" id="end">
+  <div class="star">★</div>
+  <h1>星语编程学伴</h1>
+  <div class="sub">让每个孩子按自己的方式学编程</div>
+  <div class="meta">谢谢观看</div>
+</section>
+
+</body>
+</html>

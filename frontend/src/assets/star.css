@@ -138,6 +138,8 @@
 .s-hint {
   border-left: 4px solid var(--s-warn);
   background: var(--s-warn-soft);
+  /* 底色固定是浅色，深色背景下 --s-text 会变成浅色字，这里写死深色 */
+  color: #1f2328;
   padding: 10px 16px;
   border-radius: 0 6px 6px 0;
 }

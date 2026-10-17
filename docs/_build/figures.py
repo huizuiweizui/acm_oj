@@ -136,7 +136,7 @@ def figure_architecture():
     layers = [
         ("表现", "表现层", ["题库与提交", "比赛与榜单", "算法学习/图谱", "星语学生端", "星语教师端"]),
         ("接口", "接口层", ["DRF 视图", "JWT + 权限", "限流/净化", "SSE 流式", "Admin 后台"]),
-        ("AI", "AI 服务层", ["P1–P5 编排", "skills 流水线", "确定性校验器", "RAG 检索", "AI 反馈池"]),
+        ("AI", "AI 服务层", ["P1–P6 编排", "skills 流水线", "确定性校验器", "RAG 检索", "AI 反馈池"]),
         ("评测", "评测层", ["评测队列", "Docker 沙箱", "运行名额", "资源限制"]),
         ("数据", "数据层", ["MySQL 24 表", "Redis 缓存", "笔记与向量", "静态/临时文件"]),
     ]
@@ -254,7 +254,90 @@ def figure_pipeline():
     img.save(OUT / "fig_pipeline.png", dpi=(300, 300))
 
 
+# ── 图 3：星语业务闭环（三条泳道） ──────────────────────────────
+
+def figure_star_flow():
+    W, H = 1800, 960
+    img = Image.new("RGB", (W, H), "white")
+    d = ImageDraw.Draw(img)
+
+    lanes = [("学生端", (33, 84, 141)), ("教师端", (166, 96, 11)), ("系统", (90, 52, 140))]
+    lane_top = [40, 330, 620]
+    lane_h = 250
+    cx0, cw, cg = 210, 266, 60
+    col = [cx0 + i * (cw + cg) for i in range(5)]
+    bh, inset = 170, 40
+
+    for (name, color), top in zip(lanes, lane_top):
+        d.rounded_rectangle([20, top, W - 20, top + lane_h], radius=16,
+                            fill=STYLE["layer"]["fill"], outline=STYLE["layer"]["border"], width=2)
+        d.rounded_rectangle([34, top + 30, 34 + 150, top + lane_h - 30], radius=12, fill=color, outline=color)
+        f = font(34, True)
+        d.text((34 + (150 - d.textlength(name, font=f)) / 2, top + lane_h / 2 - 24), name, font=f, fill="white")
+
+    def box(lane, c, title, sub, kind):
+        x, y = col[c], lane_top[lane] + inset
+        block(d, x, y, cw, bh, title, sub, kind=kind, title_size=30, sub_size=23)
+        return x, y
+
+    boxes = {
+        "S0": box(0, 0, "① 填问卷", "19 屏图形化问卷\n5 轮引导对话", "io"),
+        "S3": box(0, 3, "⑤ 做任务", "闯关摆卡片 / 分步学习\n最后自己写代码", "io"),
+        "S4": box(0, 4, "⑥ 卡住时", "提示由少到多 1→3 级\n问对话助手", "io"),
+        "T1": box(1, 1, "③ 确认画像", "定层级\n推荐或批量布置任务", "branch"),
+        "T2": box(1, 2, "④ 审核草稿", "按学生界面预览可手改\n通过后学生才看得到", "branch"),
+        "T4": box(1, 4, "⑨ 看看板与报告", "决定下一轮布置什么", "branch"),
+        "Y0": box(2, 0, "② 生成画像", "规则换算界面\nP1 归纳兴趣与词表", "llm"),
+        "Y2": box(2, 2, "改造任务", "P2 生成 → 四层校验\n错误回填 ≤3 次", "llm"),
+        "Y3": box(2, 3, "⑦ 判定与记录", "模拟器 / 评测机实跑\n记提示等级", "rule"),
+        "Y4": box(2, 4, "⑧ 统计", "提示渐褪 · 报告 P4\n推荐 P6", "rule"),
+    }
+
+    def mid(k, side):
+        x, y = boxes[k]
+        return {"top": (x + cw / 2, y), "bottom": (x + cw / 2, y + bh),
+                "left": (x, y + bh / 2), "right": (x + cw, y + bh / 2)}[side]
+
+    ink = (120, 128, 138)
+    # 跨泳道、相邻两列：走两列之间的空隙，画直角折线
+    for a, b in (("Y0", "T1"), ("T1", "Y2"), ("T2", "S3")):
+        (x1, y1), (x2, y2) = mid(a, "right"), mid(b, "left")
+        gx_mid = x1 + cg / 2
+        polyline(d, [(x1 + 4, y1), (gx_mid, y1), (gx_mid, y2), (x2 - 6, y2)], color=ink, dashed=False)
+    for a, sa, b, sb in (("S0", "bottom", "Y0", "top"), ("Y2", "top", "T2", "bottom"),
+                         ("S3", "bottom", "Y3", "top"), ("S3", "right", "S4", "left"),
+                         ("Y3", "right", "Y4", "left"), ("Y4", "top", "T4", "bottom")):
+        (x1, y1), (x2, y2) = mid(a, sa), mid(b, sb)
+        arrow(d, x1 + (4 if sa == "right" else 0), y1 + (4 if sa == "bottom" else -4 if sa == "top" else 0),
+              x2 - (6 if sb == "left" else 0), y2 + (-6 if sb == "top" else 6 if sb == "bottom" else 0),
+              color=ink, width=4)
+
+    # 下一轮：从看板回到布置（走两条泳道之间的空隙）
+    gx = lane_top[1] - 22
+    t4x, t4y = mid("T4", "top")
+    t1x, t1y = mid("T1", "top")
+    polyline(d, [(t4x - 60, t4y - 4), (t4x - 60, gx), (t1x + 40, gx), (t1x + 40, t1y - 6)],
+             color=STYLE["branch"]["border"], dashed=True)
+    f = font(24)
+    lbl = "下一轮：按掌握度推荐、再布置"
+    d.text((t1x + 60, gx - 42), lbl, font=f,
+           fill=STYLE["branch"]["border"])
+
+    # 图例
+    lx = 40
+    ly = lane_top[2] + lane_h + 22
+    for kind, text in (("io", "学生操作"), ("branch", "教师决定"), ("llm", "大模型 + 校验"), ("rule", "确定性程序")):
+        st = STYLE[kind]
+        d.rounded_rectangle([lx, ly, lx + 34, ly + 28], radius=8, fill=st["fill"], outline=st["border"], width=2)
+        d.text((lx + 44, ly - 2), text, font=f, fill=INK)
+        lx += 54 + d.textlength(text, font=f) + 40
+    note = "大模型只出草稿，对错由规则、最短路和评测机判定；教师审核后学生才看得到"
+    d.text((W - 30 - d.textlength(note, font=f), ly - 2), note, font=f, fill=MUTED)
+    img.save(OUT / "fig_star_flow.png", dpi=(300, 300))
+
+
 if __name__ == "__main__":
     figure_architecture()
     figure_pipeline()
+    figure_star_flow()
     print("ok")
