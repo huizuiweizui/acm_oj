@@ -31,7 +31,7 @@
 ## 快速开始
 
 ```bash
-pip install jieba            # 必需
+pip install jieba            # 必需（requirements.txt 已列出）
 pip install pypinyin         # 可选，打开同音匹配（“乌乌车”对上“呜呜车”）
 
 python -m star.skills.demo --pinyin                          # 看一遍处理过程（不调用大模型）
@@ -42,6 +42,10 @@ python -m star.skills.eval_intent --pinyin                   # 消融实验示�
 以上命令在项目根目录（`manage.py` 所在目录）执行。
 `demo` 和 `eval_intent` 加 `--llm` 会读取环境变量 `LLM_API_KEY / LLM_API_URL / LLM_MODEL` 调用大模型。
 如果安装 jieba 时报 setuptools 相关错误，先执行 `pip install -U setuptools wheel`。
+
+jieba 是硬依赖（`segment.py` 在模块顶层 `import jieba`）。没装时不只是本包跑不起来：
+`python manage.py test star` 会把 `star/skills/tests` 一起收进去，发现阶段就报 `star.skills` 导入失败。
+`star/services/` 不依赖本包，所以星语其他部分的测试与功能不受影响。
 
 ## 在代码里使用
 
@@ -153,14 +157,32 @@ pipe_ablation = InputPipeline(llm, disabled=COMM_SKILLS)  # 关闭仿说检测�
 
 ## 与平台其他部分的关系
 
-**rag.py 的中文关键词检索（可选修复）**：`judge/services/rag.py` 在没有向量时退回关键词匹配，
-目前用 `query.split()` 按空格切词，中文句子没有空格，整句会被当成一个关键词，基本匹配不到。可以改为：
+本包在 `feat/star-integration` 上，但**还没有接进任何生产代码**：`star/services/assistant.py` 仍在用自己的
+`difflib` 仿说检测、精确词表替换和 `validators.check_reply`。下面三处是接入点，以及"两种实现并存期间"要注意的地方。
 
-```python
-from star.skills import keywords, normalize, segment
-kw_list = keywords(segment(normalize(query)))   # 例：“二分查找的时间复杂度是多少” → ["二分查找", "时间复杂度"]
-```
+### 1. 对话助手 `star/services/assistant.py`
 
-**把 star 做成 Django app**：目前 `star/` 下只有 `__init__.py` 和 `skills/`。
-可以手动新建 `star/apps.py` 并在 `INSTALLED_APPS` 中加入 `"star"`；
-或者先删掉 `star/__init__.py`，再执行 `python manage.py startapp star star`。
+`reply()` 的第 2–4 步（仿说、词表、代词）整体换成本包的 `InputPipeline.run()`，用 `PipelineResult.intent`
+决定后续动作（给提示 / 跳过 / 找老师），`text` 与 `mappings` 可以直接记进对话记录供教师查看。
+
+- 仿说阈值两套不一致：本包默认 0.85，`assistant.py` 是 0.8，而且另有一条"只复述上一句结尾"的后缀判定。
+  接的时候要定一个，否则同一个学生同一句话在两条链路上判定不同。
+- `star/skills/llm.py` 的 `OpenAICompatClient` **不做姓名脱敏**，`star/services/llm.py` 的 `redact()` 会做。
+  换封装时先把消息脱敏再交进来，否则会破坏"不把姓名发给大模型"的约定。
+- 本包每次调用（含失败重试）都通过 `on_call` 回调交出记录，接的时候把它写进 `LLMCallLog`，
+  否则消融实验没有数据。
+
+### 2. 题目改造链 `star/services/adapt.py` / `validators.py`
+
+本包 `check_reply()` 能多拦双重否定、反问、比喻成语、含糊词，`stats` 里的平均句长与最长句长
+正好是任务书"改写前后句长对比"那张表的数据。`star/services/validators.py` 的 `check_reply` 只管
+P3 回复的结构（一句话 + 2–4 个选项），两者互补，不是替代。
+
+### 3. 算法问答的关键词检索（**已接入**）
+
+`judge/services/rag.py` 在没有向量数据时退回关键词匹配。原来用 `query.split()`——中文没有空格，
+整句被当成一个关键词，基本匹配不到。现在 `_query_keywords()` 用本包的分词：
+
+    “二分查找的时间复杂度是多少” → ["二分查找", "时间复杂度"]
+
+没装 jieba 时捕获 `ImportError` 后仍退回 `query.split()`，所以 RAG 页面不会因为缺依赖挂掉。

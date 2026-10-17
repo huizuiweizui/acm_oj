@@ -52,6 +52,18 @@ def _embed_query(query: str) -> list[float] | None:
         return None
 
 
+def _query_keywords(query: str) -> list[str]:
+    """
+    查询关键词。中文没有空格，按空白切会把整句当成一个词、基本匹配不到，
+    所以优先用星语 skills 的 jieba 分词（术语与关键词提取）；没装 jieba 时退回按空白切分。
+    """
+    try:
+        from star.skills import keywords, normalize, segment
+    except ImportError:  # 没装 jieba 或没有 star 包：保持原来的行为
+        return [w for w in query.split() if len(w) > 1]
+    return keywords(segment(normalize(query)))
+
+
 def retrieve(query: str, algo_id: str | None = None, top_k: int = 5) -> list[KnowledgeChunk]:
     """
     语义检索 top_k 最相关的 chunk。
@@ -79,7 +91,7 @@ def retrieve(query: str, algo_id: str | None = None, top_k: int = 5) -> list[Kno
     qs = KnowledgeChunk.objects.select_related('algo')
     if algo_id:
         qs = qs.filter(algo__algo_id=algo_id)
-    keywords = [w for w in query.split() if len(w) > 1]
+    keywords = _query_keywords(query)
     if keywords:
         from django.db.models import Q
         q_filter = Q()
