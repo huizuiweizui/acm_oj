@@ -19,6 +19,8 @@
     POST  teacher/learners/<uid>/tasks/         发起改造（P2，生成-校验-修复）
     POST  teacher/learners/<uid>/report/        学习报告（P4）
     GET   teacher/materials/                    素材库：关卡模板与入门题
+    GET   teacher/assign/                       批量布置：我的团队与其中的学习者
+    POST  teacher/assign/                       批量布置：一组素材 × 一组学生，用默认版本生成
     GET   teacher/tasks/<id>/                   审核页数据：内容、预览、校验日志
     PATCH teacher/tasks/<id>/                   修改文字（重新校验）
     DELETE teacher/tasks/<id>/                  删除任务
@@ -35,13 +37,14 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from judge.models import Team
 from judge.permissions import _is_staff
 from judge.services.judge_queue import RunQueueBusy
 
 from .content.levels import LEVELS, THEMES
 from .content.problems import PROBLEMS, get_problem, problem_row
 from .models import AdaptedTask, LearnerProfile, StepAttempt
-from .permissions import IsTeacherOrAdmin, can_view_learner, visible_learner_ids
+from .permissions import IsTeacherOrAdmin, can_view_learner, is_admin, visible_learner_ids
 from .services import adapt, assistant, learning, llm, maze, profile as profile_svc, report
 from .services.validators import LAYERS, reference_lines
 
@@ -464,6 +467,121 @@ class TaskCreateView(TeacherBase):
             task.delete()
             return _busy()
         return Response(_task_detail(task), status=status.HTTP_201_CREATED)
+
+
+ASSIGN_MAX_LEARNERS = 60
+ASSIGN_MAX_MATERIALS = 21
+
+
+class AssignView(TeacherBase):
+    """
+    批量布置：教师选一个团队里的若干学生、若干素材，一次发下去。
+
+    · 只用默认版本（关卡按学生的兴趣主题包套主题，入门题用 default_steps），不调用大模型——
+      批量调用大模型要排很久；需要个性化改造的学生，仍在学生详情页单独发起；
+    · 默认版本本身已通过全部规则校验，approve=true（默认）时直接审核通过、学生立即能看到；
+      approve=false 时留作草稿，逐个到审核页看过再通过；
+    · 素材按层级分发：关卡只发给启蒙层学生，入门题只发给入门层学生；
+      学生已经有同一素材的任务（生成失败的除外）时跳过，不重复布置。
+    """
+
+    def get(self, request):
+        visible = set(visible_learner_ids(request.user))
+        teams = Team.objects.filter(is_active=True).order_by('-created_at')
+        if not is_admin(request.user):
+            teams = teams.filter(creator=request.user)
+        profiles = {lp.user_id: lp for lp in LearnerProfile.objects.filter(user_id__in=visible).select_related('user')}
+        have = {}
+        for uid, key in (AdaptedTask.objects.filter(student_id__in=list(profiles)).exclude(status='failed')
+                         .values_list('student_id', 'template')):
+            have.setdefault(uid, set()).add(key)
+        out = []
+        for team in teams.prefetch_related('memberships'):
+            learners = []
+            for m in team.memberships.all():
+                lp = profiles.get(m.user_id)
+                if lp is None:
+                    continue
+                learners.append({'user_id': lp.user_id, 'username': lp.user.username, 'nickname': lp.nickname,
+                                 'layer': lp.layer, 'status': lp.status,
+                                 'templates': sorted(have.get(lp.user_id, ()))})
+            learners.sort(key=lambda x: x['username'])
+            out.append({'id': team.id, 'name': team.name, 'learners': learners})
+        return Response({'teams': out})
+
+    def post(self, request):
+        d = request.data
+        uids, keys = d.get('learners'), d.get('materials')
+        if not isinstance(uids, list) or not uids:
+            return Response({'detail': '请至少选一名学生'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(keys, list) or not keys:
+            return Response({'detail': '请至少选一项任务'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(uids) > ASSIGN_MAX_LEARNERS or len(keys) > ASSIGN_MAX_MATERIALS:
+            return Response({'detail': f'一次最多 {ASSIGN_MAX_LEARNERS} 名学生、{ASSIGN_MAX_MATERIALS} 项任务'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        level_keys = {lv['key'] for lv in LEVELS}
+        keys = list(dict.fromkeys(str(k).strip() for k in keys))      # 去重，保留教师选的顺序
+        unknown = [k for k in keys if k not in level_keys and get_problem(k) is None]
+        if unknown:
+            return Response({'detail': f'素材不存在：{"、".join(unknown)}'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            uids = list(dict.fromkeys(int(u) for u in uids))
+        except (TypeError, ValueError):
+            return Response({'detail': '学生编号不对'}, status=status.HTTP_400_BAD_REQUEST)
+        visible = set(visible_learner_ids(request.user))
+        if any(u not in visible for u in uids):
+            return Response({'detail': '有学生不在你的团队里'}, status=status.HTTP_403_FORBIDDEN)
+
+        approve = d.get('approve', True) is not False
+        rows = {k: problem_row(k) for k in keys if k not in level_keys}
+        results, created_total = [], 0
+        for lp in LearnerProfile.objects.filter(user_id__in=uids).select_related('user').order_by('user__username'):
+            created, skipped = self._assign_one(request.user, lp, keys, level_keys, rows, approve)
+            created_total += len(created)
+            results.append({'user_id': lp.user_id, 'username': lp.user.username, 'nickname': lp.nickname,
+                            'created': created, 'skipped': skipped})
+        return Response({'results': results, 'created_total': created_total, 'approved': approve},
+                        status=status.HTTP_201_CREATED if created_total else status.HTTP_200_OK)
+
+    @staticmethod
+    def _assign_one(teacher, lp, keys, level_keys, rows, approve):
+        if not lp.layer:
+            return [], [{'template': k, 'reason': '还没有确定层级'} for k in keys]
+        created, skipped = [], []
+        have = set(AdaptedTask.objects.filter(student=lp.user).exclude(status='failed')
+                   .values_list('template', flat=True))
+        order = AdaptedTask.objects.filter(student=lp.user).aggregate(m=Max('sort_order'))['m'] or 0
+        for key in keys:
+            is_level = key in level_keys
+            if is_level != (lp.layer == 'enlighten'):
+                skipped.append({'template': key, 'reason': '层级不对'})
+                continue
+            if key in have:
+                skipped.append({'template': key, 'reason': '已经有这项任务'})
+                continue
+            if not is_level and rows.get(key) is None:
+                skipped.append({'template': key, 'reason': '题库里还没有这道题，请先运行 seed_star'})
+                continue
+            task = AdaptedTask.objects.create(student=lp.user, layer=lp.layer, template=key,
+                                              problem=None if is_level else rows[key],
+                                              sort_order=order + 1, created_by=teacher)
+            try:
+                adapt.generate(task, mode='template')
+            except adapt.MaterialError as e:
+                task.delete()
+                skipped.append({'template': key, 'reason': str(e)})
+                continue
+            except RunQueueBusy:
+                task.delete()
+                skipped.append({'template': key, 'reason': '评测机繁忙，请稍后再试'})
+                continue
+            order += 1
+            if approve and task.status == 'draft':
+                task.status, task.approved_by, task.approved_at = 'approved', teacher, timezone.now()
+                task.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+            created.append({'id': task.id, 'template': key, 'title': (task.content or {}).get('title') or key,
+                            'status': task.status})
+        return created, skipped
 
 
 class ReportView(TeacherBase):

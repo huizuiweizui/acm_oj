@@ -19,7 +19,7 @@ const STATUS = {
 }
 const MODE = { llm: '大模型', template: '默认版本', edit: '教师修改' }
 const KNOW = { sequence: '顺序', loop: '循环', condition: '条件' }
-const TYPE = { choice: '选择题', fill: '填空题', order: '排序题' }
+const TYPE = { choice: '选择题', fill: '填空题', order: '排序题', code: '写代码' }
 const CARD = { forward: '⬆ 前进', left: '↺ 左转', right: '↻ 右转', repeat: '🔁 重复' }
 
 const task = ref(null)
@@ -216,6 +216,10 @@ const runs = computed(() => {
                   </li>
                 </ul>
                 <pre v-else-if="st.type === 'fill'" class="st-code">{{ blankFilled(st).before }}<mark>{{ blankFilled(st).answer }}</mark>{{ blankFilled(st).after }}</pre>
+                <template v-else-if="st.type === 'code'">
+                  <pre class="st-code">{{ st.starter || '（空白，学生从头写）' }}</pre>
+                  <p class="st-muted">学生在起始代码上写出完整程序，由评测机运行测试数据判定；出错时告诉学生第几行、哪一类错。</p>
+                </template>
                 <template v-else>
                   <pre class="st-code">{{ task.reference_lines.join('\n') }}</pre>
                   <p class="st-muted">学生看到的是固定打乱后的顺序；排好后拼成完整程序，由评测机运行测试数据判定。</p>
@@ -285,6 +289,10 @@ const runs = computed(() => {
                   <label class="fld grow">代码（____ 为空）<input v-model="st.code" class="st-input mono"></label>
                   <label class="fld">答案<input v-model="st.answer" class="st-input w-sm mono"></label>
                 </div>
+                <label v-else-if="st.type === 'code'" class="fld">
+                  起始代码（只能是 # 注释和参考解里的原行）
+                  <textarea v-model="st.starter" class="st-textarea" rows="6" spellcheck="false"></textarea>
+                </label>
                 <p v-else class="st-muted">排序题的代码行固定来自参考解，不能修改。</p>
                 <label v-for="(h, k) in st.hints" :key="`h${k}`" class="fld">
                   提示 {{ k + 1 }} <span v-if="tooLong(st.hints[k])" class="warn-text">超过 20 字</span>

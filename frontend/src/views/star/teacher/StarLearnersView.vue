@@ -36,6 +36,7 @@ onMounted(async () => {
         <p class="st-muted">面向孤独症学习者的编程学伴。这里列出你创建的团队里、已经填过问卷的学生。</p>
       </div>
       <div class="st-head-actions">
+        <RouterLink class="st-btn st-btn-primary" :to="{ name: 'star-assign' }">批量布置任务</RouterLink>
         <RouterLink class="st-btn" :to="{ name: 'star-home' }">体验学生端</RouterLink>
       </div>
     </header>

@@ -25,6 +25,9 @@ export const createTask = (uid, material, mode) =>
 export const getLearnerReport = (uid, audience) =>
   api.post(`/star/teacher/learners/${uid}/report/`, { audience }, LONG)
 export const getMaterials = () => api.get('/star/teacher/materials/')
+// 批量布置：一组任务 × 一组学生，用默认版本（payload: { learners, materials, approve }）
+export const getAssignData = () => api.get('/star/teacher/assign/')
+export const assignTasks = (payload) => api.post('/star/teacher/assign/', payload, LONG)
 export const getTaskForReview = (id) => api.get(`/star/teacher/tasks/${id}/`)
 export const updateTaskContent = (id, content) => api.patch(`/star/teacher/tasks/${id}/`, { content })
 export const deleteTask = (id) => api.delete(`/star/teacher/tasks/${id}/`)

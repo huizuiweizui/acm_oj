@@ -90,13 +90,39 @@ class StepsCheckTests(SimpleTestCase):
 
     def test_all_default_steps_valid(self):
         for p in PROBLEMS:
-            if p.get('default_steps'):
-                with self.subTest(p['slug']):
-                    self.assertTrue(check_steps(p['default_steps'], reference_lines(p['code'])).ok)
+            with self.subTest(p['slug']):
+                self.assertIn('default_steps', p)          # 15 道都要能不经大模型直接布置
+                chk = check_steps(p['default_steps'], reference_lines(p['code']))
+                self.assertTrue(chk.ok, chk.errors)
+                self.assertEqual([st['type'] for st in p['default_steps']['steps']][-2:], ['order', 'code'])
+
+    def test_code_step_must_be_last_after_order(self):
+        c, ref = steps_of()
+        c['steps'].pop()                                   # 去掉写代码
+        self.assertIn('写代码步骤', ' '.join(check_steps(c, ref).errors))
+        c, ref = steps_of()
+        c['steps'][-2], c['steps'][-1] = c['steps'][-1], c['steps'][-2]
+        errs = ' '.join(check_steps(c, ref).errors)
+        self.assertIn('放在最后一步', errs)
+        self.assertIn('倒数第二步', errs)
+
+    def test_starter_only_comments_and_reference_lines(self):
+        c, ref = steps_of()
+        c['steps'][-1]['starter'] = '# 读入 a 和 b\na = int(input())\n'
+        self.assertTrue(check_steps(c, ref).ok)
+        c['steps'][-1]['starter'] = 'x = 1\n'
+        self.assertIn('"x = 1"不是', ' '.join(check_steps(c, ref).errors))
+        c['steps'][-1]['starter'] = '# 先把题目里给出的两个整数分别从标准输入中读进来然后保存\n'
+        self.assertIn('超过 20 字', ' '.join(check_steps(c, ref).errors))
+
+    def test_starter_cannot_be_the_whole_answer(self):
+        c, ref = steps_of()
+        c['steps'][-1]['starter'] = '\n'.join(ref)
+        self.assertIn('全部代码行', ' '.join(check_steps(c, ref).errors))
 
     def test_order_lines_must_come_from_reference(self):
         c, ref = steps_of()
-        c['steps'][-1]['lines'][2] = 's = a - b'
+        c['steps'][-2]['lines'][2] = 's = a - b'
         errs = ' '.join(check_steps(c, ref).errors)
         self.assertIn('逐字复制参考解', errs)
         self.assertIn('s = a - b', errs)

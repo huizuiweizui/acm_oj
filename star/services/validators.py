@@ -24,7 +24,8 @@ TITLE_MAX = 12
 STEPS_MIN, STEPS_MAX = 3, 6
 KNOWLEDGE = {'sequence': '顺序', 'loop': '循环', 'condition': '条件'}
 LEVEL_KNOWLEDGE = ('sequence', 'loop')      # 条件类关卡为选做，初版不支持
-STEP_TYPES = ('choice', 'order', 'fill')
+STEP_TYPES = ('choice', 'order', 'fill', 'code')
+STARTER_MAX_LINES = 20
 BLANK = '____'
 GRID_MIN, GRID_MAX = 3, 8
 SLOTS_MAX = 10
@@ -258,7 +259,7 @@ def check_steps(c, ref_lines):
             continue
         t = st.get('type')
         if t not in STEP_TYPES:
-            f.append(f'第 {i} 步的 type 只能是 choice / order / fill，现在是 {t!r}')
+            f.append(f'第 {i} 步的 type 只能是 choice / order / fill / code，现在是 {t!r}')
             continue
         if not isinstance(st.get('prompt'), str) or not st['prompt'].strip():
             f.append(f'第 {i} 步缺少 prompt（题干）')
@@ -283,6 +284,9 @@ def check_steps(c, ref_lines):
                 f.append(f'第 {i} 步（填空题）缺少 code（带 ____ 的一行代码）')
             if not isinstance(st.get('answer'), str):
                 f.append(f'第 {i} 步（填空题）的 answer 必须是字符串')
+        elif t == 'code':
+            if not isinstance(st.get('starter', ''), str):
+                f.append(f'第 {i} 步（写代码）的 starter 必须是字符串（起始代码，可以为空）')
     if f:
         return chk
 
@@ -297,9 +301,13 @@ def check_steps(c, ref_lines):
     n = len(steps)
     if not STEPS_MIN <= n <= STEPS_MAX:
         r.append(f'现在有 {n} 个步骤，应为 {STEPS_MIN} 到 {STEPS_MAX} 步')
+    # 固定的收尾：先把参考解的代码行排好（order），最后自己把整段程序写出来（code）
     order_at = [i for i, st in enumerate(steps) if st['type'] == 'order']
-    if len(order_at) != 1 or order_at[0] != n - 1:
-        r.append('必须恰好有一个排序步骤（type 为 order），并且放在最后一步')
+    code_at = [i for i, st in enumerate(steps) if st['type'] == 'code']
+    if len(code_at) != 1 or code_at[0] != n - 1:
+        r.append('必须恰好有一个写代码步骤（type 为 code），并且放在最后一步')
+    if len(order_at) != 1 or order_at[0] != n - 2:
+        r.append('必须恰好有一个排序步骤（type 为 order），并且放在倒数第二步、紧挨着写代码步骤')
 
     ref = Counter(ref_lines)
     ref_squashed = {_squash(x) for x in ref_lines}
@@ -343,7 +351,33 @@ def check_steps(c, ref_lines):
             elif _squash(code.replace(BLANK, ans)) not in ref_squashed:
                 r.append(f'第 {i} 步（填空题）把 answer 填回 ____ 后，应与参考解中的某一行完全一致；'
                          f'现在得到"{code.replace(BLANK, ans).strip()}"')
+
+        elif st['type'] == 'code':
+            _starter_rule(r, i, st.get('starter', ''), ref_lines)
     return chk
+
+
+def _starter_rule(r, i, starter, ref_lines):
+    """
+    起始代码只能是"提示性的骨架"：注释（# 开头，写成短句）加上参考解里原样的若干行，
+    并且不能已经是完整答案——否则这一步就不用写了。
+    """
+    lines = [x.rstrip() for x in starter.splitlines() if x.strip()]
+    if len(lines) > STARTER_MAX_LINES:
+        r.append(f'第 {i} 步（写代码）的 starter 不超过 {STARTER_MAX_LINES} 行')
+        return
+    ref = set(ref_lines)
+    code_lines = []
+    for x in lines:
+        if x.strip().startswith('#'):
+            _sentence_rule(r, f'第 {i} 步起始代码的注释', x.strip().lstrip('#'))
+        elif x in ref:
+            code_lines.append(x)
+        else:
+            r.append(f'第 {i} 步（写代码）的 starter 里只能放注释（# 开头）或参考解中原样的代码行；'
+                     f'"{x.strip()}"不是')
+    if len(set(code_lines)) >= len(ref):
+        r.append(f'第 {i} 步（写代码）的 starter 已经包含了参考解的全部代码行，要留出让学习者自己写的部分')
 
 
 # ── P1：画像 ────────────────────────────────────────────────────────

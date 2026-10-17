@@ -20,6 +20,7 @@ urlpatterns = [
     path('teacher/learners/<int:uid>/tasks/', views.TaskCreateView.as_view(), name='star-t-task-create'),
     path('teacher/learners/<int:uid>/report/', views.ReportView.as_view(), name='star-t-report'),
     path('teacher/materials/', views.MaterialsView.as_view(), name='star-t-materials'),
+    path('teacher/assign/', views.AssignView.as_view(), name='star-t-assign'),
     path('teacher/tasks/<int:pk>/', views.TaskDetailView.as_view(), name='star-t-task'),
     path('teacher/tasks/<int:pk>/approve/', views.TaskApproveView.as_view(), name='star-t-task-approve'),
     path('teacher/tasks/<int:pk>/regenerate/', views.TaskRegenerateView.as_view(), name='star-t-task-regen'),

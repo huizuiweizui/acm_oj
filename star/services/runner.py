@@ -22,10 +22,14 @@ from judge.services.judger import _normalize
 from judge.services.sandbox import compile_code, run_code, source_path
 
 
-def run_against_tests(problem, code, language='Python'):
+def run_against_tests(problem, code, language='Python', detail=False):
     """
     返回 {'status': 'AC'|'WA'|'RE'|'TLE'|'MLE'|'OLE'|'CE'|'NT', 'passed': k, 'total': n, 'error': str}
     status 为第一个未通过测试点的结果；全部通过才是 AC。
+
+    detail=True 时（学生自己写的程序）另带 'first_fail': {'input', 'expected', 'output'}——
+    第一个没通过的测试点，各截取前 200 个字符，让学生看到具体是哪组数据错了。
+    星语入门题的测试数据本来就很简单，不算泄题。
     """
     cases = list(problem.test_cases.all().order_by('sort_order'))
     if not cases:
@@ -40,7 +44,7 @@ def run_against_tests(problem, code, language='Python'):
             if not ok:
                 return {'status': 'CE', 'passed': 0, 'total': len(cases), 'error': err[:500]}
 
-            status, passed, first_error = 'AC', 0, ''
+            status, passed, first_error, first_fail = 'AC', 0, '', None
             for tc in cases:
                 rc, out, stderr, timed_out, exceeded = run_code(
                     language, tmp_dir, tc.input_data,
@@ -60,7 +64,12 @@ def run_against_tests(problem, code, language='Python'):
                     passed += 1
                 elif status == 'AC':
                     status, first_error = s, (stderr or '')[:500]
-        return {'status': status, 'passed': passed, 'total': len(cases), 'error': first_error}
+                    first_fail = {'input': tc.input_data[:200], 'expected': tc.expected_output[:200],
+                                  'output': (out or '')[:200]}
+        res = {'status': status, 'passed': passed, 'total': len(cases), 'error': first_error}
+        if detail:
+            res['first_fail'] = first_fail
+        return res
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 

@@ -88,10 +88,10 @@ class StudentTaskTests(StarTestCase):
         text = str(c)
         self.assertNotIn("'answer'", text)
         self.assertNotIn('hints', text)
-        order = c['steps'][-1]['lines']
-        self.assertNotEqual(order, self.task.content['steps'][-1]['lines'])   # 打乱了
+        order = c['steps'][-2]['lines']
+        self.assertNotEqual(order, self.task.content['steps'][-2]['lines'])   # 打乱了
         again = api(self.kid).get(f'/api/star/tasks/{self.task.id}/').json()['content']
-        self.assertEqual(again['steps'][-1]['lines'], order)                   # 每次一样
+        self.assertEqual(again['steps'][-2]['lines'], order)                   # 每次一样
 
     def test_choice_and_fill_judging_and_progress(self):
         c = api(self.kid)
@@ -111,7 +111,7 @@ class StudentTaskTests(StarTestCase):
         self.assertEqual((last.hint_level, last.duration_ms), (2, 4200))
 
     def test_order_step_is_judged_by_running_the_program(self):
-        shown = api(self.kid).get(f'/api/star/tasks/{self.task.id}/').json()['content']['steps'][-1]['lines']
+        shown = api(self.kid).get(f'/api/star/tasks/{self.task.id}/').json()['content']['steps'][-2]['lines']
         order = [shown.index(x) for x in ['b = int(input())', 'a = int(input())', 's = a + b', 'print(s)']]
         fake = {'status': 'AC', 'passed': 5, 'total': 5, 'error': ''}
         with mock.patch('star.services.learning.run_against_tests', return_value=fake) as run:
@@ -133,6 +133,139 @@ class StudentTaskTests(StarTestCase):
         self.assertEqual(r.json()['text'], self.task.content['steps'][1]['hints'][2])
         r = api(self.kid).post(f'/api/star/tasks/{self.task.id}/hint/', {'step': 9, 'level': 1}, format='json')
         self.assertEqual(r.status_code, 400)
+
+
+@LLM_OFF
+class CodeStepTests(StarTestCase):
+    """最后一步：学生自己写整段程序，跑测试数据判定。"""
+
+    CODE = 3       # sum_two 的写代码步骤
+
+    def setUp(self):
+        self.make_profile(self.kid)
+        self.task = self.make_steps_task(self.kid)
+
+    def post(self, code):
+        return api(self.kid).post(f'/api/star/tasks/{self.task.id}/attempt/',
+                                  {'step': self.CODE, 'answer': {'code': code}}, format='json').json()
+
+    def test_starter_shown_and_no_reference(self):
+        st = api(self.kid).get(f'/api/star/tasks/{self.task.id}/').json()['content']['steps'][self.CODE]
+        self.assertEqual(st['type'], 'code')
+        self.assertTrue(st['starter'].startswith('# '))
+        self.assertNotIn('s = a + b', st['starter'])
+
+    def test_empty_or_comment_only_not_run(self):
+        with mock.patch('star.services.learning.run_against_tests') as run:
+            r = self.post('# 读入 a 和 b\n\n')
+        run.assert_not_called()
+        self.assertEqual(r['feedback'], learning.FEEDBACK['empty_code'])
+
+    def test_syntax_error_reported_with_line_without_running(self):
+        with mock.patch('star.services.learning.run_against_tests') as run:
+            r = self.post('a = int(input())\nb = int(input()\nprint(a + b)\n')
+        run.assert_not_called()
+        self.assertFalse(r['correct'])
+        self.assertEqual(r['feedback'], learning.FEEDBACK['code_error'])
+        self.assertTrue(r['error_text'].startswith('第 '))
+
+    def test_runtime_error_explained(self):
+        fake = {'status': 'RE', 'passed': 0, 'total': 5,
+                'error': 'Traceback (most recent call last):\n  File "/sandbox/main.py", line 3, in <module>\n'
+                         "    print(c)\nNameError: name 'c' is not defined\n", 'first_fail': None}
+        with mock.patch('star.services.learning.run_against_tests', return_value=fake):
+            r = self.post('a = int(input())\nb = int(input())\nprint(c)\n')
+        self.assertEqual(r['error_line'], 3)
+        self.assertEqual(r['error_text'], '第 3 行：' + learning.ERROR_TEXT['NameError'])
+        self.assertEqual(r['error_raw'], "NameError: name 'c' is not defined")
+        self.assertNotIn('sandbox', str(r))
+
+    def test_wrong_answer_shows_first_failing_case(self):
+        fake = {'status': 'WA', 'passed': 0, 'total': 5, 'error': '',
+                'first_fail': {'input': '3\n5\n', 'expected': '8', 'output': '-2\n'}}
+        with mock.patch('star.services.learning.run_against_tests', return_value=fake) as run:
+            r = self.post('a = int(input())\nb = int(input())\nprint(a - b)\n')
+        self.assertTrue(run.call_args.kwargs['detail'])
+        self.assertEqual(r['feedback'], learning.FEEDBACK['code_wrong'])
+        self.assertEqual(r['first_fail']['expected'], '8')
+
+    def test_correct_code_finishes_task(self):
+        for i in range(self.CODE):
+            StepAttempt.objects.create(task=self.task, step_index=i, is_correct=True)
+        fake = {'status': 'AC', 'passed': 5, 'total': 5, 'error': '', 'first_fail': None}
+        code = 'a = int(input())\r\nb = int(input())\r\nprint(a + b)\r\n'
+        with mock.patch('star.services.learning.run_against_tests', return_value=fake) as run:
+            r = self.post(code)
+        self.assertTrue(r['correct'])
+        self.assertTrue(r['task_done'])
+        self.assertNotIn('\r', run.call_args.args[1])
+        stored = StepAttempt.objects.filter(task=self.task, step_index=self.CODE).get()
+        self.assertEqual(stored.answer['status'], 'AC')
+
+    def test_code_must_be_text(self):
+        r = api(self.kid).post(f'/api/star/tasks/{self.task.id}/attempt/',
+                               {'step': self.CODE, 'answer': {'code': ['x']}}, format='json')
+        self.assertEqual(r.status_code, 400)
+
+
+@LLM_OFF
+@mock.patch('star.services.adapt.reference_passes', return_value=True)
+class AssignTests(StarTestCase):
+    """教师批量布置：一组素材 × 一组学生，用默认版本。"""
+
+    def setUp(self):
+        self.make_profile(self.kid, layer='intro')
+        self.make_profile(self.kid2, layer='enlighten')
+        self.make_problem_row('sum_two')
+        self.make_problem_row('double')
+
+    def assign(self, user=None, **data):
+        body = dict({'learners': [self.kid.id, self.kid2.id], 'materials': ['L1', 'sum_two', 'double']}, **data)
+        return api(user or self.teacher).post('/api/star/teacher/assign/', body, format='json')
+
+    def test_teams_listing_is_scoped(self, _ref):
+        teams = api(self.teacher).get('/api/star/teacher/assign/').json()['teams']
+        self.assertEqual([t['name'] for t in teams], ['星语测试班'])
+        self.assertEqual({x['user_id'] for x in teams[0]['learners']}, {self.kid.id, self.kid2.id})
+        self.assertEqual(api(self.other_teacher).get('/api/star/teacher/assign/').json()['teams'], [])
+        self.assertEqual(api(self.kid).get('/api/star/teacher/assign/').status_code, 403)
+
+    def test_assign_by_layer_and_approve(self, _ref):
+        r = self.assign()
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()['created_total'], 3)
+        by_user = {x['user_id']: x for x in r.json()['results']}
+        self.assertEqual([c['template'] for c in by_user[self.kid.id]['created']], ['sum_two', 'double'])
+        self.assertEqual([c['template'] for c in by_user[self.kid2.id]['created']], ['L1'])
+        self.assertEqual({s['reason'] for s in by_user[self.kid.id]['skipped']}, {'层级不对'})
+
+        mine = api(self.kid).get('/api/star/tasks/').json()               # 学生立刻能看到，按布置顺序
+        self.assertEqual([t['template'] for t in mine], ['sum_two', 'double'])
+        lv = AdaptedTask.objects.get(student=self.kid2)
+        self.assertEqual(lv.content['theme']['name'], '恐龙')               # 关卡套学生的兴趣主题
+        self.assertEqual(lv.approved_by, self.teacher)
+
+    def test_no_duplicates(self, _ref):
+        self.assign()
+        r = self.assign()
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['created_total'], 0)
+        self.assertEqual(AdaptedTask.objects.count(), 3)
+
+    def test_draft_mode(self, _ref):
+        self.assign(approve=False, learners=[self.kid.id], materials=['sum_two'])
+        self.assertEqual(AdaptedTask.objects.get().status, 'draft')
+        self.assertEqual(api(self.kid).get('/api/star/tasks/').json(), [])
+
+    def test_missing_problem_row_skipped(self, _ref):
+        r = self.assign(learners=[self.kid.id], materials=['stars']).json()
+        self.assertIn('seed_star', r['results'][0]['skipped'][0]['reason'])
+
+    def test_other_teacher_and_bad_input(self, _ref):
+        self.assertEqual(self.assign(self.other_teacher).status_code, 403)
+        self.assertEqual(self.assign(materials=['nope']).status_code, 400)
+        self.assertEqual(self.assign(learners=[]).status_code, 400)
+        self.assertFalse(AdaptedTask.objects.exists())
 
 
 @LLM_OFF

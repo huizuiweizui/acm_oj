@@ -1,8 +1,9 @@
 <script setup>
 // 入门层：分步学习。一屏一步，顶部流程条显示进度。
-// 题型：选择题、填空题、代码行排序（Parsons 题）。排序结果拼成完整程序，由平台评测机运行判定。
+// 题型：选择题、填空题、代码行排序（Parsons 题）、写代码。排序结果和自己写的程序都由平台评测机运行判定。
+// 每个任务固定以"排一排 → 自己写"收尾：先把参考解的代码行排好，再在起始代码（注释骨架）上自己写一遍。
 // 提示按钮每点一次升一级，最多三级；作答时把用到的最高提示等级一起交给后端记录。
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import FlowBar from './FlowBar.vue'
 import { getHint, submitAttempt } from '@/api/star'
 
@@ -30,6 +31,10 @@ const selected = ref(null)
 const fillText = ref('')
 const pool = ref([])
 const answer = ref([])
+const codeText = ref('')
+const errorLine = ref(0)
+const codeBox = ref(null)
+let tabLeaves = false            // 按过 Esc 后，下一次 Tab 离开编辑框（不把键盘困在里面）
 const feedback = ref(null)
 const checking = ref(false)
 const solvedNow = ref(false)
@@ -43,8 +48,19 @@ const canCheck = computed(() => {
   if (!step.value || checking.value) return false
   if (step.value.type === 'choice') return selected.value !== null
   if (step.value.type === 'fill') return fillText.value.trim() !== ''
+  if (step.value.type === 'code') return codeText.value.trim() !== ''
   return pool.value.length === 0
 })
+const codeRows = computed(() => Math.max(codeText.value.split('\n').length, 6))
+
+// 写到一半离开页面，回来时代码还在（只存在这台电脑上）
+const draftKey = () => `star:code:${props.taskId}:${current.value}`
+function loadDraft() {
+  try { return localStorage.getItem(draftKey()) } catch { return null }
+}
+function saveDraft() {
+  try { localStorage.setItem(draftKey(), codeText.value) } catch { /* 存不了就算了 */ }
+}
 
 function resetStep() {
   hintLevel.value = 0
@@ -53,6 +69,8 @@ function resetStep() {
   fillText.value = ''
   pool.value = step.value?.type === 'order' ? step.value.lines.map((_, i) => i) : []
   answer.value = []
+  codeText.value = step.value?.type === 'code' ? (loadDraft() ?? step.value.starter ?? '') : ''
+  errorLine.value = 0
   feedback.value = null
   solvedNow.value = done.value.includes(current.value)
   startedAt = Date.now()
@@ -109,6 +127,42 @@ function onDropPool(e) {
   if (!Number.isNaN(v) && answer.value.includes(v)) toPool(v)
 }
 
+// ── 写代码：Tab 缩进四格，回车保持缩进，冒号结尾的下一行自动多缩进一层 ──
+function insertAt(el, text) {
+  el.setRangeText(text, el.selectionStart, el.selectionEnd, 'end')
+  codeText.value = el.value
+}
+function onCodeKey(e) {
+  const el = e.target
+  if (e.key === 'Escape') {
+    tabLeaves = true
+    return
+  }
+  if (e.key === 'Tab' && !e.shiftKey && !tabLeaves) {
+    e.preventDefault()
+    insertAt(el, '    ')
+    return
+  }
+  tabLeaves = false
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault()
+    const before = el.value.slice(0, el.selectionStart)
+    const line = before.slice(before.lastIndexOf('\n') + 1)
+    let indent = line.match(/^ */)[0]
+    if (line.trimEnd().endsWith(':')) indent += '    '
+    insertAt(el, `\n${indent}`)
+  }
+}
+function restoreStarter() {
+  codeText.value = step.value.starter || ''
+  errorLine.value = 0
+  feedback.value = null
+  nextTick(() => codeBox.value?.focus())
+}
+watch(codeText, () => {
+  if (step.value?.type === 'code' && !solvedNow.value) saveDraft()
+})
+
 async function askHint() {
   if (hintLevel.value >= 3) return
   const next = hintLevel.value + 1
@@ -126,7 +180,8 @@ async function check() {
   const t = step.value.type
   const ans = t === 'choice' ? { choice: selected.value }
     : t === 'fill' ? { text: fillText.value }
-      : { order: [...answer.value] }
+      : t === 'code' ? { code: codeText.value }
+        : { order: [...answer.value] }
   checking.value = true
   feedback.value = null
   try {
@@ -136,11 +191,16 @@ async function check() {
       hint_level: hintLevel.value,
       duration_ms: Date.now() - startedAt,
     })
+    const runs = t === 'order' || t === 'code'
     feedback.value = {
       ...data.feedback,
       ok: data.correct,
-      extra: t === 'order' && !data.correct && data.total ? `通过了 ${data.passed} / ${data.total} 组测试数据。` : '',
+      extra: runs && !data.correct && data.total ? `通过了 ${data.passed} / ${data.total} 组测试数据。` : '',
+      errorText: data.error_text || '',
+      errorRaw: data.error_raw || '',
+      fail: data.first_fail || null,
     }
+    errorLine.value = data.error_line || 0
     startedAt = Date.now()
     done.value = data.done_steps
     if (data.correct) {
@@ -177,7 +237,7 @@ async function check() {
     <section v-else-if="step" class="s-card step-card" :aria-label="`第 ${current + 1} 步`">
       <p class="s-muted">
         第 {{ current + 1 }} 步 · {{ KNOWLEDGE[step.knowledge] || '' }}
-        · {{ step.type === 'choice' ? '选一选' : step.type === 'fill' ? '填一填' : '排一排' }}
+        · {{ { choice: '选一选', fill: '填一填', order: '排一排', code: '写一写' }[step.type] }}
       </p>
       <h2 class="s-title">{{ step.prompt }}</h2>
 
@@ -211,6 +271,32 @@ async function check() {
           spellcheck="false"
           @keydown.enter="check"
         ><span>{{ fillParts.slice(1).join('____') }}</span>
+      </div>
+
+      <!-- 写代码：注释是起始代码给的骨架，照着一块一块写 -->
+      <div v-else-if="step.type === 'code'" class="code-step">
+        <div class="editor" :class="{ 'is-done': solvedNow }">
+          <ol class="gutter" aria-hidden="true">
+            <li v-for="n in codeRows" :key="n" :class="{ 'is-err': n === errorLine }">{{ n }}</li>
+          </ol>
+          <textarea
+            ref="codeBox"
+            v-model="codeText"
+            class="code-input"
+            :rows="codeRows"
+            :readonly="solvedNow"
+            aria-label="在这里写程序"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            wrap="off"
+            @keydown="onCodeKey"
+          ></textarea>
+        </div>
+        <p class="s-muted code-tip">
+          Tab 键空四格；冒号后面换行会自动空四格。
+          <button v-if="!solvedNow" type="button" class="link-btn" @click="restoreStarter">恢复起始代码</button>
+        </p>
       </div>
 
       <!-- 排序题 -->
@@ -270,11 +356,23 @@ async function check() {
 
       <div v-if="checking" class="s-feedback" role="status">
         <span class="s-fb-icon" aria-hidden="true">⏳</span>
-        {{ step.type === 'order' ? '正在运行你的程序……' : '正在检查……' }}
+        {{ step.type === 'order' || step.type === 'code' ? '正在运行你的程序……' : '正在检查……' }}
       </div>
       <div v-else-if="feedback" class="s-feedback" :class="feedback.ok ? 'is-ok' : 'is-bad'" role="status">
         <span class="s-fb-icon" aria-hidden="true">{{ feedback.icon }}</span>
-        <span>{{ feedback.text }}<br v-if="feedback.extra"><small v-if="feedback.extra">{{ feedback.extra }}</small></span>
+        <div class="fb-body">
+          <span>{{ feedback.text }}</span>
+          <b v-if="feedback.errorText" class="fb-err">{{ feedback.errorText }}</b>
+          <code v-if="feedback.errorRaw" class="fb-raw">{{ feedback.errorRaw }}</code>
+          <table v-if="feedback.fail" class="fail-table">
+            <tbody>
+              <tr><th>输入</th><td><pre>{{ feedback.fail.input }}</pre></td></tr>
+              <tr><th>应该输出</th><td><pre>{{ feedback.fail.expected }}</pre></td></tr>
+              <tr><th>你的程序输出</th><td><pre>{{ feedback.fail.output || '（什么也没输出）' }}</pre></td></tr>
+            </tbody>
+          </table>
+          <small v-if="feedback.extra">{{ feedback.extra }}</small>
+        </div>
       </div>
       <div v-else-if="solvedNow" class="s-feedback is-ok" role="status">
         <span class="s-fb-icon" aria-hidden="true">✅</span>这一步已经做对了。
@@ -375,4 +473,89 @@ async function check() {
 .hint-list .s-hint { margin: 0; }
 .actions .back-btn { margin-left: auto; }
 .s-feedback small { font-weight: 400; color: var(--s-text-2); }
+
+.code-step { display: flex; flex-direction: column; gap: 8px; }
+.editor {
+  display: flex;
+  border: 2px solid var(--s-accent);
+  border-radius: 8px;
+  background: var(--s-code-bg);
+  overflow: hidden;
+}
+.editor.is-done { border-color: var(--s-border-strong); }
+.gutter {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0;
+  min-width: 48px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--s-text-2);
+  background: var(--s-card);
+  border-right: 1px solid var(--s-border);
+  user-select: none;
+}
+.gutter li { padding: 0 10px 0 6px; }
+.gutter li.is-err { background: var(--s-bad-soft); color: var(--s-bad); font-weight: 700; }
+.code-input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 1.6;
+  tab-size: 4;
+  background: transparent;
+  color: var(--s-text);
+}
+.editor:focus-within { outline: 3px solid var(--s-accent); outline-offset: 2px; }
+.code-tip { margin: 0; font-size: 16px; display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline; }
+.link-btn {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--s-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.fb-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.fb-err { font-weight: 700; }
+.fb-raw {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--s-text-2);
+  word-break: break-all;
+}
+.fail-table { border-collapse: collapse; font-size: 17px; font-weight: 400; }
+.fail-table th {
+  text-align: left;
+  padding: 4px 14px 4px 0;
+  vertical-align: top;
+  white-space: nowrap;
+  color: var(--s-text-2);
+  font-weight: 600;
+}
+.fail-table td { padding: 4px 0; }
+.fail-table pre {
+  margin: 0;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  background: var(--s-card);
+  border: 1px solid var(--s-border);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 </style>

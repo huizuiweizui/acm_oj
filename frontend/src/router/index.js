@@ -201,6 +201,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresRole: 'teacher' },
     },
     {
+      path: '/star/teacher/assign',
+      name: 'star-assign',
+      component: () => import('@/views/star/teacher/StarAssignView.vue'),
+      meta: { requiresAuth: true, requiresRole: 'teacher' },
+    },
+    {
       path: '/star/teacher/learners/:uid',
       name: 'star-learner',
       component: () => import('@/views/star/teacher/StarLearnerView.vue'),

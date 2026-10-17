@@ -80,7 +80,7 @@ def context_text(task, step_index):
     if step_index is None or not 0 <= step_index < len(steps):
         return head
     st = steps[step_index]
-    kind = {'choice': '选择题', 'fill': '填空题', 'order': '排序题'}.get(st.get('type'), '')
+    kind = {'choice': '选择题', 'fill': '填空题', 'order': '排序题', 'code': '自己写代码'}.get(st.get('type'), '')
     return f'{head}现在是第 {step_index + 1} 步（{kind}）：{st.get("prompt", "")}（不要直接说出这一步的答案）'
 
 

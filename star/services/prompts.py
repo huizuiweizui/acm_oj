@@ -111,8 +111,11 @@ _LEVEL_RULES = f"""【关卡规则】
  "cards": ["forward"], "slots": 卡槽数, "knowledge": "sequence 或 loop"}}"""
 
 _STEPS_RULES = f"""【分步任务规则】
-· {STEPS_MIN} 到 {STEPS_MAX} 步，最后一步必须是排序题 order：把参考解的全部代码行排成正确顺序。
-· order：lines 逐字复制参考解的全部代码行（保留缩进，不增不减，顺序可以打乱）。
+· {STEPS_MIN} 到 {STEPS_MAX} 步。固定收尾：倒数第二步是排序题 order，最后一步是写代码 code。
+· order：把参考解的全部代码行排成正确顺序。lines 逐字复制参考解的全部代码行（保留缩进，不增不减，顺序可以打乱）。
+· code：学习者自己把整段程序写出来，程序会用测试数据实际运行。starter 是起始代码，
+  只能放 # 开头的注释（每条是一个短句，说这一块要做什么）和参考解里原样的代码行，不能已经是完整答案；
+  第一次写代码的学习者，starter 用注释把每一块要做的事列出来。
 · choice：options 2 到 4 个且互不相同，answer 是唯一正确选项的下标（从 0 开始）。
 · fill：code 是参考解中的某一行，把其中一小段换成 ____（四个下划线），answer 是被挖掉的内容。
 · 每一步都有 hints：恰好 3 条，由少到多——第 1 条只提醒方向，第 2 条点出关键，第 3 条几乎给出答案。
@@ -124,7 +127,8 @@ _STEPS_RULES = f"""【分步任务规则】
 {{"analysis": "...", "title": "...", "intro": ["..."], "theme": "主题词",
  "steps": [{{"type": "choice", "prompt": "...", "options": ["...", "..."], "answer": 0, "hints": ["...", "...", "..."], "knowledge": "sequence"}},
            {{"type": "fill", "prompt": "...", "code": "... ____ ...", "answer": "...", "hints": ["...", "...", "..."], "knowledge": "sequence"}},
-           {{"type": "order", "prompt": "...", "lines": ["..."], "hints": ["...", "...", "..."], "knowledge": "sequence"}}]}}"""
+           {{"type": "order", "prompt": "...", "lines": ["..."], "hints": ["...", "...", "..."], "knowledge": "sequence"}},
+           {{"type": "code", "prompt": "...", "starter": "# ...\\n# ...\\n", "hints": ["...", "...", "..."], "knowledge": "sequence"}}]}}"""
 
 # 少样本示例：各层一个，题目刻意不在素材库里，避免模型照抄答案
 _LEVEL_EXAMPLE_IN = {
@@ -151,7 +155,8 @@ _STEPS_EXAMPLE_IN = {
     'code': 'n = int(input())\nif n > 0:\n    print("yes")\nelse:\n    print("no")\n',
 }
 _STEPS_EXAMPLE_OUT = {
-    'analysis': '知识点是条件判断。拆成三步：先用具体数字理解"大于 0"，再写出判断条件，最后排好整段代码。'
+    'analysis': '知识点是条件判断。拆成四步：先用具体数字理解"大于 0"，再写出判断条件，然后排好整段代码，'
+                '最后自己写一遍；起始代码用注释列出三块要做的事。'
                 '主题用火箭：n 是火箭的燃料，燃料大于 0 才能起飞。',
     'title': '火箭能起飞吗',
     'intro': ['火箭要有燃料才能飞。', '燃料大于 0 就能飞。'],
@@ -164,6 +169,9 @@ _STEPS_EXAMPLE_OUT = {
         {'type': 'order', 'prompt': '{name}，把代码排好。',
          'lines': ['else:', 'n = int(input())', '    print("no")', 'if n > 0:', '    print("yes")'],
          'hints': ['先读入燃料 n。', 'if 在 else 前面。', 'print 放在下面一行。'], 'knowledge': 'condition'},
+        {'type': 'code', 'prompt': '{name}，自己把程序写出来。',
+         'starter': '# 读入燃料 n\n\n# 燃料大于 0，输出 yes\n\n# 不然，输出 no\n',
+         'hints': ['照着注释，一块一块写。', '和上一步排好的代码一样。', 'print 前面空四格。'], 'knowledge': 'condition'},
     ],
 }
 
@@ -197,8 +205,8 @@ def p2_level_messages(profile_text, template, theme_key=''):
 
 
 def p2_steps_messages(profile_text, problem, code, step_size='normal'):
-    granularity = ('这名学习者一次只做一件小事：拆成 4 到 6 步。' if step_size == 'small'
-                   else '拆成 3 到 4 步。')
+    granularity = ('这名学习者一次只做一件小事：拆成 5 到 6 步。' if step_size == 'small'
+                   else '拆成 3 到 5 步。')
     example_user = (f'【学习者画像】\n{_STEPS_EXAMPLE_IN["profile"]}\n\n【原题】\n{_STEPS_EXAMPLE_IN["problem"]}\n\n'
                     f'【参考解（Python）】\n```python\n{_STEPS_EXAMPLE_IN["code"]}```\n\n请输出改造后的分步任务 JSON。')
     user = (f'【学习者画像】\n{profile_text}\n\n'
