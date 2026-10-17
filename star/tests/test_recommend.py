@@ -8,9 +8,11 @@ from .base import LLM_OFF, LLM_ON, StarTestCase, llm_reply, patch_llm
 from .test_api import api
 
 
-def solve(task, hint=0):
-    """把任务的每一步都按给定提示等级做对。"""
-    for i in range(len(task.content['steps'])):
+def solve(task, hint=0, wrong=0, steps=None):
+    """把任务的前 steps 步（默认全部）按给定提示等级做对，每步做对前先错 wrong 次。"""
+    for i in range(steps if steps is not None else len(task.content['steps'])):
+        for _ in range(wrong):
+            StepAttempt.objects.create(task=task, step_index=i, is_correct=False, hint_level=hint)
         StepAttempt.objects.create(task=task, step_index=i, is_correct=True, hint_level=hint)
 
 
@@ -52,6 +54,60 @@ class RuleTests(StarTestCase):
         out = recommend.recommend(lp)
         self.assertEqual(self.keys(out), ['L1', 'L2', 'L3'])
 
+    @LLM_OFF
+    def test_many_wrong_attempts_count_as_weak(self):
+        solve(self.make_steps_task(self.kid, 'sum_two'), hint=0, wrong=3)   # 不看提示，但每步错 3 次
+        out = recommend.recommend(self.lp)
+        self.assertEqual(out['mastery']['sequence']['status'], 'weak')
+        self.assertTrue(all(i['knowledge'] == 'sequence' for i in out['items']))
+        self.assertIn('错的次数较多', out['items'][0]['reason'])
+        self.assertEqual(out['items'][0]['mode'], 'llm')
+
+    @LLM_OFF
+    def test_recent_steps_weigh_more(self):
+        # 早期两题看完整示范，后来两题不看提示：平均提示等级 1.5，但最近已经能独立完成
+        for slug, hint in (('sum_two', 3), ('double', 3), ('minutes', 0), ('rect_area', 0)):
+            solve(self.make_steps_task(self.kid, slug), hint=hint)
+        out = recommend.recommend(self.lp)
+        self.assertGreater(out['mastery']['sequence']['avg_hint'], recommend.MASTER_HINT)
+        self.assertEqual(out['mastery']['sequence']['status'], 'mastered')
+        self.assertTrue(all(i['knowledge'] == 'condition' for i in out['items']))
+
+    @LLM_OFF
+    def test_learning_keeps_one_preview_and_notes_unfinished(self):
+        solve(self.make_steps_task(self.kid, 'sum_two'))
+        solve(self.make_steps_task(self.kid, 'max_two'), steps=2)          # 条件只做对 2 步，任务没做完
+        out = recommend.recommend(self.lp)
+        self.assertEqual(out['mastery']['condition']['status'], 'learning')
+        self.assertEqual([i['knowledge'] for i in out['items']], ['condition', 'condition', 'loop'])
+        self.assertEqual(out['items'][2]['material'], 'count_up')       # 只用到循环的最简单的一道
+        self.assertIn('预习', out['items'][2]['reason'])
+        self.assertIn('1 个已布置的任务还没做完', out['summary'])
+
+    @LLM_OFF
+    def test_missing_prerequisite_goes_last(self):
+        cands = recommend.candidates(self.lp)
+        stats = recommend.learner_stats(self.kid)
+        m = recommend.mastery(stats, recommend.ORDER['intro'])
+        recommend.TOP_N, old = len(cands), recommend.TOP_N
+        try:
+            items, _ = recommend.rule_recommend(self.lp, stats, cands, m)
+        finally:
+            recommend.TOP_N = old
+        keys = [i['material'] for i in items]
+        # 还没学条件和循环："1 加到 n""偶数之和"等跨类素材排在只用一类知识点的素材后面
+        self.assertGreater(keys.index('sum_even'), keys.index('stars'))
+        self.assertIn('前置还不够', items[keys.index('sum_even')]['reason'])
+
+    @LLM_OFF
+    def test_all_mastered_recommends_combined_tasks(self):
+        for slug in ('sum_two', 'odd_even', 'count_up'):
+            solve(self.make_steps_task(self.kid, slug))
+        out = recommend.recommend(self.lp)
+        self.assertTrue(all(v['status'] == 'mastered' for v in out['mastery'].values()))
+        self.assertIn(out['items'][0]['material'], {'sum_to_n', 'times_table', 'sum_even'})
+        self.assertIn('综合题', out['summary'])
+
 
 GOOD = {'summary': '{name}还没开始，先从顺序类入门。',
         'items': [{'material': 'double', 'reason': '{name}喜欢恐龙，两倍题最短，先建立信心', 'mode': 'llm'},
@@ -74,6 +130,7 @@ class LLMTests(StarTestCase):
         self.assertEqual(out['rule']['items'][0]['material'], 'sum_two')
         prompt = json.dumps(post.call_args.args[0]['messages'], ensure_ascii=False)
         self.assertIn('规则算法的建议', prompt)
+        self.assertIn('mastery', prompt)                    # 掌握度也给大模型看
         self.assertNotIn('阿杰', prompt)
         self.assertNotIn(self.kid.username, prompt)
         log = LLMCallLog.objects.get(purpose='P6')
@@ -111,5 +168,6 @@ class LLMTests(StarTestCase):
         r = api(self.teacher).post(url)
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()['source'], 'rule')
+        self.assertEqual(r.json()['mastery']['sequence']['status'], 'new')
         self.assertEqual(api(self.other_teacher).post(url).status_code, 404)
         self.assertEqual(api(self.kid).post(url).status_code, 403)

@@ -38,6 +38,7 @@ from .permissions import (
 )
 from .services.judge_queue import RunQueueBusy, enqueue, run_slot
 from .services.judger import PROBLEM_FULL_SCORE
+from .services.recommend import recommend_problems
 
 
 # ==================== 认证 ====================
@@ -1145,6 +1146,20 @@ class ContestRankingAPIView(APIView):
             'problem_labels': [cp.label for cp in contest_problems],
             'ranked_users': ranked,
         })
+
+
+# ==================== 今日推荐 ====================
+
+class RecommendAPIView(APIView):
+    """GET /api/recommend/?n=3 —— 按做题记录给当前用户推荐题目（作业 → 重做 → 练习）"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            n = min(10, max(1, int(request.query_params.get('n', 3))))
+        except ValueError:
+            n = 3
+        return Response({'items': recommend_problems(request.user, n)})
 
 
 # ==================== 平台统计 ====================

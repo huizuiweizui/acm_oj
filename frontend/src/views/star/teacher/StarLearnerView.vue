@@ -164,6 +164,7 @@ const rec = ref(null)
 const recBusy = ref(false)
 const showRule = ref(false)
 const MODE_TEXT = { llm: '建议大模型改造', template: '默认版本即可' }
+const MASTERY_BADGE = { new: 'plain', learning: 'info', weak: 'warn', mastered: 'ok' }
 
 async function loadRec() {
   recBusy.value = true
@@ -456,7 +457,8 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
           </div>
           <p v-if="!rec" class="st-muted">
             大模型根据画像、各知识点的提示等级和已布置的任务，从还没布置过的素材里挑 1–3 项并说明理由；
-            程序检查它只选候选里的素材，不合格时用规则推荐（顺序 → 条件 → 循环，先巩固没掌握的一类）。
+            程序检查它只选候选里的素材，不合格时用规则推荐：按提示等级、错误次数和最近表现算各知识点掌握度，
+            顺序 → 条件 → 循环先巩固没掌握的一类，用到还没学的知识点的素材往后放。
           </p>
           <template v-else>
             <p class="st-row">
@@ -466,6 +468,13 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
               <span>{{ rec.summary }}</span>
             </p>
             <p v-if="rec.note" class="st-muted">{{ rec.note }}</p>
+            <p v-if="rec.mastery" class="st-row rec-mastery">
+              <span class="st-muted">掌握度</span>
+              <span v-for="(m, k) in rec.mastery" :key="k" class="st-badge" :class="MASTERY_BADGE[m.status]"
+                    :title="`做对 ${m.solved} 步 / 作答 ${m.tried} 步`">
+                {{ m.name }} · {{ m.status_text }}<template v-if="m.score !== null">（{{ m.score }}）</template>
+              </span>
+            </p>
             <ol class="rec-list">
               <li v-for="it in rec.items" :key="it.material">
                 <div class="rec-main">
@@ -707,6 +716,7 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
 .rec-main { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 320px; }
 .rec-reason { flex-basis: 100%; margin: 2px 0 0; }
 .rec-rule { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; }
+.rec-mastery { gap: 6px; font-size: 13px; }
 .rec-rule ol { margin: 6px 0 0; padding-left: 1.4em; }
 .gap { margin-top: 10px; }
 .ok-notice { border-color: var(--status-ac-dot); background: var(--status-ac-bg); color: var(--status-ac-text); }

@@ -52,6 +52,7 @@
  *   streak: number
  *   heatmap: HeatmapEntry[]
  *   recommend: RecommendProblem | null
+ *   recommendList: RecommendProblem[]   // GET /api/recommend/，作业 → 重做 → 练习
  *   recentSubmissions: RecentSubmission[]
  *   recentContests: ContestItem[]
  * }
@@ -203,6 +204,10 @@ onMounted(async () => {
 
   if (userStore.isLoggedIn) {
     try {
+      const { data } = await api.get('/recommend/', { params: { n: 5 } })
+      dashboard.value = { ...dashboard.value, recommend: data.items[0] ?? null, recommendList: data.items }
+    } catch { /* keep mocks */ }
+    try {
       const { data } = await api.get('/submissions/', { params: { page_size: 5 } })
       const subs = (data.results ?? data).slice(0, 5).map(s => ({
         id: s.id,
@@ -300,7 +305,7 @@ onMounted(async () => {
         <!-- 2×2 grid: heatmap | recommend / judge | contests -->
         <div class="dash-grid">
           <HeatmapCard     :submissions="dashboard.heatmap" />
-          <RecommendCard   :problem="dashboard.recommend" />
+          <RecommendCard   :problem="dashboard.recommend" :problems="dashboard.recommendList ?? []" />
           <RecentJudgeCard :submissions="dashboard.recentSubmissions" />
           <ContestCard     :contests="dashboard.recentContests" />
         </div>

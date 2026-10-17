@@ -27,7 +27,7 @@ from .api_views import (
     DiscussionListAPIView, DiscussionReplyCreateAPIView, DiscussionReplyDeleteAPIView,
     LeaderboardAPIView,
     AdminStatsAPIView, AdminUserListAPIView, AdminUserUpdateAPIView, AdminTransferSuperAdminAPIView,
-    LoginAPIView, LogoutAPIView, MeAPIView, PlatformStatsAPIView, ProblemDetailAPIView,
+    LoginAPIView, LogoutAPIView, MeAPIView, PlatformStatsAPIView, RecommendAPIView, ProblemDetailAPIView,
     ProblemListAPIView, RegisterAPIView,
     SubmissionListAPIView, SubmissionDetailAPIView,
     SubmitCodeAPIView, CustomRunAPIView, UserProfileAPIView, UserStatsAPIView,
@@ -76,6 +76,7 @@ urlpatterns = [
 
     # 平台统计
     path('stats/', PlatformStatsAPIView.as_view(), name='api-stats'),
+    path('recommend/', RecommendAPIView.as_view(), name='api-recommend'),
 
     # 管理员
     path('admin/stats/', AdminStatsAPIView.as_view(), name='api-admin-stats'),
