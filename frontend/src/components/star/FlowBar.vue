@@ -1,5 +1,7 @@
 <script setup>
 // 学习流程条：共几步、现在第几步、哪几步做完了。一屏一步，学习者随时知道还剩多少。
+// 做完的步骤用学生在问卷里最喜欢的形状做标记（● ■ ★ ♥ …），没选过就是 ✓。
+import { starMark } from './starUi'
 defineProps({
   total: { type: Number, required: true },
   current: { type: Number, required: true },   // 从 0 起
@@ -17,7 +19,7 @@ defineProps({
         :key="i"
         :class="{ 'is-current': i - 1 === current, 'is-done': done.includes(i - 1) }"
       >
-        <span v-if="done.includes(i - 1)">✓<span class="sr-only">已完成</span></span>
+        <span v-if="done.includes(i - 1)">{{ starMark }}<span class="sr-only">已完成</span></span>
         <span v-else>{{ i }}</span>
       </li>
     </ol>

@@ -6,6 +6,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import FlowBar from './FlowBar.vue'
 import { getHint, submitAttempt } from '@/api/star'
+import { starMark } from './starUi'
 
 const props = defineProps({
   taskId: { type: Number, required: true },
@@ -256,7 +257,7 @@ async function check() {
         >
           <span class="opt-letter" aria-hidden="true">{{ 'ABCD'[i] }}</span>
           <span>{{ opt }}</span>
-          <span v-if="selected === i" class="s-check" aria-hidden="true">✓</span>
+          <span v-if="selected === i" class="s-check" aria-hidden="true">{{ starMark }}</span>
         </button>
       </div>
 

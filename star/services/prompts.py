@@ -249,8 +249,10 @@ P3_SYSTEM = f"""你是"星语"编程学伴，正在辅导一名孤独症学习�
 
 
 def p3_messages(profile_text, context_text, history, user_text, *, pronoun_note=False,
-                echo_note=False, replaced=None):
+                echo_note=False, replaced=None, intent=None, pronoun_hints=None, max_len=20):
     system = f'{P3_SYSTEM}\n\n【学习者画像】\n{profile_text}'
+    if max_len < 20:
+        system += f'\n\n【句长】这名学习者在启蒙层：reply 不超过 {max_len} 个字。'
     if pronoun_note:
         system += ('\n\n【理解提示】这名学习者有时用"你"指自己、用"我"指对方。理解时按这个习惯推断真实意图，'
                    '例如"你要提示"通常是"我要提示"；不要纠正这种说法。')
@@ -261,6 +263,11 @@ def p3_messages(profile_text, context_text, history, user_text, *, pronoun_note=
         role = 'assistant' if turn['role'] == 'bot' else 'user'
         messages.append({'role': role, 'content': turn['text']})
     note = []
+    if pronoun_hints:
+        note.append('（代词提示：' + '；'.join(pronoun_hints) + '）')
+    if intent and intent.get('intent'):
+        note.append(f'（意图识别结果：{intent["intent"]}，{intent.get("restated") or ""}。'
+                    f'回复要针对这个意图；仍按规则输出 intent 字段。）')
     if replaced:
         note.append('（已按个人词表把学习者的说法换成标准说法：'
                     + '；'.join(f'"{w}"→"{m}"' for w, m in replaced) + '）')

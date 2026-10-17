@@ -356,6 +356,6 @@ class Command(BaseCommand):
             'experiment': '大模型调用日志汇总',
             'total_calls': sum(r['calls'] for r in rows),
             'total_tokens': sum(r['total_tokens'] for r in rows),
-            'by_purpose': {p: sum(r['calls'] for r in rows if r['purpose'] == p) for p in ('P1', 'P2', 'P3', 'P4')},
+            'by_purpose': {p: sum(r['calls'] for r in rows if r['purpose'] == p) for p in ('P1', 'P2', 'P3', 'P4', 'P5')},
         }
         return rows, summary

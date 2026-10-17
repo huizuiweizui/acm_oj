@@ -157,20 +157,27 @@ pipe_ablation = InputPipeline(llm, disabled=COMM_SKILLS)  # 关闭仿说检测�
 
 ## 与平台其他部分的关系
 
-本包在 `feat/star-integration` 上，但**还没有接进任何生产代码**：`star/services/assistant.py` 仍在用自己的
-`difflib` 仿说检测、精确词表替换和 `validators.check_reply`。下面三处是接入点，以及"两种实现并存期间"要注意的地方。
+对话助手已经接入本包（见下面第 1 节）；题目改造链还没有接。
 
-### 1. 对话助手 `star/services/assistant.py`
+### 1. 对话助手 `star/services/assistant.py`（**已接入**）
 
-`reply()` 的第 2–4 步（仿说、词表、代词）整体换成本包的 `InputPipeline.run()`，用 `PipelineResult.intent`
-决定后续动作（给提示 / 跳过 / 找老师），`text` 与 `mappings` 可以直接记进对话记录供教师查看。
+`reply()` 按本文档的流程处理学生的每一句话：
 
-- 仿说阈值两套不一致：本包默认 0.85，`assistant.py` 是 0.8，而且另有一条"只复述上一句结尾"的后缀判定。
-  接的时候要定一个，否则同一个学生同一句话在两条链路上判定不同。
-- `star/skills/llm.py` 的 `OpenAICompatClient` **不做姓名脱敏**，`star/services/llm.py` 的 `redact()` 会做。
-  换封装时先把消息脱敏再交进来，否则会破坏"不把姓名发给大模型"的约定。
-- 本包每次调用（含失败重试）都通过 `on_call` 回调交出记录，接的时候把它写进 `LLMCallLog`，
-  否则消融实验没有数据。
+```
+求助护栏 → 分词 → 仿说检测 → 词表映射 → 代词标注 → 意图识别（大模型 P5）
+        → 系统生成回复（大模型 P3）→ 结构校验 + 字面化检查（不合格回填改一次）→ 展示
+```
+
+- 规则部分（分词到代词标注）用 `InputPipeline(None, disabled={"intent"})` 先跑；意图识别单独调 `IntentSkill`。
+  这样同一学生在同一步骤问同一句话时，回复和意图一起从缓存取，不再调大模型。
+- 仿说阈值统一为平台原来的 **0.8**（本包默认 0.85）；原来的"只复述上一句结尾"判定由本包的分句比较代替。
+- 大模型走平台自己的 `star/services/llm.py`（适配类 `_PlatformLLM`）：发出前把姓名、昵称、用户名换成 `{name}`，
+  每次调用写一条 `LLMCallLog`，意图识别的用途记为 **P5**。本包的 `OpenAICompatClient` 不做脱敏，平台里不用它。
+- `intent` 为 `need_help` 时直接回"这件事请告诉老师"；仿说时不做意图识别，请模型换一种更简单的问法。
+- 意图、词表替换、代词提示、候选新词都记进对话记录的 `meta`，教师端"对话"页逐条显示。
+- 字面化检查按层级取句长上限（启蒙层 12 字 / 入门层 20 字），只把"错误"级问题回填给模型。
+- 未配置大模型时：意图识别退回关键词规则，回复用固定的兜底话术。
+- `assistant.is_echolalia / apply_vocabulary` 是接入前的简化实现，仍留给 `star_eval` 的消融实验做对照组。
 
 ### 2. 题目改造链 `star/services/adapt.py` / `validators.py`
 

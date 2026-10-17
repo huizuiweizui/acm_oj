@@ -124,6 +124,7 @@ class LLMCallLog(models.Model):
         ('P2', '任务改造'),
         ('P3', '对话辅导'),
         ('P4', '学习报告'),
+        ('P5', '意图识别'),
     ]
 
     purpose = models.CharField('用途', max_length=2, choices=PURPOSE_CHOICES, db_index=True)

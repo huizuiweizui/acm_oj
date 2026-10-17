@@ -233,12 +233,24 @@ function printReport() {
 }
 
 // ── 对话记录 ──
+// 每条回复带着 skills 流水线的处理结果：意图、词表替换、代词提示、候选新词
+const INTENT_TEXT = {
+  answer: '作答', ask_hint: '要提示', dont_know: '不会', skip: '想跳过',
+  chat: '闲聊', need_help: '需要帮助', unclear: '无法判断', echo: '仿说',
+}
+const INTENT_SOURCE = { llm: '大模型', llm_repaired: '大模型·修复后', rule: '关键词规则', option: '点了选项', yes_no: '正反问回答' }
 function metaTags(m) {
   const t = []
   const meta = m.meta || {}
   if (meta.guard) t.push({ cls: 'bad', text: '求助护栏' })
+  if (meta.intent?.intent) {
+    const src = INTENT_SOURCE[meta.intent.source] || meta.intent.source || ''
+    t.push({ cls: 'info', text: `意图：${INTENT_TEXT[meta.intent.intent] || meta.intent.intent}${src ? `（${src}）` : ''}` })
+  }
   if (meta.echolalia) t.push({ cls: 'warn', text: '仿说：换问法' })
   for (const [w, s] of meta.replaced || []) t.push({ cls: 'info', text: `词表：${w}→${s}` })
+  for (const h of meta.pronoun_hints || []) t.push({ cls: 'info', text: `代词：${h}` })
+  for (const w of meta.candidates || []) t.push({ cls: 'warn', text: `新词？${w}` })
   if (meta.cached) t.push({ cls: 'plain', text: '缓存回答' })
   if (meta.fallback) t.push({ cls: 'plain', text: '兜底回复' })
   return t

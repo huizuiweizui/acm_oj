@@ -1,11 +1,13 @@
-"""对话助手：仿说检测、自创词替换、求助护栏、缓存、身份信息不出平台、兜底回复。"""
+"""对话助手：skills 流水线（仿说、词表、代词、意图）、求助护栏、字面化检查、缓存、身份信息不出平台、兜底回复。"""
 from django.core.cache import cache
 
+from star.models import LLMCallLog
 from star.services import assistant
 
 from .base import LLM_OFF, LLM_ON, StarTestCase, llm_reply, patch_llm
 
 REPLY = {'intent': 'ask_hint', 'reply': '{name}，我们看第一条提示。', 'options': ['看提示', '再试一次']}
+INTENT = {'intent': 'ask_hint', 'answer': '', 'restated': '学生想要提示', 'confidence': 0.8}
 
 
 class EcholaliaTests(StarTestCase):
@@ -46,53 +48,105 @@ class ReplyTests(StarTestCase):
 
     @LLM_ON
     def test_pipeline_and_privacy(self):
-        with patch_llm(llm_reply(REPLY)) as post:
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY)) as post:
             out = assistant.reply(self.lp, '阿杰想知道大长脖怎么走')
-        sent = post.call_args.args[0]
-        text = str(sent['messages'])
+        intent_call, reply_call = (c.args[0] for c in post.call_args_list)
+        self.assertIn('意图识别', intent_call['messages'][0]['content'])   # 第 5 步：意图识别
+        text = str(reply_call['messages'])
         self.assertIn('腕龙', text)                     # 自创词已替换
         self.assertNotIn('大长脖怎么走', text)
         self.assertIn('用"你"指自己', text)             # 代词提示写进了系统提示词
-        self.assertNotIn('阿杰', text)                   # 昵称换成了 {name}
-        self.assertEqual(sent['temperature'], 0.2)
+        self.assertIn('意图识别结果：ask_hint', text)   # 意图交给了回复生成
+        for call in (intent_call, reply_call):
+            self.assertNotIn('阿杰', str(call['messages']))   # 昵称换成了 {name}
+        self.assertEqual(reply_call['temperature'], 0.2)
         self.assertEqual(out['reply'], '阿杰，我们看第一条提示。')
         self.assertEqual(out['meta']['replaced'], [['大长脖', '腕龙']])
+        self.assertEqual(out['meta']['intent']['intent'], 'ask_hint')
+        purposes = list(LLMCallLog.objects.order_by('id').values_list('purpose', flat=True))
+        self.assertEqual(purposes, ['P5', 'P3'])
+
+    @LLM_ON
+    def test_pronoun_hint_reaches_both_calls(self):
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY)) as post:
+            out = assistant.reply(self.lp, '你要提示')
+        self.assertEqual(len(out['meta']['pronoun_hints']), 1)
+        self.assertIn('可能指他自己', out['meta']['pronoun_hints'][0])
+        for call in post.call_args_list:
+            last = call.args[0]['messages'][-1]['content']
+            self.assertIn('可能指他自己（{name}）', last)
+            self.assertNotIn('阿杰', str(call.args[0]['messages']))
+
+    @LLM_ON
+    def test_no_pronoun_hint_without_flag(self):
+        self.lp.profile['communication']['pronoun_reversal'] = False
+        self.lp.save()
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY)) as post:
+            out = assistant.reply(self.lp, '你要提示')
+        self.assertEqual(out['meta']['pronoun_hints'], [])
+        last = post.call_args_list[0].args[0]['messages'][-1]['content']    # 少样本示例之后的真实输入
+        self.assertIn('代词提示：无', last)
 
     @LLM_ON
     def test_same_question_hits_cache(self):
-        with patch_llm(llm_reply(REPLY)) as post:
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY)) as post:
             first = assistant.reply(self.lp, '怎么办')
             second = assistant.reply(self.lp, '怎么办')
-        self.assertEqual(post.call_count, 1)
+        self.assertEqual(post.call_count, 2)            # 第二次连意图识别都不用再调
         self.assertEqual(first['reply'], second['reply'])
         self.assertTrue(second['meta']['cached'])
+        self.assertEqual(second['meta']['intent']['intent'], 'ask_hint')
+
+    @LLM_ON
+    def test_need_help_intent_goes_to_teacher(self):
+        with patch_llm(llm_reply(dict(INTENT, intent='need_help'))) as post:
+            out = assistant.reply(self.lp, '我不想学了')
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(out['reply'], assistant.HELP_REPLY['reply'])
+        self.assertTrue(out['meta']['guard'])
 
     @LLM_ON
     def test_echolalia_asks_model_to_rephrase(self):
-        with patch_llm(llm_reply(REPLY), llm_reply(dict(REPLY, intent='echo'))) as post:
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY), llm_reply(dict(REPLY, intent='echo'))) as post:
             assistant.reply(self.lp, '怎么办')
             out = assistant.reply(self.lp, '我们看第一条提示')
         self.assertTrue(out['meta']['echolalia'])
+        self.assertEqual(post.call_count, 3)            # 仿说不做意图识别，直接请模型换问法
         self.assertIn('可能是仿说', post.call_args.args[0]['messages'][-1]['content'])
 
     @LLM_ON
     def test_tapping_an_option_is_not_echolalia(self):
-        with patch_llm(llm_reply(REPLY), llm_reply(REPLY)):
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY), llm_reply(REPLY)) as post:
             assistant.reply(self.lp, '怎么办')
             out = assistant.reply(self.lp, '看提示', via='option')
         self.assertFalse(out['meta']['echolalia'])
+        self.assertEqual(out['meta']['intent']['source'], 'option')   # 点选项由规则判定，不调意图识别
+        self.assertEqual(post.call_count, 3)
+
+    @LLM_ON
+    def test_reply_failing_plain_check_is_rewritten(self):
+        long_reply = dict(REPLY, reply='难道你不知道小火车应该先向前走再转弯吗')
+        with patch_llm(llm_reply(INTENT), llm_reply(long_reply), llm_reply(REPLY)) as post:
+            out = assistant.reply(self.lp, '怎么办')
+        self.assertEqual(post.call_count, 3)
+        self.assertIn('反问', post.call_args.args[0]['messages'][-1]['content'])
+        self.assertFalse(out['meta']['fallback'])
+        self.assertEqual(out['reply'], '阿杰，我们看第一条提示。')
 
     @LLM_ON
     def test_invalid_model_reply_falls_back(self):
-        with patch_llm(llm_reply({'intent': 'diagnose', 'reply': '...', 'options': []})):
+        bad = llm_reply({'intent': 'diagnose', 'reply': '...', 'options': []})
+        with patch_llm(llm_reply(INTENT), bad, bad):
             out = assistant.reply(self.lp, '怎么办')
         self.assertTrue(out['meta']['fallback'])
         self.assertEqual(out['options'], assistant.FALLBACK_REPLY['options'])
 
     @LLM_OFF
     def test_without_llm_still_answers_and_logs(self):
-        out = assistant.reply(self.lp, '怎么办')
+        out = assistant.reply(self.lp, '我不会')
         self.assertTrue(out['meta']['fallback'])
+        self.assertEqual(out['meta']['intent'], {'intent': 'dont_know', 'restated': '学生不会',
+                                                 'confidence': 0.5, 'source': 'rule'})
         self.lp.refresh_from_db()
         roles = [m['role'] for m in self.lp.dialogue['assistant']]
         self.assertEqual(roles, ['user', 'bot'])
