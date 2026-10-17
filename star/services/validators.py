@@ -217,7 +217,7 @@ def check_level(c, no_pronoun=False):
         r.append('主题名不超过 6 个字')
     for k in ('hero', 'goal', 'wall'):
         v = c['theme'][k].strip()
-        if not 1 <= len(v) <= 4 or re.search(r'[A-Za-z0-9一-鿿]', v):
+        if not 1 <= len(v) <= 4 or re.search(r'[A-Za-z0-9\u4e00-\u9fff]', v):
             r.append(f'theme.{k} 必须是一个 emoji 图标，现在是"{v}"')
     if r:
         return chk          # 地图本身不合法，不必再搜

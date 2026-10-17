@@ -20,7 +20,7 @@ from .segment import normalize
 
 _NON_WORD = re.compile(r"[\W_]+", re.UNICODE)
 _CLAUSE_SPLIT = re.compile(r"[,，。.!！?？;；:：、\s]+")
-_A_NOT_A = re.compile(r"([一-鿿])不\1")  # 要不要、是不是、会不会、能不能……
+_A_NOT_A = re.compile(r"([\u4e00-\u9fff])不\1")  # 要不要、是不是、会不会、能不能……
 
 
 def core(text: str) -> str:

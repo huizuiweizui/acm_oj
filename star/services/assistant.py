@@ -8,9 +8,11 @@
        仿说时不当成新内容理解，而是请模型换一种更简单的问法重问；
     3. 词表映射：按个人词表把自创词换成标准词（精确 / 同音 / 相近三轮），另列出候选新词给教师确认；
     4. 代词标注：画像标记了代词逆转时，生成"学生说的'你'可能指他自己"这类理解提示（只用于理解，不纠正）；
-    5. 意图识别（大模型，P5）：结合以上结果判断学生想做什么；need_help 直接转给老师；
-    6. 系统生成回复（P3），提示词里带上意图、词表替换和代词提示；
-    7. 字面化检查：句长（启蒙层 12 字 / 入门层 20 字）、双重否定、反问——不合格回填给模型改一次。
+    5. 表达记忆：这个学生以前说过、已经记住意图的话，直接用记住的意图，不调大模型（见 expressions.py）；
+    6. 意图识别（大模型，P5）：结合以上结果判断学生想做什么；need_help 直接转给老师；
+       高置信度的结果记进表达记忆，同一句话两次一致后生效；
+    7. 系统生成回复（P3），提示词里带上意图、词表替换和代词提示；
+    8. 字面化检查：句长（启蒙层 12 字 / 入门层 20 字）、双重否定、反问——不合格回填给模型改一次。
 一致性：温度 0.2；同一学生在同一步骤问同一句话，直接返回缓存的回答。
 发给大模型的内容一律先把姓名、昵称、用户名换成 {name}。
 
@@ -28,7 +30,7 @@ from ..skills import (LEVEL_ENTRY, LEVEL_STARTER, InputPipeline, IntentSkill, Le
                       Turn, check_text)
 from ..skills.lexicon import HAS_PINYIN
 from ..skills.plain_check import MAX_SENTENCE_LEN
-from . import llm, prompts
+from . import expressions, llm, prompts
 from .validators import check_reply
 
 ECHO_THRESHOLD = 0.8
@@ -111,6 +113,7 @@ def learner_view(lp):
         pronoun_reversal=bool(comm.get('pronoun_reversal')),
         echolalia=bool(comm.get('echolalia')),
         interests=list(prof.get('interests') or []),
+        expressions=expressions.active_entries(lp),
     )
 
 
@@ -141,7 +144,7 @@ class _PlatformLLM:
 
 def run_rules(lp, text, *, task=None, step=None, history=()):
     """
-    skills 流水线的规则部分：分词 → 仿说检测 → 词表映射 → 代词标注（不调大模型）。
+    skills 流水线的规则部分：分词 → 仿说检测 → 词表映射 → 代词标注 → 表达记忆（不调大模型）。
     仿说阈值沿用平台原来的 0.8（skills 默认 0.85）。
     意图识别单独做（detect_intent）：同一句话命中缓存时就不必再调一次大模型。
     """
@@ -177,7 +180,7 @@ def reply(lp, text, *, task=None, step=None, via='text'):
     history = list(dialogue.get('assistant') or [])
     last_bot = next((m['text'] for m in reversed(history) if m.get('role') == 'bot'), '')
     meta = {'echolalia': False, 'replaced': [], 'cached': False, 'fallback': False, 'guard': False,
-            'intent': None, 'pronoun_hints': [], 'candidates': []}
+            'intent': None, 'pronoun_hints': [], 'candidates': [], 'memory': None}
 
     if needs_teacher(text):
         out, meta['guard'] = dict(HELP_REPLY), True
@@ -191,8 +194,10 @@ def reply(lp, text, *, task=None, step=None, via='text'):
             candidates=list(result.candidate_words or []),
         )
         key = _cache_key(lp.user_id, task.id if task else 0, step, result.text, last_bot if echo else '')
+        mem = ctx.state.get('memory_hit')
         hit = cache.get(key)
-        if isinstance(hit, dict) and 'out' in hit:
+        # 教师改过这句话的意图时，旧缓存作废
+        if isinstance(hit, dict) and 'out' in hit and not (mem and (hit.get('intent') or {}).get('intent') != mem['intent']):
             out, meta['intent'], meta['cached'] = dict(hit['out']), hit.get('intent'), True
         else:
             meta['intent'] = dict(ECHO_INTENT) if echo else detect_intent(lp, text, ctx, task=task)
@@ -203,6 +208,13 @@ def reply(lp, text, *, task=None, step=None, via='text'):
                 meta['fallback'] = out.pop('_fallback', False)
                 if not meta['fallback']:
                     cache.set(key, {'out': out, 'intent': meta['intent']}, CACHE_SECONDS)
+            if not echo:
+                event = expressions.learn(lp, result.text, meta['intent'])
+                if event:
+                    meta['memory'] = {'event': event, 'text': result.text}
+        if mem and (meta['intent'] or {}).get('source') == 'memory':
+            expressions.record_hit(lp, mem['text'])
+            meta['memory'] = {'event': 'hit', 'text': mem['text'], 'method': mem['method']}
 
     out = {k: llm.fill_name(v, nickname) for k, v in out.items()}
     now = timezone.now().isoformat()
@@ -213,7 +225,7 @@ def reply(lp, text, *, task=None, step=None, via='text'):
     ]
     dialogue['assistant'] = history[-HISTORY_KEEP:]
     lp.dialogue = dialogue
-    lp.save(update_fields=['dialogue', 'updated_at'])
+    lp.save(update_fields=['dialogue', 'expressions', 'updated_at'])
     return dict(out, meta=meta)
 
 

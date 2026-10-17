@@ -2,14 +2,14 @@
 固定顺序的处理流水线。
 
 学生输入：
-  分词与规范化 → 仿说检测（是仿说就停止，换问法重问）→ 词表映射 → 代词标注 → 意图识别
+  分词与规范化 → 仿说检测（是仿说就停止，换问法重问）→ 词表映射 → 代词标注 → 表达记忆 → 意图识别
 
 系统输出：
   字面化检查（check_reply）
 
 disabled 参数可以关掉某几个 skill，用于消融实验，例如
-  InputPipeline(llm, disabled={"echo_detect", "lexicon_map", "pronoun_tag"})
-表示“关闭沟通特征处理”。分词是其他 skill 的基础，不能关闭。
+  InputPipeline(llm, disabled=COMM_SKILLS)
+表示“关闭沟通特征处理”（仿说检测、词表映射、代词标注、表达记忆）。分词是其他 skill 的基础，不能关闭。
 """
 from __future__ import annotations
 
@@ -21,12 +21,13 @@ from .echo import EchoDetectSkill
 from .intent import IntentSkill
 from .lexicon import LexiconMapSkill
 from .llm import LLMClient
+from .memory import ExpressionMemorySkill
 from .plain_check import PlainCheckSkill
 from .pronoun import PronounTagSkill
 from .segment import SegmentSkill
 
-INPUT_ORDER = ("segment", "echo_detect", "lexicon_map", "pronoun_tag", "intent")
-COMM_SKILLS = frozenset({"echo_detect", "lexicon_map", "pronoun_tag"})  # 沟通特征处理
+INPUT_ORDER = ("segment", "echo_detect", "lexicon_map", "pronoun_tag", "expr_memory", "intent")
+COMM_SKILLS = frozenset({"echo_detect", "lexicon_map", "pronoun_tag", "expr_memory"})  # 沟通特征处理
 
 
 @dataclass
@@ -55,6 +56,7 @@ class InputPipeline:
             "echo_detect": EchoDetectSkill(threshold=echo_threshold),
             "lexicon_map": LexiconMapSkill(fuzzy_threshold=fuzzy_threshold, use_pinyin=use_pinyin),
             "pronoun_tag": PronounTagSkill(),
+            "expr_memory": ExpressionMemorySkill(),
             "intent": IntentSkill(llm),
         }
         unknown = set(disabled) - set(INPUT_ORDER)

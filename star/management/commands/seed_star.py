@@ -124,6 +124,11 @@ class Command(BaseCommand):
                           help_preference=spec['survey']['help'], ui=profile_svc.build_ui(lp.survey),
                           source='seed')
         lp.vocabulary = spec['vocabulary']
+        # 表达记忆是学生用出来的，不重置就保留已经学到的
+        if reset or not lp.expressions:
+            now = timezone.now().isoformat()
+            lp.expressions = [{'text': t, 'intent': i, 'status': st, 'votes': v, 'hits': h,
+                               'learned_at': now, 'last_at': now} for t, i, st, v, h in spec.get('expressions', [])]
         # 重置时连对话助手的记录一起清空，演示从干净状态开始
         lp.dialogue = dict({} if reset else (lp.dialogue or {}), intro=[
             {'key': k, 'question': q, 'answer': a, 'via': 'text'} for k, q, a in spec['intro']

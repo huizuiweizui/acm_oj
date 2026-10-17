@@ -27,6 +27,8 @@ class LearnerView:
     pronoun_reversal: bool = False  # 沟通特点：你、我的用法和常规不同
     echolalia: bool = False         # 沟通特点：常重复别人刚说过的话
     interests: list[str] = field(default_factory=list)
+    # 个人表达记忆中已生效的条目：[{"text": 学生的说法, "intent": 意图}]
+    expressions: list[dict] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "LearnerView":
@@ -38,6 +40,8 @@ class LearnerView:
             pronoun_reversal=bool(d.get("pronoun_reversal", False)),
             echolalia=bool(d.get("echolalia", False)),
             interests=[str(x) for x in (d.get("interests") or [])],
+            expressions=[{"text": str(e.get("text", "")), "intent": str(e.get("intent", ""))}
+                         for e in (d.get("expressions") or []) if isinstance(e, dict)],
         )
 
 

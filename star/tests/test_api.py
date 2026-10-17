@@ -327,6 +327,32 @@ class TeacherTests(StarTestCase):
         self.assertEqual(self.lp.vocabulary, [{'word': '大长脖', 'meaning': '腕龙'}])
         self.assertTrue(self.lp.profile['communication']['pronoun_reversal'])
 
+    def test_edit_expressions_keeps_counts(self):
+        self.lp.expressions = [
+            {'text': '我要嘀嘀', 'intent': 'ask_hint', 'status': 'auto', 'votes': 2, 'hits': 3,
+             'learned_at': 't0', 'last_at': 't1'},
+            {'text': '小火车累了', 'intent': 'chat', 'status': 'auto', 'votes': 1, 'hits': 0,
+             'learned_at': 't0', 'last_at': 't0'},
+        ]
+        self.lp.save()
+        url = f'/api/star/teacher/learners/{self.kid.id}/'
+        rows = {e['text']: e for e in api(self.teacher).get(url).json()['learner']['expressions']}
+        self.assertTrue(rows['我要嘀嘀']['active'])
+        self.assertFalse(rows['小火车累了']['active'])     # 只一票，还没生效
+        r = api(self.teacher).patch(url, {'expressions': [
+            {'text': '我要嘀嘀', 'intent': 'ask_hint', 'status': 'auto'},
+            {'text': '小火车累了', 'intent': 'skip', 'status': 'auto'},     # 教师改了意图
+            {'text': '飞走', 'intent': 'skip'},                             # 教师手动添加
+            {'text': '随便', 'intent': 'answer'},                           # 作答不能记
+        ]}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.lp.refresh_from_db()
+        got = {e['text']: e for e in self.lp.expressions}
+        self.assertEqual(set(got), {'我要嘀嘀', '小火车累了', '飞走'})
+        self.assertEqual((got['我要嘀嘀']['status'], got['我要嘀嘀']['hits']), ('auto', 3))
+        self.assertEqual((got['小火车累了']['intent'], got['小火车累了']['status']), ('skip', 'confirmed'))
+        self.assertEqual(got['飞走']['status'], 'confirmed')
+
     def test_llm_mode_without_key_is_503(self):
         r = api(self.teacher).post(f'/api/star/teacher/learners/{self.kid.id}/tasks/', {'material': 'sum_two'},
                                    format='json')

@@ -2,7 +2,7 @@
 from django.core.cache import cache
 
 from star.models import LLMCallLog
-from star.services import assistant
+from star.services import assistant, expressions
 
 from .base import LLM_OFF, LLM_ON, StarTestCase, llm_reply, patch_llm
 
@@ -150,3 +150,53 @@ class ReplyTests(StarTestCase):
         self.lp.refresh_from_db()
         roles = [m['role'] for m in self.lp.dialogue['assistant']]
         self.assertEqual(roles, ['user', 'bot'])
+
+
+class ExpressionMemoryTests(StarTestCase):
+    """个人表达记忆：大模型两次一致后生效，生效后同一说法不再调意图识别；教师改意图后旧缓存作废。"""
+
+    def setUp(self):
+        cache.clear()
+        self.lp = self.make_profile(self.kid, nickname='阿杰')
+        self.lp.vocabulary = [{'word': '嘀嘀', 'meaning': '提示'}]
+        self.lp.save()
+
+    @LLM_ON
+    def test_learn_twice_then_hit(self):
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY), llm_reply(INTENT), llm_reply(REPLY)):
+            first = assistant.reply(self.lp, '我要嘀嘀', step=0)
+            second = assistant.reply(self.lp, '我要嘀嘀啦', step=1)     # 换了一步，不走回复缓存
+        self.assertEqual(first['meta']['memory']['event'], 'new')
+        self.assertEqual(second['meta']['memory']['event'], 'active')
+        with patch_llm(llm_reply(REPLY)) as post:                        # 只剩生成回复这一次调用
+            third = assistant.reply(self.lp, '我要嘀嘀！', step=2)
+        self.assertEqual(post.call_count, 1)
+        self.assertEqual(third['meta']['intent']['source'], 'memory')
+        self.assertEqual(third['meta']['memory']['event'], 'hit')
+        self.lp.refresh_from_db()
+        self.assertEqual(len(self.lp.expressions), 1)
+        e = self.lp.expressions[0]
+        self.assertEqual((e['text'], e['intent'], e['votes'], e['hits']), ('我要提示', 'ask_hint', 2, 1))
+
+    @LLM_ON
+    def test_low_confidence_and_answer_not_learned(self):
+        with patch_llm(llm_reply(dict(INTENT, confidence=0.6)), llm_reply(REPLY),
+                       llm_reply(dict(INTENT, intent='answer', answer='3')), llm_reply(REPLY)):
+            assistant.reply(self.lp, '帮帮我')
+            assistant.reply(self.lp, '是三')
+        self.lp.refresh_from_db()
+        self.assertEqual(self.lp.expressions, [])
+
+    @LLM_ON
+    def test_teacher_change_beats_reply_cache(self):
+        with patch_llm(llm_reply(INTENT), llm_reply(REPLY)):
+            assistant.reply(self.lp, '怎么办', step=0)
+        self.lp.refresh_from_db()
+        expressions.teacher_update(self.lp, [{'text': '怎么办', 'intent': 'dont_know', 'status': 'confirmed'}])
+        self.lp.save()
+        with patch_llm(llm_reply(REPLY)) as post:
+            out = assistant.reply(self.lp, '怎么办', step=0)
+        self.assertEqual(post.call_count, 1)
+        self.assertFalse(out['meta']['cached'])
+        self.assertEqual(out['meta']['intent']['intent'], 'dont_know')
+        self.assertIn('意图识别结果：dont_know', str(post.call_args.args[0]['messages']))

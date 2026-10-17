@@ -78,6 +78,7 @@ async function load() {
     llmConfigured.value = data.llm_configured
     materials.value = m.data
     fillForm(data.learner)
+    fillExpr(data.learner)
   } catch (e) {
     error.value = e.response?.status === 404 ? '学生不存在，或不在你的团队里' : '加载失败，请刷新重试'
   } finally {
@@ -238,7 +239,15 @@ const INTENT_TEXT = {
   answer: '作答', ask_hint: '要提示', dont_know: '不会', skip: '想跳过',
   chat: '闲聊', need_help: '需要帮助', unclear: '无法判断', echo: '仿说',
 }
-const INTENT_SOURCE = { llm: '大模型', llm_repaired: '大模型·修复后', rule: '关键词规则', option: '点了选项', yes_no: '正反问回答' }
+const INTENT_SOURCE = {
+  llm: '大模型', llm_repaired: '大模型·修复后', rule: '关键词规则', option: '点了选项', yes_no: '正反问回答', memory: '表达记忆',
+}
+const MEMORY_EVENT = {
+  hit: { cls: 'ok', text: '按表达记忆理解' },
+  new: { cls: 'plain', text: '记下这句话' },
+  active: { cls: 'ok', text: '表达记忆生效' },
+  changed: { cls: 'warn', text: '表达记忆改了意思' },
+}
 function metaTags(m) {
   const t = []
   const meta = m.meta || {}
@@ -251,9 +260,44 @@ function metaTags(m) {
   for (const [w, s] of meta.replaced || []) t.push({ cls: 'info', text: `词表：${w}→${s}` })
   for (const h of meta.pronoun_hints || []) t.push({ cls: 'info', text: `代词：${h}` })
   for (const w of meta.candidates || []) t.push({ cls: 'warn', text: `新词？${w}` })
+  if (MEMORY_EVENT[meta.memory?.event]) t.push(MEMORY_EVENT[meta.memory.event])
   if (meta.cached) t.push({ cls: 'plain', text: '缓存回答' })
   if (meta.fallback) t.push({ cls: 'plain', text: '兜底回复' })
   return t
+}
+
+// ── 表达记忆 ──
+// 可以记忆的意思（与 star/skills/memory.py 的 MEMORABLE 对应）
+const MEMORABLE = ['ask_hint', 'dont_know', 'skip', 'chat', 'need_help']
+const exprRows = ref([])
+const exprSaving = ref(false)
+const exprMsg = ref('')
+
+function fillExpr(l) {
+  exprRows.value = (l.expressions || []).map((e) => ({ ...e }))
+}
+function exprStatus(e) {
+  if (e.status === 'confirmed') return { cls: 'ok', text: '✓ 老师确认' }
+  if (e.active) return { cls: 'info', text: '● 自动生效' }
+  if (e.learned_at) return { cls: 'warn', text: '⏳ 再出现一次生效' }
+  return { cls: 'plain', text: '新添加' }
+}
+async function saveExpr() {
+  exprSaving.value = true
+  exprMsg.value = ''
+  error.value = ''
+  try {
+    const rows = exprRows.value.filter((e) => e.text.trim())
+      .map((e) => ({ text: e.text.trim(), intent: e.intent, status: e.status || 'confirmed' }))
+    const { data } = await updateLearner(uid, { expressions: rows })
+    learner.value = data.learner
+    fillExpr(data.learner)
+    exprMsg.value = '表达记忆已保存'
+  } catch (e) {
+    error.value = e.response?.data?.detail || '保存失败'
+  } finally {
+    exprSaving.value = false
+  }
 }
 
 // 学生端界面定制（与 starUi.js / profile.build_ui 对应）
@@ -508,8 +552,49 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
 
       <!-- ═════ 对话记录 ═════ -->
       <section v-if="tab === 'dialogue'" class="st-card">
+        <h2>表达记忆</h2>
+        <p class="st-muted">
+          学生常用来表达同一个意思的话。大模型两次理解一致后自动生效，老师确认或添加的立即生效；
+          生效后学生再这样说，直接按这里的意思理解，不再调用大模型。
+        </p>
+        <div class="st-table-wrap">
+          <table class="st-table">
+            <thead>
+              <tr><th>学生的说法</th><th>意思</th><th>状态</th><th>直接命中</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(e, i) in exprRows" :key="i">
+                <td><input v-model="e.text" class="st-input w-md" maxlength="30" placeholder="学生的原话" aria-label="学生的说法"></td>
+                <td>
+                  <select v-model="e.intent" class="st-select narrow" aria-label="意思">
+                    <option v-for="k in MEMORABLE" :key="k" :value="k">{{ INTENT_TEXT[k] }}</option>
+                  </select>
+                </td>
+                <td><span class="st-badge" :class="exprStatus(e).cls">{{ exprStatus(e).text }}</span></td>
+                <td class="st-num">{{ e.hits ?? 0 }}</td>
+                <td class="st-row">
+                  <button v-if="e.status !== 'confirmed'" type="button" class="st-btn st-btn-sm"
+                          @click="e.status = 'confirmed'">确认</button>
+                  <button type="button" class="st-btn st-btn-sm st-btn-danger" @click="exprRows.splice(i, 1)">删除</button>
+                </td>
+              </tr>
+              <tr v-if="!exprRows.length"><td colspan="5" class="st-empty">还没有记住的说法</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="st-row actions">
+          <button type="button" class="st-btn st-btn-sm"
+                  @click="exprRows.push({ text: '', intent: 'ask_hint', status: 'confirmed', hits: 0 })">+ 添加说法</button>
+          <button type="button" class="st-btn st-btn-primary" :disabled="exprSaving" @click="saveExpr">
+            {{ exprSaving ? '保存中…' : '保存表达记忆' }}
+          </button>
+          <span v-if="exprMsg" class="st-muted">{{ exprMsg }}</span>
+        </div>
+      </section>
+
+      <section v-if="tab === 'dialogue'" class="st-card">
         <h2>对话助手最近记录</h2>
-        <p class="st-muted">标签说明每句话经过了哪些沟通特征处理：仿说检测、个人词表替换、缓存、求助护栏。</p>
+        <p class="st-muted">标签说明每句话经过了哪些沟通特征处理：仿说检测、个人词表替换、表达记忆、缓存、求助护栏。</p>
         <ul class="chat-log">
           <li v-for="(m, i) in learner.assistant_dialogue" :key="i" :class="m.role">
             <span class="who">{{ m.role === 'bot' ? '学伴' : learner.nickname }}</span>
@@ -535,6 +620,7 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
 .qa li { display: flex; flex-direction: column; gap: 2px; }
 .vocab { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .w-sm { width: 130px; }
+.w-md { width: 200px; max-width: 100%; }
 .narrow { width: auto; }
 .wide { width: auto; min-width: 360px; max-width: 100%; }
 .actions { margin-top: 18px; }

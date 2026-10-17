@@ -32,7 +32,7 @@ _tokenizer: jieba.Tokenizer | None = None
 _pos_tokenizer: pseg.POSTokenizer | None = None
 
 _WS = re.compile(r"\s+")
-_CJK = re.compile(r"^[一-鿿]+$")
+_CJK = re.compile(r"^[\u4e00-\u9fff]+$")  # 中日韩统一表意文字基本区
 
 # 关键词提取时保留的词性前缀：名词、动词、形容词、英文、成语、习用语
 _KEYWORD_POS = ("n", "v", "a", "eng", "i", "l")

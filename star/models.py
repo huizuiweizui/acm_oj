@@ -3,7 +3,7 @@
 
 只新增 4 张表，用户、题目、测试点、评测机全部复用平台现有的：
 
-    LearnerProfile  每名学生一条：问卷、画像、个人词表、对话记录、教师确认状态
+    LearnerProfile  每名学生一条：问卷、画像、个人词表、表达记忆、对话记录、教师确认状态
     AdaptedTask     大模型改造出的个体化任务（启蒙层关卡 / 入门层分步任务），审核通过后锁定
     StepAttempt     每一次作答，卡片闯关与分步学习共用
     LLMCallLog      每一次大模型调用，测试报告的数据来源
@@ -33,6 +33,8 @@ class LearnerProfile(models.Model):
     survey = models.JSONField('问卷结果', default=dict, blank=True)
     profile = models.JSONField('画像', default=dict, blank=True)
     vocabulary = models.JSONField('个人词表', default=list, blank=True)
+    # 个人表达记忆：[{text, intent, status, votes, hits, learned_at, last_at}]，见 services/expressions.py
+    expressions = models.JSONField('表达记忆', default=list, blank=True)
     # {'intro': [引导对话的问答], 'assistant': [对话助手的最近若干轮]}
     dialogue = models.JSONField('对话记录', default=dict, blank=True)
     status = models.CharField('教师确认状态', max_length=10, choices=STATUS_CHOICES, default='surveying')

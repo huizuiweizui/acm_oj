@@ -81,6 +81,9 @@ LEARNERS = [
             'layer_reason': '能读短句、会打字，适合分步学习代码。',
         },
         'vocabulary': [{'word': '大长脖', 'meaning': '腕龙'}],
+        # 表达记忆：(说法, 意思, 状态, 大模型一致次数, 直接命中次数)；说法是词表替换之后的文本
+        'expressions': [('我要看一下', 'ask_hint', 'confirmed', 2, 4), ('脑子转不动了', 'dont_know', 'auto', 2, 1),
+                        ('腕龙走得好慢', 'chat', 'auto', 1, 0)],
     },
     {
         'username': 'star_yu', 'nickname': '小雨', 'layer': 'intro',
@@ -106,6 +109,7 @@ LEARNERS = [
             'layer_reason': '能读一段话、会打字，适合分步学习代码。',
         },
         'vocabulary': [{'word': '飞飞', 'meaning': '火箭'}, {'word': '你不懂', 'meaning': '我没听懂'}],
+        'expressions': [('我没听懂', 'dont_know', 'confirmed', 0, 3), ('下一个下一个', 'skip', 'auto', 2, 1)],
     },
 ]
 

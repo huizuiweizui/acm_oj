@@ -45,7 +45,7 @@ from .content.levels import LEVELS, THEMES
 from .content.problems import PROBLEMS, get_problem, problem_row
 from .models import AdaptedTask, LearnerProfile, StepAttempt
 from .permissions import IsTeacherOrAdmin, can_view_learner, is_admin, visible_learner_ids
-from .services import adapt, assistant, learning, llm, maze, profile as profile_svc, report
+from .services import adapt, assistant, expressions, learning, llm, maze, profile as profile_svc, report
 from .services.validators import LAYERS, reference_lines
 
 def _busy():
@@ -328,6 +328,7 @@ def _learner_payload(lp):
         'ui': _learner_ui(lp),
         'profile': lp.profile,
         'vocabulary': lp.vocabulary,
+        'expressions': [dict(e, active=expressions.is_active(e)) for e in lp.expressions or []],
         'intro_dialogue': (lp.dialogue or {}).get('intro', []),
         'assistant_dialogue': (lp.dialogue or {}).get('assistant', [])[-20:],
         'confirmed_at': lp.confirmed_at,
@@ -403,6 +404,8 @@ class LearnerDetailView(TeacherBase):
                 if word and meaning:
                     vocab.append({'word': word, 'meaning': meaning})
             lp.vocabulary = vocab[:20]
+        if 'expressions' in d:
+            expressions.teacher_update(lp, d['expressions'])
 
         lp.profile = prof
         if d.get('confirm'):

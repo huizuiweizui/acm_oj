@@ -12,6 +12,7 @@ from star.skills.echo import answer_to_a_not_a
 from star.skills.intent import IntentSkill, build_messages, validate
 from star.skills.lexicon import HAS_PINYIN, find_matches, unknown_words
 from star.skills.llm import LLMError
+from star.skills.memory import key_of, match
 
 PROFILE = {
     "name": "小明",
@@ -236,6 +237,44 @@ class TestLLMClient(unittest.TestCase):
         from star.skills.llm import OpenAICompatClient
         with self.assertRaises(LLMError):
             OpenAICompatClient("", "", "")
+
+
+MEMORY_PROFILE = dict(PROFILE, expressions=[
+    {"text": "小火车累了", "intent": "skip"},
+    {"text": "我要提示", "intent": "ask_hint"},
+    {"text": "我好想看提示卡片", "intent": "ask_hint"},
+    {"text": "这是答案", "intent": "answer"},   # 作答和题目有关，不参与比对
+])
+
+
+class TestExpressionMemory(unittest.TestCase):
+    def test_exact_after_stripping_punct_and_particles(self):
+        hit = match("我要提示啦！", MEMORY_PROFILE["expressions"])
+        self.assertEqual((hit["intent"], hit["method"]), ("ask_hint", "exact"))
+        self.assertEqual(key_of("跳过吧。"), "跳过")
+        self.assertEqual(key_of("了"), "了")   # 整句都是语气词时保留原样
+
+    def test_fuzzy_needs_length_and_same_negation(self):
+        hit = match("我好想看提示的卡片", MEMORY_PROFILE["expressions"])
+        self.assertEqual((hit["intent"], hit["method"]), ("ask_hint", "fuzzy"))
+        self.assertIsNone(match("我不要提示", MEMORY_PROFILE["expressions"]))   # 多了否定词
+        self.assertIsNone(match("要提示", MEMORY_PROFILE["expressions"]))       # 短句只认完全相同
+        self.assertIsNone(match("这是答案", MEMORY_PROFILE["expressions"]))     # answer 不记忆
+
+    def test_hit_skips_llm_and_matches_after_lexicon(self):
+        llm = FakeLLM()
+        r = InputPipeline(llm).run("呜呜车累了", make_ctx(profile=MEMORY_PROFILE))
+        self.assertEqual((r.intent["intent"], r.intent["source"]), ("skip", "memory"))
+        self.assertEqual(llm.calls, [])
+
+    def test_option_beats_memory(self):
+        r = InputPipeline(FakeLLM()).run("我要提示", make_ctx("选一个", ["我要提示"], MEMORY_PROFILE))
+        self.assertEqual(r.intent["source"], "option")
+
+    def test_miss_goes_to_llm(self):
+        llm = FakeLLM({"intent": "dont_know", "answer": "", "restated": "不会", "confidence": 0.9})
+        r = InputPipeline(llm).run("这个我不会", make_ctx(profile=MEMORY_PROFILE))
+        self.assertEqual(r.intent["source"], "llm")
 
 
 class TestPipeline(unittest.TestCase):

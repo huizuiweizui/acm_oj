@@ -7,6 +7,7 @@ Skill 5：意图识别（大模型实现，带规则兜底）
 
 处理顺序：
   1. 学生选了选项，或回答了正反问句：规则直接给出结果，不调用大模型（稳定、省钱）
+     命中个人表达记忆：直接用记住的意图，同样不调用大模型
   2. 调用大模型；输出不合格时，把错误回填给模型重试一次（生成、校验、修复）
   3. 没有配置大模型或调用失败：退回关键词规则
 """
@@ -166,6 +167,13 @@ class IntentSkill(Skill):
             ans = "是" if st["yes_no"] else "否"
             out = {"intent": "answer", "answer": ans, "restated": f"学生回答“{ans}”",
                    "confidence": 1.0, "source": "yes_no"}
+            st["intent"] = out
+            return SkillResult(skill=self.name, data=out)
+        if st.get("memory_hit"):
+            hit = st["memory_hit"]
+            out = {"intent": hit["intent"], "answer": "",
+                   "restated": f"学生用以前说过的话表示{INTENTS[hit['intent']]}",
+                   "confidence": 1.0 if hit["method"] == "exact" else hit["score"], "source": "memory"}
             st["intent"] = out
             return SkillResult(skill=self.name, data=out)
 
