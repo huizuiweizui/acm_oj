@@ -9,7 +9,7 @@ import { CanvasRenderer } from 'echarts/renderers'
 import VChart from 'vue-echarts'
 import { ACCENTS } from '@/components/star/starUi'
 import {
-  createTask, getLearner, getLearnerReport, getMaterials, regenerateProfile, updateLearner,
+  createTask, getLearner, getLearnerReport, getMaterials, getRecommendation, regenerateProfile, updateLearner,
 } from '@/api/star'
 
 use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
@@ -144,17 +144,38 @@ const materialOptions = computed(() => {
 })
 const selectedMaterial = computed(() => materialOptions.value.find((m) => m.key === material.value))
 
-async function newTask(mode) {
-  if (!material.value) return
+async function newTask(mode, key = material.value) {
+  if (!key) return
+  material.value = key
   creating.value = mode
   error.value = ''
   try {
-    const { data } = await createTask(uid, material.value, mode)
+    const { data } = await createTask(uid, key, mode)
     router.push({ name: 'star-review', params: { id: data.id } })
   } catch (e) {
     error.value = e.response?.data?.detail || '生成失败'
   } finally {
     creating.value = ''
+  }
+}
+
+// ── 推荐下一项任务 ──
+const rec = ref(null)
+const recBusy = ref(false)
+const showRule = ref(false)
+const MODE_TEXT = { llm: '建议大模型改造', template: '默认版本即可' }
+
+async function loadRec() {
+  recBusy.value = true
+  error.value = ''
+  try {
+    const { data } = await getRecommendation(uid)
+    rec.value = data
+    showRule.value = false
+  } catch (e) {
+    error.value = e.response?.data?.detail || '推荐失败'
+  } finally {
+    recBusy.value = false
   }
 }
 
@@ -426,6 +447,62 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
 
       <!-- ═════ 任务 ═════ -->
       <template v-if="tab === 'tasks'">
+        <section v-if="learner.layer" class="st-card">
+          <div class="rec-head">
+            <h2>推荐下一项任务</h2>
+            <button type="button" class="st-btn st-btn-primary" :disabled="recBusy" @click="loadRec">
+              {{ recBusy ? '分析中…' : rec ? '重新推荐' : '生成推荐' }}
+            </button>
+          </div>
+          <p v-if="!rec" class="st-muted">
+            大模型根据画像、各知识点的提示等级和已布置的任务，从还没布置过的素材里挑 1–3 项并说明理由；
+            程序检查它只选候选里的素材，不合格时用规则推荐（顺序 → 条件 → 循环，先巩固没掌握的一类）。
+          </p>
+          <template v-else>
+            <p class="st-row">
+              <span class="st-badge" :class="rec.source === 'llm' ? 'info' : 'plain'">
+                {{ rec.source === 'llm' ? '大模型推荐' : '规则推荐' }}
+              </span>
+              <span>{{ rec.summary }}</span>
+            </p>
+            <p v-if="rec.note" class="st-muted">{{ rec.note }}</p>
+            <ol class="rec-list">
+              <li v-for="it in rec.items" :key="it.material">
+                <div class="rec-main">
+                  <b>{{ it.title }}</b>
+                  <span class="st-badge plain">{{ it.knowledge_name }}</span>
+                  <span class="st-badge" :class="it.mode === 'llm' ? 'warn' : 'ok'">{{ MODE_TEXT[it.mode] }}</span>
+                  <p class="st-muted rec-reason">{{ it.reason }}</p>
+                </div>
+                <div class="st-row">
+                  <button type="button" class="st-btn st-btn-sm" :class="{ 'st-btn-primary': it.mode === 'llm' }"
+                          :disabled="!!creating || !llmConfigured" @click="newTask('llm', it.material)">
+                    {{ creating === 'llm' && material === it.material ? '生成中…' : '大模型改造' }}
+                  </button>
+                  <button type="button" class="st-btn st-btn-sm" :class="{ 'st-btn-primary': it.mode === 'template' }"
+                          :disabled="!!creating || !it.has_default" @click="newTask('template', it.material)">
+                    {{ creating === 'template' && material === it.material ? '生成中…' : '使用默认版本' }}
+                  </button>
+                </div>
+              </li>
+              <li v-if="!rec.items.length" class="st-muted">没有可推荐的素材。</li>
+            </ol>
+            <template v-if="rec.source === 'llm'">
+              <button type="button" class="st-btn st-btn-sm" @click="showRule = !showRule">
+                {{ showRule ? '收起' : '对照：规则推荐' }}
+              </button>
+              <div v-if="showRule" class="rec-rule">
+                <p class="st-muted">{{ rec.rule.summary }}</p>
+                <ol>
+                  <li v-for="it in rec.rule.items" :key="it.material">
+                    {{ it.title }}（{{ it.knowledge_name }}）<span class="st-muted"> — {{ it.reason }}</span>
+                  </li>
+                </ol>
+              </div>
+            </template>
+          </template>
+        </section>
+
         <section class="st-card">
           <h2>新建改造任务</h2>
           <p v-if="!learner.layer" class="st-muted">请先在"画像"里确定层级。</p>
@@ -624,6 +701,13 @@ const UI_BUTTON = { soft: '小圆角', round: '圆形', square: '方形' }
 .narrow { width: auto; }
 .wide { width: auto; min-width: 360px; max-width: 100%; }
 .actions { margin-top: 18px; }
+.rec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rec-list { padding-left: 1.4em; margin: 12px 0; display: flex; flex-direction: column; gap: 12px; }
+.rec-list li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px 16px; }
+.rec-main { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 320px; }
+.rec-reason { flex-basis: 100%; margin: 2px 0 0; }
+.rec-rule { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; font-size: 14px; }
+.rec-rule ol { margin: 6px 0 0; padding-left: 1.4em; }
 .gap { margin-top: 10px; }
 .ok-notice { border-color: var(--status-ac-dot); background: var(--status-ac-bg); color: var(--status-ac-text); }
 .chart { width: 100%; height: 300px; }

@@ -4,6 +4,7 @@
     P2 任务改造   原题或关卡模板 + 画像 + 层级 + 上次校验错误 → 关卡 JSON 或分步任务 JSON
     P3 对话辅导   画像 + 词表 + 当前步骤 + 处理后的学生输入   → 回复 JSON（意图 + 一句话 + 选项）
     P4 学习报告   作答记录统计                     → 面向教师 / 家长的文字报告
+    P6 推荐任务   画像 + 作答统计 + 候选素材 + 规则建议  → 推荐的 1–3 项素材与理由（P5 意图识别在 skills 里）
 
 所有函数返回 OpenAI 格式的 messages 列表。学习者姓名一律以 {name} 出现（见 llm.redact），
 提示词里也要求模型称呼学习者时写 {name}，输出回来再换成昵称。
@@ -325,3 +326,32 @@ _AUDIENCE = {
 def p4_messages(stats, audience):
     user = f'【读者】{_AUDIENCE[audience]}\n\n【作答记录统计】\n{_dump(stats)}\n\n请输出报告 JSON。'
     return [{'role': 'system', 'content': P4_SYSTEM}, {'role': 'user', 'content': user}]
+
+
+# ── P6 推荐下一项任务 ───────────────────────────────────────────────
+
+P6_SYSTEM = f"""你是特殊教育编程课的教学助手，帮教师给一名孤独症学习者挑接下来要布置的任务。
+
+规则：
+1. 只能从【候选素材】里选，用 material 字段的编号，选 1 到 3 项，按建议的先后排序。
+2. 循序渐进：顺序 → 条件 → 循环。某类知识点做对时平均提示等级还高（大于 1），先在这一类里巩固，不要跳到下一类；
+   已经能少看提示完成的，再进入下一类。结合学习者的兴趣和步骤粒度考虑。
+3. 【规则算法的建议】只作参考，可以采纳也可以调整；调整时在理由里写清楚依据。
+4. 每项给一句理由（不超过 40 字），写给教师看，要说出依据的数据（例如某类的平均提示等级、完成了几个任务）。
+5. mode：需要按画像个性化改造（提示用得多、步骤要拆得更细、兴趣明显）填 "llm"；直接用默认版本就够填 "template"。
+   has_default 为 false 的素材只能填 "llm"。
+6. summary 用一句话（不超过 50 字）说明这名学习者目前的学习进度和推荐思路。
+7. 不做诊断，不评价情绪和性格。学习者写作 {{name}}。
+8. {_JSON_ONLY}
+
+输出格式：{{"summary": "一句话", "items": [{{"material": "编号", "reason": "理由", "mode": "llm 或 template"}}]}}"""
+
+
+def p6_messages(profile_text, layer, summary, task_rows, cands, rule):
+    layer_name = '启蒙层（卡片闯关）' if layer == 'enlighten' else '入门层（分步学习写 Python）'
+    user = (f'【层级】{layer_name}\n\n【学习者画像】\n{profile_text}\n\n'
+            f'【作答统计】（提示等级 0 为不看提示，3 为看完整示范）\n{_dump(summary)}\n\n'
+            f'【已布置的任务】\n{_dump(task_rows) if task_rows else "还没有"}\n\n'
+            f'【候选素材】\n{_dump(cands)}\n\n'
+            f'【规则算法的建议】\n{_dump(rule)}\n\n请输出推荐 JSON。')
+    return [{'role': 'system', 'content': P6_SYSTEM}, {'role': 'user', 'content': user}]

@@ -19,6 +19,7 @@ urlpatterns = [
     path('teacher/learners/<int:uid>/profile/', views.ProfileRegenerateView.as_view(), name='star-t-profile'),
     path('teacher/learners/<int:uid>/tasks/', views.TaskCreateView.as_view(), name='star-t-task-create'),
     path('teacher/learners/<int:uid>/report/', views.ReportView.as_view(), name='star-t-report'),
+    path('teacher/learners/<int:uid>/recommend/', views.RecommendView.as_view(), name='star-t-recommend'),
     path('teacher/materials/', views.MaterialsView.as_view(), name='star-t-materials'),
     path('teacher/assign/', views.AssignView.as_view(), name='star-t-assign'),
     path('teacher/tasks/<int:pk>/', views.TaskDetailView.as_view(), name='star-t-task'),

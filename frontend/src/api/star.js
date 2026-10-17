@@ -24,6 +24,8 @@ export const createTask = (uid, material, mode) =>
   api.post(`/star/teacher/learners/${uid}/tasks/`, { material, mode }, LONG)
 export const getLearnerReport = (uid, audience) =>
   api.post(`/star/teacher/learners/${uid}/report/`, { audience }, LONG)
+// 推荐下一项任务：大模型为主，规则推荐兜底并作对照
+export const getRecommendation = (uid) => api.post(`/star/teacher/learners/${uid}/recommend/`, {}, LONG)
 export const getMaterials = () => api.get('/star/teacher/materials/')
 // 批量布置：一组任务 × 一组学生，用默认版本（payload: { learners, materials, approve }）
 export const getAssignData = () => api.get('/star/teacher/assign/')

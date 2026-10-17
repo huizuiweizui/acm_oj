@@ -18,6 +18,7 @@
     POST  teacher/learners/<uid>/profile/       重新生成画像（P1）
     POST  teacher/learners/<uid>/tasks/         发起改造（P2，生成-校验-修复）
     POST  teacher/learners/<uid>/report/        学习报告（P4）
+    POST  teacher/learners/<uid>/recommend/     推荐下一项任务（大模型 P6 为主，规则推荐兜底并作对照）
     GET   teacher/materials/                    素材库：关卡模板与入门题
     GET   teacher/assign/                       批量布置：我的团队与其中的学习者
     POST  teacher/assign/                       批量布置：一组素材 × 一组学生，用默认版本生成
@@ -45,7 +46,7 @@ from .content.levels import LEVELS, THEMES
 from .content.problems import PROBLEMS, get_problem, problem_row
 from .models import AdaptedTask, LearnerProfile, StepAttempt
 from .permissions import IsTeacherOrAdmin, can_view_learner, is_admin, visible_learner_ids
-from .services import adapt, assistant, expressions, learning, llm, maze, profile as profile_svc, report
+from .services import adapt, assistant, expressions, learning, llm, maze, profile as profile_svc, recommend, report
 from .services.validators import LAYERS, reference_lines
 
 def _busy():
@@ -603,6 +604,14 @@ class ReportView(TeacherBase):
         lp = self.learner(request, uid)
         audience = 'parent' if request.data.get('audience') == 'parent' else 'teacher'
         return Response(dict(report.make_report(lp, audience), audience=audience))
+
+
+class RecommendView(TeacherBase):
+    def post(self, request, uid):
+        lp = self.learner(request, uid)
+        if not lp.layer:
+            return Response({'detail': '请先在画像里确定层级'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(recommend.recommend(lp))
 
 
 def _task_detail(task):
