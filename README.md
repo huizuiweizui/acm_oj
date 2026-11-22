@@ -46,11 +46,11 @@
 | 技术                          | 版本      | 用途                                                      |
 | ----------------------------- | --------- | --------------------------------------------------------- |
 | Python                        | 3.11+     | 运行环境                                                  |
-| Django                        | 4.2       | Web 框架                                                  |
-| Django REST Framework         | 3.15      | REST API                                                  |
+| Django                        | 5.2 LTS   | Web 框架                                                  |
+| Django REST Framework         | 3.16.x    | REST API                                                  |
 | djangorestframework-simplejwt | **5.5.1** | JWT 认证（低版本在 Python 3.13 + setuptools ≥ 80 上崩溃） |
-| django-cors-headers           | 4.3       | 跨域支持                                                  |
-| django-environ                | 0.11      | 环境变量管理（`.env`）                                    |
+| django-cors-headers           | ≥4.7, <5.0 | 跨域支持                                                  |
+| django-environ                | 0.13.0    | 环境变量管理（`.env`）                                    |
 | MySQL                         | 8.0       | 主数据库（utf8mb4）                                       |
 | openai                        | 2.x       | Embedding API 客户端（兼容硅基流动 / OpenAI）             |
 | numpy                         | 2.x       | 向量余弦相似度检索                                        |
