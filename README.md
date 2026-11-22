@@ -27,6 +27,20 @@
 
 ## 技术栈
 
+### 前端
+
+| 技术                  | 版本                          | 用途                                |
+| --------------------- | ----------------------------- | ----------------------------------- |
+| Node.js               | 20.x（≥20.19.0），或 ≥22.12.0 | 前端依赖安装、开发和构建            |
+| Vue 3                 | 3.x                           | 前端框架（Composition API）         |
+| Vue Router            | 4.x                           | 客户端路由（14 个页面）             |
+| Pinia                 | 2.x                           | 状态管理（JWT 持久化 + 提交轮询）   |
+| Vite                  | 8.x                           | 构建工具（含开发代理）              |
+| Axios                 | 1.x                           | HTTP 请求（含 token 自动刷新）      |
+| Monaco Editor         | 0.55                          | 代码编辑器（VS Code 同款）          |
+| ECharts + vue-echarts | 5.x / 8.x                     | 数据可视化（图表 + 力导向知识图谱） |
+| marked                | 18.x                          | Markdown 渲染                       |
+
 ### 后端
 
 | 技术 | 版本 | 用途 |
@@ -40,19 +54,6 @@
 | MySQL | 8.0 | 主数据库（utf8mb4） |
 | openai | 2.x | Embedding API 客户端（兼容硅基流动 / OpenAI） |
 | numpy | 2.x | 向量余弦相似度检索 |
-
-### 前端
-
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Vue 3 | 3.x | 前端框架（Composition API） |
-| Vue Router | 4.x | 客户端路由（14 个页面） |
-| Pinia | 2.x | 状态管理（JWT 持久化 + 提交轮询） |
-| Vite | 8.x | 构建工具（含开发代理） |
-| Axios | 1.x | HTTP 请求（含 token 自动刷新） |
-| Monaco Editor | 0.55 | 代码编辑器（VS Code 同款） |
-| ECharts + vue-echarts | 5.x / 8.x | 数据可视化（图表 + 力导向知识图谱） |
-| marked | 18.x | Markdown 渲染 |
 
 ---
 
@@ -240,20 +241,74 @@ acm_oj/
 
 ## 快速开始
 
+### 前端
+
+```bash
+# 1. 安装 Node.js（已安装符合要求的版本可跳过）
+# 支持：20.x（>=20.19.0），或 >=22.12.0；建议使用 24.x
+
+# Windows
+winget install nvm-windows --source winget
+# 安装完成后，关闭并重新打开 PowerShell，再继续执行
+
+# macOS / Linux
+# export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+# curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+# . "$NVM_DIR/nvm.sh"
+
+# 2. 安装并启用 Node.js 24.x
+nvm install 24
+nvm use 24
+
+# macOS / Linux
+# nvm alias default 24
+
+# 3. 验证安装
+node --version
+npm --version
+
+# 4. 安装前端依赖
+cd frontend
+npm install
+
+# 5. 启动前端
+npm run dev
+# 访问 http://localhost:5173
+# /api/* 自动代理到 http://127.0.0.1:8000，需同时启动 Django 后端
+```
+
+
 ### 后端
 
 ```bash
-# 1. 创建虚拟环境
-python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
-pip install -r requirements.txt
+# 1. 使用 Anaconda 创建并激活虚拟环境
+# Windows / macOS / Linux
+conda create -n acm_oj python=3.12
+conda activate acm_oj
+
+# 2. 安装后端依赖
+python -m pip install -r requirements.txt
 
 # 2. 创建数据库
 # CREATE DATABASE acm_oj CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 # 3. 配置环境变量
-cp .env.example .env   # 编辑 .env，填写 DB_PASSWORD / LLM_API_KEY 等
+# Windows
+Copy-Item .env.example .env
+
+# macOS / Linux
+# cp .env.example .env
+
+# 生成 Django SECRET_KEY
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# 编辑刚创建的 .env 文件，填写：
+# SECRET_KEY：上一步生成的密钥
+# DB_NAME：已创建的数据库名称
+# DB_USER：MySQL 用户名
+# DB_PASSWORD：MySQL 密码
+# DB_HOST / DB_PORT：MySQL 地址和端口
+# AI 相关配置按需填写，暂不使用时可留空
 
 # 4. 初始化
 python manage.py migrate
@@ -268,13 +323,6 @@ python manage.py build_embeddings    # 生成向量（需配置 EMBED_MODEL）
 python manage.py runserver
 ```
 
-### 前端
-
-```bash
-cd frontend
-npm install
-npm run dev     # http://localhost:5173（/api/* 自动代理到 8000）
-```
 
 ### 生产构建
 
