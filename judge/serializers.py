@@ -134,13 +134,18 @@ class SubmissionSerializer(serializers.ModelSerializer):
         model = Submission
         fields = [
             'id', 'username', 'problem_id', 'problem_title',
-            'language', 'status', 'time_used', 'memory_used',
-            'error_info', 'ai_feedback', 'test_results', 'code', 'submitted_at',
+            'language', 'status', 'time_used', 'memory_used', 'submitted_at',
         ]
-        read_only_fields = [
-            'status', 'time_used', 'memory_used',
-            'error_info', 'ai_feedback', 'test_results', 'submitted_at',
+        read_only_fields = fields
+
+
+class SubmissionDetailSerializer(SubmissionSerializer):
+    class Meta(SubmissionSerializer.Meta):
+        fields = [
+            *SubmissionSerializer.Meta.fields,
+            'error_info', 'ai_feedback', 'test_results', 'code',
         ]
+        read_only_fields = fields
 
 
 class ContestSerializer(serializers.ModelSerializer):
