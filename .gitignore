@@ -23,8 +23,33 @@ logs/crawl_luogu_progress.json
 .vscode/
 *.suo
 *.swp
+.claude/
 
-# 前端构建产物
-frontend/dist/
-frontend/node_modules/
-frontend/.eslintcache
+# Obsidian 本地插件和工作区状态
+/algorithm/.obsidian/plugins/
+/algorithm/.obsidian/workspace.json
+
+# 前端依赖、构建产物和开发工具
+/frontend/**/logs
+/frontend/**/*.log
+/frontend/**/npm-debug.log*
+/frontend/**/yarn-debug.log*
+/frontend/**/yarn-error.log*
+/frontend/**/pnpm-debug.log*
+/frontend/**/lerna-debug.log*
+/frontend/**/node_modules
+/frontend/**/.DS_Store
+/frontend/**/dist
+/frontend/**/dist-ssr
+/frontend/**/coverage
+/frontend/**/*.local
+/frontend/**/*.ntvs*
+/frontend/**/*.njsproj
+/frontend/**/*.sln
+/frontend/**/*.sw?
+/frontend/**/*.tsbuildinfo
+/frontend/**/.eslintcache
+/frontend/cypress/videos/
+/frontend/cypress/screenshots/
+/frontend/**/__screenshots__/
+/frontend/**/*.timestamp-*-*.mjs

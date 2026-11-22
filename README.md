@@ -82,7 +82,7 @@
 
 ### 算法学习（`/learn`）
 
-- 62 个算法卡片，支持分类筛选和关键词搜索
+- 72 个算法卡片，支持分类筛选和关键词搜索
 - 每个算法独立详情页（`/learn/:id`）：简介、步骤、复杂度表、三语言代码
 - **AI 问答抽屉**：右下角渐变悬浮按钮，点击弹出侧边聊天界面
   - 多轮对话气泡界面（用户紫色气泡 / AI 灰色气泡 + 头像）
@@ -91,7 +91,7 @@
 
 ### 算法知识图谱（`/learn/graph`）
 
-- **ECharts 力导向图**，62 个算法节点、205 条关系边
+- **ECharts 力导向图**，展示算法节点及其关系
 - 节点大小由连接度（degree）决定，9 个分类各自着色
 - 边类型：前置依赖（红实线）/ 扩展应用（紫实线）/ 相关算法（灰虚线）
 - 难度筛选（入门 / 提高 / 进阶），点击图例隐藏/显示分类
@@ -156,7 +156,7 @@ acm_oj/
 │   │   └── rag.py                  # RAG 检索 + SSE 流式问答
 │   │
 │   └── management/commands/
-│       ├── seed_algorithms.py      # 写入 62 个算法数据
+│       ├── seed_algorithms.py      # 导入算法知识点
 │       ├── seed_edges.py           # 写入 48 条手工关系边
 │       ├── build_graph.py          # 解析 Obsidian [[链接]] 自动补边
 │       ├── build_chunks.py         # 切分算法笔记为 1149 个 chunk
@@ -362,6 +362,8 @@ npm --prefix frontend run dev
 
 浏览器打开 [http://localhost:5173](http://localhost:5173)。Vite 会将 `/api/` 请求转发到 `http://127.0.0.1:8000`。也可以直接打开 [http://127.0.0.1:8000/api/stats/](http://127.0.0.1:8000/api/stats/) 检查后端是否返回 JSON。
 
+已有数据库且希望补齐新版学习页的算法时，运行 `python manage.py seed_algorithms --missing-only`。这个选项只补充缺失的条目。
+
 ### 前端构建
 
 从项目根目录执行构建，产物位于 `frontend/dist/`。
@@ -412,7 +414,7 @@ EMBED_MODEL=BAAI/bge-m3  # 推荐：硅基流动免费 bge-m3（1024 维，中�
 | `Submission`                                        | 提交记录（含 `test_results` JSON 逐测试点结果）         |
 | `Contest` / `ContestProblem` / `ContestParticipant` | 比赛系统                                                |
 | `Discussion` / `DiscussionReply`                    | 讨论区                                                  |
-| `Algorithm`                                         | 62 个算法知识点（含步骤、复杂度、三语言代码）           |
+| `Algorithm`                                         | 算法知识点、步骤、复杂度和示例代码                       |
 | `AlgorithmEdge`                                     | 算法关系边（前置依赖 / 相关算法 / 扩展应用），共 205 条 |
 | `KnowledgeChunk`                                    | 算法笔记切片（1149 个 chunk）                           |
 | `ChunkEmbedding`                                    | Chunk 向量（bge-m3，1024 维）                           |

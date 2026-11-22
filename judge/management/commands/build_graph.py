@@ -35,7 +35,8 @@ NOTE_TO_ALGO = {
     '单调队列':      'monotone-queue',
     '栈':            'stack',
     '队列':          'queue',
-    '链表':          'stack',   # 近似映射到基础数据结构
+    '链表':          'linked-list',
+    '平衡树':        'balanced-tree',
     'Trie':          'trie',
     '字典树':        'trie',
     # 搜索
@@ -91,7 +92,7 @@ NOTE_TO_ALGO = {
     '二分查找':      'binary-search',
     '二分答案':      'binary-search',
     '三分':          'binary-search',
-    '倍增':          'sparse-table',   # 倍增是ST表/LCA的基础技术
+    '倍增':          'binary-lifting',
     '离散化':        'binary-search',
     '递归':          'recursion',
     '递推':          'recurrence',

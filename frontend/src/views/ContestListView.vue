@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useUserStore } from '@/stores/user'
 import { getContests } from '@/api/contests'
+import { formatDateTime } from '@/utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -28,14 +29,6 @@ const statusCfg = {
   running:  { label: '进行中', cls: 'status-running' },
   upcoming: { label: '即将开始', cls: 'status-upcoming' },
   ended:    { label: '已结束', cls: 'status-ended' },
-}
-
-function formatTime(iso) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleString('zh-CN', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
 }
 
 async function fetchContests() {
@@ -124,7 +117,7 @@ onMounted(fetchContests)
           </div>
           <div class="meta-row">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            {{ formatTime(c.start_time) }} ~ {{ new Date(c.end_time).toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' }) }}
+            {{ formatDateTime(c.start_time) }} ~ {{ new Date(c.end_time).toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit' }) }}
           </div>
           <div class="meta-row" v-if="!c.is_public">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>

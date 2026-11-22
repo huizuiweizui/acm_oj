@@ -625,6 +625,46 @@ ALGORITHMS = [
          'Python': 'MOD = 10**9 + 7\n\ndef inv(a): return pow(a, MOD-2, MOD)\n\n# 示例：coupon collector（收集 n 种优惠券的期望次数）\ndef coupon_collector(n):\n    # E = n/n + n/(n-1) + ... + n/1\n    res = 0\n    for k in range(n):\n        # n/(n-k) mod MOD = n * inv(n-k) mod MOD\n        res = (res + n * inv(n - k)) % MOD\n    return res\n\nprint(coupon_collector(6))  # 收集6种骰子面的期望掷骰次数\n\n# 期望DP示例：从位置 0 出发，每步等概率向右走 1 或 2，到达位置 n 的期望步数\ndef expected_steps(n):\n    # E[i] = 从位置 i 到 n 的期望步数\n    # E[n] = 0（已到达）\n    # E[i] = 1 + (E[i+1] + E[i+2])/2（i+1,i+2都在范围内时）\n    E = [0] * (n + 3)\n    for i in range(n-1, -1, -1):\n        E[i] = (1 + (E[i+1] + E[i+2]) * inv(2)) % MOD\n    return E[0]\n\nprint(expected_steps(5))',
          'Java': 'import java.util.*;\npublic class Main {\n    static final long MOD=1000000007L;\n    static long fastPow(long a,long b,long p){long r=1%p;a%=p;for(;b>0;b>>=1){if((b&1)==1)r=r*a%p;a=a*a%p;}return r;}\n    static long inv(long a){return fastPow(a,MOD-2,MOD);}\n    // coupon collector\n    static long couponCollector(int n){\n        long res=0;\n        for(int k=0;k<n;k++) res=(res+n%MOD*inv(n-k))%MOD;\n        return res;\n    }\n    public static void main(String[] args){\n        System.out.println(couponCollector(6));\n    }\n}',
      }},
+    {'algo_id': "min-cost-flow", 'name': "费用流", 'name_en': "Min Cost Flow",
+     'category': "图论", 'difficulty': "进阶", 'sort_order': 92,
+     'desc': "在满足流量要求的同时，让各条边的流量费用之和最小。",
+     'description': "费用流在网络流模型中为每条边增加单位费用。沿残量网络中的费用最短路增广，可以在增加流量的同时控制总费用。"},
+    {'algo_id': "binary-lifting", 'name': "倍增", 'name_en': "Binary Lifting",
+     'category': "图论", 'difficulty': "提高", 'sort_order': 93,
+     'desc': "预处理每个节点的 2^k 级祖先，快速回答祖先和 LCA 查询。",
+     'description': "把跳跃步数拆成二进制位，利用预处理的 2^k 级祖先表完成查询。祖先表通常需要 O(n log n) 的预处理，每次查询需要 O(log n)。"},
+    {'algo_id': "data-struct-general", 'name': "数据结构", 'name_en': "Data Structures",
+     'category': "数据结构", 'difficulty': "提高", 'sort_order': 94,
+     'desc': "按查询与更新需求选择线性结构、树、堆或哈希表。",
+     'description': "数据结构决定数据的组织方式和可支持的操作。选择时应先列出查询、更新和遍历需求，再比较操作复杂度与空间开销。"},
+    {'algo_id': "tree-struct", 'name': "树形结构", 'name_en': "Tree",
+     'category': "数据结构", 'difficulty': "提高", 'sort_order': 95,
+     'desc': "用树表示层次关系和父子依赖。",
+     'description': "树是连通无环的图。选定根节点后，可以定义父子、深度和子树，并用 DFS 或 BFS 计算这些信息。"},
+    {'algo_id': "linked-list", 'name': "链表", 'name_en': "Linked List",
+     'category': "数据结构", 'difficulty': "入门", 'sort_order': 96,
+     'desc': "通过指针连接节点，适合在已知位置插入或删除。",
+     'description': "链表通过节点间的链接保存顺序。在获得必要的节点引用后，修改链接即可插入或删除。按下标查找通常需要从头遍历。"},
+    {'algo_id': "binary-tree", 'name': "二叉树", 'name_en': "Binary Tree",
+     'category': "数据结构", 'difficulty': "入门", 'sort_order': 97,
+     'desc': "每个节点最多有两个子节点，可按前序、中序或后序遍历。",
+     'description': "二叉树的两个子节点有左右之分。二叉搜索树还定义了键值的顺序，但查找时间取决于树高。"},
+    {'algo_id': "balanced-tree", 'name': "平衡树", 'name_en': "Balanced BST",
+     'category': "数据结构", 'difficulty': "进阶", 'sort_order': 98,
+     'desc': "通过维护树的高度，提高有序查找和更新的稳定性。",
+     'description': "平衡搜索树通过旋转或重新组织节点来限制树高。红黑树可保证主要操作为 O(log n)，随机 Treap 的对应复杂度为期望 O(log n)。"},
+    {'algo_id': "priority-queue", 'name': "优先队列", 'name_en': "Priority Queue",
+     'category': "数据结构", 'difficulty': "提高", 'sort_order': 99,
+     'desc': "按优先级读取和移除元素，常用堆实现。",
+     'description': "二叉堆实现的优先队列可在 O(1) 时间查看堆顶，在 O(log n) 时间插入或删除堆顶。常用于 Dijkstra 和事件调度。"},
+    {'algo_id': "string-general", 'name': "字符串", 'name_en': "String Algorithms",
+     'category': "字符串", 'difficulty': "提高", 'sort_order': 100,
+     'desc': "处理模式匹配、字符串比较、回文和后缀信息。",
+     'description': "根据查询类型，可以选择 KMP、字符串哈希或后缀数组等方法。不同方法利用的结构不同，预处理和查询的复杂度也不同。"},
+    {'algo_id': "math-general", 'name': "数学", 'name_en': "Mathematics",
+     'category': "数学", 'difficulty': "提高", 'sort_order': 101,
+     'desc': "把数论、组合、几何和概率模型用于竞赛题。",
+     'description': "先把题意转成可计算的数学模型，再根据数据规模选择枚举、递推、公式或预处理。"},
 ]
 
 DEFAULTS = {'description': '', 'steps': [], 'complexity': [], 'stable': None, 'codes': {}}
@@ -633,17 +673,23 @@ DEFAULTS = {'description': '', 'steps': [], 'complexity': [], 'stable': None, 'c
 class Command(BaseCommand):
     help = '导入算法知识点初始数据'
 
+    def add_arguments(self, parser):
+        parser.add_argument('--missing-only', action='store_true', help='仅补充数据库中没有的算法')
+
     def handle(self, *args, **options):
-        created = updated = 0
+        missing_only = options['missing_only']
+        save = Algorithm.objects.get_or_create if missing_only else Algorithm.objects.update_or_create
+        created = existing = 0
         for item in ALGORITHMS:
             data = {**DEFAULTS, **item}
             algo_id = data.pop('algo_id')
-            obj, is_new = Algorithm.objects.update_or_create(
+            _, is_new = save(
                 algo_id=algo_id,
                 defaults=data,
             )
             if is_new:
                 created += 1
             else:
-                updated += 1
-        self.stdout.write(self.style.SUCCESS(f'完成：新增 {created} 条，更新 {updated} 条'))
+                existing += 1
+        action = '跳过' if missing_only else '更新'
+        self.stdout.write(self.style.SUCCESS(f'完成：新增 {created} 条，{action} {existing} 条'))
