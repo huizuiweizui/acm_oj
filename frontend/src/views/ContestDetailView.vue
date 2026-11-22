@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getContest, registerContest } from '@/api/contests'
 import { useUserStore } from '@/stores/user'
 import DifficultyBadge from '@/components/DifficultyBadge.vue'
+import { formatDateTime } from '@/utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,14 +26,6 @@ const statusCfg = {
 const statusIconMap  = { ac: '✓', tried: '·', todo: '' }
 const statusBgMap    = { ac: 'var(--status-ac-bg)',  tried: 'var(--status-tle-bg)', todo: 'transparent' }
 const statusColorMap = { ac: 'var(--status-ac-text)', tried: 'var(--status-tle-text)', todo: 'transparent' }
-
-function formatTime(iso) {
-  if (!iso) return '-'
-  return new Date(iso).toLocaleString('zh-CN', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
 
 async function fetchContest() {
   loading.value = true
@@ -84,9 +77,9 @@ onMounted(fetchContest)
           <span class="meta-text">{{ participantCount }} 人参赛</span>
         </div>
         <div class="time-info">
-          <span>开始：{{ formatTime(contest.start_time) }}</span>
+          <span>开始：{{ formatDateTime(contest.start_time) }}</span>
           <span class="sep">|</span>
-          <span>结束：{{ formatTime(contest.end_time) }}</span>
+          <span>结束：{{ formatDateTime(contest.end_time) }}</span>
         </div>
         <p v-if="contest.description" class="desc">{{ contest.description }}</p>
       </div>

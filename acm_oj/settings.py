@@ -19,6 +19,7 @@ environ.Env.read_env(BASE_DIR / '.env')
 SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+FRONTEND_DEV_ORIGIN = env('FRONTEND_DEV_ORIGIN', default='http://localhost:5173').rstrip('/')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

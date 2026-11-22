@@ -92,6 +92,12 @@ const router = createRouter({
       path: '/learn',
       name: 'learn',
       component: () => import('@/views/LearnView.vue'),
+      beforeEnter: (to) => {
+        const legacyDetail = /^#detail\/([a-z0-9-]+)$/.exec(to.hash)
+        if (legacyDetail) {
+          return { name: 'learn-detail', params: { id: legacyDetail[1] }, query: to.query, replace: true }
+        }
+      },
     },
     {
       path: '/learn/graph',

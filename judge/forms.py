@@ -2,7 +2,7 @@
 from django import forms
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from .models import Submission, Problem, Contest, Discussion, DiscussionReply
+from .models import Submission, Discussion, DiscussionReply
 
 
 class RegisterForm(UserCreationForm):
@@ -67,27 +67,6 @@ class ProblemFilterForm(forms.Form):
     difficulty = forms.ChoiceField(required=False, choices=DIFFICULTY_CHOICES, widget=forms.Select(attrs={
         'class': 'form-select'
     }))
-
-
-class ProblemForm(forms.ModelForm):
-    """管理员创建/编辑题目"""
-    class Meta:
-        model = Problem
-        fields = ['title', 'description', 'input_desc', 'output_desc',
-                  'sample_input', 'sample_output', 'hint', 'difficulty',
-                  'time_limit', 'memory_limit', 'source', 'is_published']
-        widgets = {f: forms.Textarea(attrs={'class': 'form-textarea', 'rows': 6})
-                   for f in ['description', 'input_desc', 'output_desc', 'hint']}
-
-
-class ContestForm(forms.ModelForm):
-    class Meta:
-        model = Contest
-        fields = ['title', 'description', 'start_time', 'end_time', 'rule_type', 'is_public', 'password']
-        widgets = {
-            'start_time': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-input'}),
-            'end_time': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-input'}),
-        }
 
 
 class DiscussionForm(forms.ModelForm):
