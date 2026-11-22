@@ -30,7 +30,7 @@ from .serializers import (
     AlgorithmListSerializer, AlgorithmDetailSerializer,
     ContestSerializer, DiscussionReplySerializer, DiscussionSerializer,
     ProblemListSerializer, ProblemDetailSerializer,
-    SubmissionSerializer, UserSerializer,
+    SubmissionSerializer, UserSerializer, SubmissionDetailSerializer
 )
 
 
@@ -308,6 +308,18 @@ class SubmissionDetailAPIView(generics.RetrieveAPIView):
     serializer_class = SubmissionSerializer
     permission_classes = [AllowAny]
     queryset = Submission.objects.select_related('user', 'problem')
+
+    def retrieve(self, request, *args, **kwargs):
+        submission = self.get_object()
+        serializer_class = self.get_serializer_class()
+
+        if request.user.is_authenticated and request.user.pk == submission.user_id:
+            serializer_class = SubmissionDetailSerializer
+
+        serializer = serializer_class(
+            submission, context=self.get_serializer_context()
+        )
+        return Response(serializer.data)
 
 
 # ==================== 用户主页 ====================

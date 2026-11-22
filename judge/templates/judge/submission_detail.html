@@ -42,14 +42,14 @@
                 </div>
             </div>
 
-            {% if submission.error_info %}
+            {% if can_view_details and submission.error_info %}
             <div style="margin-bottom:16px;">
                 <h4 style="font-size:0.9rem;margin-bottom:8px;color:var(--red);">错误信息</h4>
                 <pre class="sample-block" style="color:var(--red);margin:0;">{{ submission.error_info }}</pre>
             </div>
             {% endif %}
 
-            {% if submission.ai_feedback %}
+            {% if can_view_details and submission.ai_feedback %}
             <div style="margin-bottom:16px;">
                 <h4 style="font-size:0.9rem;margin-bottom:8px;color:var(--primary);">🤖 AI 分析</h4>
                 <div style="background:var(--bg-secondary,#f5f6fa);border-left:3px solid var(--primary);padding:12px 16px;border-radius:6px;white-space:pre-wrap;font-size:0.875rem;line-height:1.6;">{{ submission.ai_feedback }}</div>
@@ -58,6 +58,7 @@
         </div>
     </div>
 
+    {% if can_view_details %}
     <!-- 测试点结果卡片 -->
     {% if submission.test_results %}
     <div class="card mb-4">
@@ -92,6 +93,7 @@
             <pre class="sample-block" style="max-height:600px;overflow:auto;margin:0;border:none;border-radius:0 0 var(--radius) var(--radius);">{{ submission.code }}</pre>
         </div>
     </div>
+    {% endif %}
 
 </div>
 

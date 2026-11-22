@@ -21,4 +21,11 @@ def submission_detail(request, submission_id):
         Submission.objects.select_related('problem', 'user', 'user__profile'),
         id=submission_id,
     )
-    return render(request, 'judge/submission_detail.html', {'submission': submission})
+    can_view_details = (
+        request.user.is_authenticated
+        and request.user.pk == submission.user_id
+    )
+    return render(request, 'judge/submission_detail.html', {
+        'submission': submission,
+        'can_view_details': can_view_details,
+    })
