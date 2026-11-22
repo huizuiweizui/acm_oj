@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import DOMPurify from 'dompurify'
 import { marked } from 'marked'
 import katex from 'katex'
 
@@ -41,7 +42,7 @@ function renderContent(raw) {
     }
   })
 
-  return html
+  return DOMPurify.sanitize(html)
 }
 
 const html = computed(() => renderContent(props.content))
