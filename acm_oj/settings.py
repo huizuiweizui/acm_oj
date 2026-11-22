@@ -4,6 +4,7 @@ ACM 算法竞赛平台 - Django 配置
 import os
 import environ
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -131,6 +132,10 @@ JUDGE_TIMEOUT = 10
 # True  → 每次评测启动 Docker 容器隔离执行（需提前 build Dockerfile.sandbox）
 # False → 直接在主机进程执行（无隔离，仅限本地开发）
 USE_DOCKER_SANDBOX = env.bool('USE_DOCKER_SANDBOX', default=False)
+if not DEBUG and not USE_DOCKER_SANDBOX:
+    raise ImproperlyConfigured(
+        '生产环境必须设置 USE_DOCKER_SANDBOX=True。'
+    )
 JUDGE_DOCKER_IMAGE = env('JUDGE_DOCKER_IMAGE', default='acm-oj-sandbox:latest')
 
 # ===== AI 评测（可选，留空则禁用） =====
