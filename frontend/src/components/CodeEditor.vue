@@ -11,7 +11,7 @@ if (typeof window !== 'undefined' && !window.MonacoEnvironment) {
   }
 }
 
-const LANG_MAP = { 'C': 'c', 'C++': 'cpp', 'Java': 'java', 'Python': 'python', 'Go': 'go' }
+const LANG_MAP = { 'C': 'c', 'C++': 'cpp', 'Java': 'java', 'Python': 'python' }
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
