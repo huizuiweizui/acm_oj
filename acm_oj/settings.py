@@ -138,6 +138,7 @@ if not DEBUG and not USE_DOCKER_SANDBOX:
         '生产环境必须设置 USE_DOCKER_SANDBOX=True。'
     )
 JUDGE_DOCKER_IMAGE = env('JUDGE_DOCKER_IMAGE', default='acm-oj-sandbox:latest')
+JUDGE_WINDOWS_USE_MSVC = env.bool('JUDGE_WINDOWS_USE_MSVC', default=False)
 
 # ===== AI 评测（可选，留空则禁用） =====
 LLM_API_KEY = env('LLM_API_KEY', default='')

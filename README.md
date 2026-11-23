@@ -448,6 +448,12 @@ POST /submit/  → 立即返回 submission_id
 | 直接执行    | `USE_DOCKER_SANDBOX=False`（默认） | Windows 本地开发 |
 | Docker 沙箱 | `USE_DOCKER_SANDBOX=True`          | 生产部署         |
 
+Windows 本地测试时，若 MinGW 无法启动，可在已安装 Visual Studio C++ x64 构建工具与 Windows SDK 的电脑上，先激活项目的 Anaconda 环境，再通过以下命令启动后端。启动脚本仅为该进程启用 MSVC，支持标准 C 和 C++17。
+
+```bash
+.\scripts\with-msvc.cmd python manage.py runserver
+```
+
 Docker 模式：无网络、硬内存上限（OOM-kill → MLE）、单核、PID 限制、只读挂载。
 
 ---

@@ -29,14 +29,13 @@ const passRate = computed(() => {
 })
 
 // ── Language / Code ───────────────────────────────────────────────
-const LANGUAGES = ['C', 'C++', 'Java', 'Python', 'Go']
 const DEFAULT_CODE = {
   'C':      '#include <stdio.h>\n\nint main() {\n    \n    return 0;\n}\n',
-  'C++':    '#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    \n    return 0;\n}\n',
+  'C++':    '#include <iostream>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    \n    return 0;\n}\n',
   'Java':   'import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        \n    }\n}\n',
   'Python': '# Python solution\nimport sys\ninput = sys.stdin.readline\n\n',
-  'Go':     'package main\n\nimport "fmt"\n\nfunc main() {\n    fmt.Scan()\n}\n',
 }
+const supportedLanguages = computed(() => problem.value?.supported_languages ?? Object.keys(DEFAULT_CODE))
 const language = ref('C++')
 const code     = ref(DEFAULT_CODE['C++'])
 
@@ -233,7 +232,8 @@ onMounted(async () => {
     problem.value = data
     prevId.value  = data.prev_id
     nextId.value  = data.next_id
-    code.value    = DEFAULT_CODE['C++']
+    language.value = supportedLanguages.value.includes('C++') ? 'C++' : supportedLanguages.value[0]
+    code.value = DEFAULT_CODE[language.value] || ''
   } finally {
     loading.value = false
   }
@@ -414,7 +414,7 @@ onBeforeUnmount(() => {
         <!-- Editor toolbar -->
         <div class="editor-toolbar">
           <select class="lang-select" v-model="language" @change="onLangChange">
-            <option v-for="l in LANGUAGES" :key="l" :value="l">{{ l }}</option>
+            <option v-for="lang in supportedLanguages" :key="lang" :value="lang">{{ lang }}</option>
           </select>
           <div class="tb-right">
             <button class="tbtn" @click="fontSize = Math.max(12, fontSize - 1)">A−</button>

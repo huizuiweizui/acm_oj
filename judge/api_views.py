@@ -258,6 +258,7 @@ class ProblemDetailAPIView(generics.RetrieveAPIView):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         data = dict(self.get_serializer(instance).data)
+        data['supported_languages'] = VALID_LANGUAGES
         pub_ids = list(
             Problem.objects.filter(is_published=True).order_by('id').values_list('id', flat=True)
         )
@@ -451,7 +452,7 @@ class UserStatsAPIView(APIView):
 
 # ==================== 提交代码 ====================
 
-VALID_LANGUAGES = ['C', 'C++', 'Java', 'Python']
+VALID_LANGUAGES = [value for value, _ in Submission.LANGUAGE_CHOICES]
 
 
 def _run_judge_in_background(submission_id: int, problem_id: int):

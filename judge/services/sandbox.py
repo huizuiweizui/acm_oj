@@ -132,19 +132,19 @@ def _docker_run(lang: str, tmp_dir: str, input_data: str,
 def _direct_compile(lang: str, tmp_dir: str) -> tuple:
     src = source_path(lang, tmp_dir)
     out = os.path.join(tmp_dir, 'main')
-    # 路径加双引号防止空格问题；Windows 子进程无控制台时 MinGW DLL 可能崩溃，
-    # 用 -static-libgcc/-static-libstdc++ 静态链接运行时，消除 DLL 依赖。
-    _win = sys.platform == 'win32'
-    _static = '-static-libgcc -static-libstdc++' if _win else ''
-    _COMPILE_CMD = {
-        'C':    f'gcc -O2 {_static} -o "{out}" "{src}"',
-        'C++':  f'g++ -O2 -std=c++17 {_static} -o "{out}" "{src}"',
-        'Java': f'javac "{src}"',
-    }
-    cmd = _COMPILE_CMD[lang]
+    windows = sys.platform == 'win32'
+    if lang == 'Java':
+        cmd = ['javac', src]
+    elif windows and settings.JUDGE_WINDOWS_USE_MSVC:
+        standard = ['/std:c++17', '/EHsc', '/Zc:__cplusplus'] if lang == 'C++' else ['/std:c17']
+        cmd = ['cl.exe', '/nologo', '/utf-8', '/O2', '/MT', *standard, '/Femain.exe', src]
+    else:
+        static_runtime = ['-static-libgcc', '-static-libstdc++'] if windows else []
+        compiler = ['g++', '-std=c++17'] if lang == 'C++' else ['gcc']
+        cmd = [*compiler, '-O2', *static_runtime, '-o', out, src]
     try:
         proc = subprocess.run(
-            cmd, shell=True, capture_output=True,
+            cmd, capture_output=True,
             encoding='utf-8', errors='replace',
             timeout=30, cwd=tmp_dir,
         )
@@ -152,6 +152,8 @@ def _direct_compile(lang: str, tmp_dir: str) -> tuple:
         return proc.returncode == 0, err[:2000]
     except subprocess.TimeoutExpired:
         return False, '编译超时'
+    except OSError as exc:
+        return False, f'无法启动编译器 {cmd[0]}：{exc}'
 
 
 def _direct_run(lang: str, tmp_dir: str, input_data: str, timeout_sec: float) -> tuple:
