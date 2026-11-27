@@ -24,12 +24,13 @@ def judge_submission(submission, problem):
     编译 → 逐测试点运行 → 对比输出 → 收集每个测试点结果
     代码执行通过 sandbox 模块隔离（生产需开启 USE_DOCKER_SANDBOX=True）。
     """
-    test_cases = problem.test_cases.all().order_by('sort_order')
-    if not test_cases.exists():
+    test_cases = list(problem.test_cases.order_by('sort_order'))
+    if not test_cases:
         # 无测试点：不评判，不计入 AC/Rating，等管理员补充测试数据后重测
         submission.status = 'NT'
+        submission.score = 0
         submission.test_results = []
-        submission.save(update_fields=['status', 'test_results'])
+        submission.save(update_fields=['status', 'score', 'test_results'])
         _async_ai_feedback(submission.id, problem.id)
         return {'status': 'NT', 'ai_feedback': ''}
 
@@ -43,9 +44,10 @@ def judge_submission(submission, problem):
     ok, err_msg = compile_code(lang, tmp_dir)
     if not ok:
         submission.status = 'CE'
+        submission.score = 0
         submission.error_info = err_msg[:2000]
         submission.test_results = []
-        submission.save(update_fields=['status', 'error_info', 'test_results'])
+        submission.save(update_fields=['status', 'score', 'error_info', 'test_results'])
         _async_ai_feedback(submission.id, problem.id)
         return {'status': 'CE', 'error_info': err_msg[:2000], 'ai_feedback': ''}
 
@@ -87,11 +89,13 @@ def judge_submission(submission, problem):
     # ── 保存结果 ──────────────────────────────────────────────────────────
     submission.status = overall_status
     submission.test_results = case_results
+    passed = sum(case['status'] == 'AC' for case in case_results)
+    submission.score = 100 * passed // len(case_results)
     if overall_status == 'AC':
         submission.time_used = max_time_ms
     elif overall_status == 'RE':
         submission.error_info = last_re_error
-    submission.save(update_fields=['status', 'time_used', 'error_info', 'test_results'])
+    submission.save(update_fields=['status', 'score', 'time_used', 'error_info', 'test_results'])
 
     if overall_status == 'AC':
         already_ac = Submission.objects.filter(

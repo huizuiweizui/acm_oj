@@ -159,6 +159,7 @@ class Submission(models.Model):
     language = models.CharField('编程语言', max_length=10, choices=LANGUAGE_CHOICES, default='C++')
     code = models.TextField('源代码')
     status = models.CharField('评测结果', max_length=10, choices=STATUS_CHOICES, default='Pending', db_index=True)
+    score = models.IntegerField('得分', default=0, db_default=0)
     time_used = models.IntegerField('耗时(ms)', null=True, blank=True)
     memory_used = models.IntegerField('内存(KB)', null=True, blank=True)
     error_info = models.TextField('错误信息', blank=True, default='')

@@ -14,7 +14,7 @@
             </div>
         </div>
         <table class="problem-table">
-            <thead><tr><th>#</th><th>用户</th><th>题目</th><th>结果</th><th>语言</th><th>耗时</th><th>时间</th></tr></thead>
+            <thead><tr><th>#</th><th>用户</th><th>题目</th><th>结果</th><th>得分</th><th>语言</th><th>耗时</th><th>时间</th></tr></thead>
             <tbody>
             {% for s in page_obj %}
             <tr>
@@ -22,12 +22,13 @@
                 <td><a href="{% url 'profile' s.user.id %}">{{ s.user.username }}</a></td>
                 <td><a href="{% url 'problem_detail' s.problem.id %}" class="problem-title-link">#{{ s.problem.id }} {{ s.problem.title }}</a></td>
                 <td><span class="status-badge {{ s.status|status_class }}"><span class="status-dot"></span>{{ s.status }}</span></td>
+                <td class="text-mono">{% if s.status == 'Pending' or s.status == 'Judging' %}—{% else %}{{ s.score }}{% endif %}</td>
                 <td class="text-muted">{{ s.language }}</td>
                 <td class="text-mono text-muted">{% if s.time_used %}{{ s.time_used }}ms{% else %}-{% endif %}</td>
                 <td class="text-muted" style="font-size:0.82rem;">{{ s.submitted_at|timesince }}前</td>
             </tr>
             {% empty %}
-            <tr><td colspan="7"><div class="empty-state"><p>暂无提交记录</p></div></td></tr>
+            <tr><td colspan="8"><div class="empty-state"><p>暂无提交记录</p></div></td></tr>
             {% endfor %}
             </tbody>
         </table>

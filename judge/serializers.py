@@ -134,7 +134,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         model = Submission
         fields = [
             'id', 'username', 'problem_id', 'problem_title',
-            'language', 'status', 'time_used', 'memory_used', 'submitted_at',
+            'language', 'status', 'score', 'time_used', 'memory_used', 'submitted_at',
         ]
         read_only_fields = fields
 
