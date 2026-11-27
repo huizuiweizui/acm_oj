@@ -29,6 +29,10 @@
                     <div class="text-mono">{{ submission.language }}</div>
                 </div>
                 <div>
+                    <div class="sub-meta-label">得分</div>
+                    <div class="text-mono">{% if submission.status == 'Pending' or submission.status == 'Judging' %}—{% else %}{{ submission.score }} / 100{% endif %}</div>
+                </div>
+                <div>
                     <div class="sub-meta-label">用时</div>
                     <div class="text-mono">{% if submission.time_used %}{{ submission.time_used }}ms{% else %}-{% endif %}</div>
                 </div>

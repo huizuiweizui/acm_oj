@@ -185,6 +185,7 @@ def submit_code(request, problem_id):
         'submission_id': submission.id,
         'result': {
             'status': result['status'],
+            'score': submission.score,
             'time_used': result.get('time_used'),
             'memory_used': result.get('memory_used'),
             'error_info': result.get('error_info', ''),

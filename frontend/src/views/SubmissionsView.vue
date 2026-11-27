@@ -85,6 +85,7 @@ onMounted(fetchSubmissions)
             <th width="110">用户</th>
             <th>题目</th>
             <th width="130">结果</th>
+            <th width="70">得分</th>
             <th width="80">语言</th>
             <th width="80">耗时</th>
             <th width="100">时间</th>
@@ -108,12 +109,13 @@ onMounted(fetchSubmissions)
               </RouterLink>
             </td>
             <td><StatusBadge :status="s.status" /></td>
+            <td>{{ ['Pending', 'Judging'].includes(s.status) ? '—' : s.score }}</td>
             <td class="lang-cell">{{ s.language }}</td>
             <td class="time-used-cell">{{ s.time_used ? s.time_used + 'ms' : '-' }}</td>
             <td class="time-cell">{{ timeAgo(s.submitted_at) }}</td>
           </tr>
           <tr v-if="!loading && submissions.length === 0">
-            <td colspan="7" class="empty">暂无提交记录</td>
+            <td colspan="8" class="empty">暂无提交记录</td>
           </tr>
         </tbody>
       </table>

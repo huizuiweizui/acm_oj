@@ -43,6 +43,7 @@ function tcClass(s) { return STATUS_COLOR[s] ?? 'tc-muted' }
     <template v-else>
       <div :class="['result-row', isAC && 'ac-flash']">
         <StatusBadge :status="submission.status" />
+        <span v-if="submission.score != null && !['Pending', 'Judging'].includes(submission.status)" class="stat">得分 {{ submission.score }} / 100</span>
         <span v-if="submission.time_used != null" class="stat">{{ submission.time_used }} ms</span>
         <span v-if="submission.memory_used != null" class="stat">
           {{ (submission.memory_used / 1024).toFixed(1) }} MB

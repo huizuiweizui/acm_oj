@@ -468,7 +468,9 @@ def _run_judge_in_background(submission_id: int, problem_id: int):
         _judge(sub, prob)
     except Exception:
         # 评测异常时把状态置为 RE，保证前端不会一直轮询
-        Submission.objects.filter(id=submission_id).update(status='RE', error_info='Internal judge error')
+        Submission.objects.filter(id=submission_id, status__in=['Pending', 'Judging']).update(
+            status='RE', score=0, test_results=[], error_info='Internal judge error',
+        )
 
 
 class SubmitCodeAPIView(APIView):
