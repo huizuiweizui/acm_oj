@@ -131,7 +131,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="login-page">
+  <div class="login-page" lang="zh-CN">
     <div class="left-panel">
       <svg
         ref="svgRef"
@@ -219,8 +219,8 @@ async function submit() {
           </svg>
         </div>
 
-        <h1 class="form-title">Create account</h1>
-        <p class="form-subtitle">Join us and start competing</p>
+        <h1 class="form-title">注册账号</h1>
+        <p class="form-subtitle">注册后即可练习题目、参加比赛。</p>
 
         <div v-if="error" class="error-banner">{{ error }}</div>
 
@@ -230,7 +230,7 @@ async function submit() {
             <input
               v-model="username"
               type="text"
-              placeholder="Enter your username"
+              placeholder="请输入用户名"
               autocomplete="username"
               @focus="focusState = 'username'"
               @blur="focusState = 'none'"
@@ -238,12 +238,12 @@ async function submit() {
           </div>
 
           <div class="field">
-            <label>Password <span class="hint">（至少 6 位）</span></label>
+            <label>密码 <span class="hint">（至少 6 位）</span></label>
             <div class="pw-wrap">
               <input
                 v-model="password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="••••••••"
+                placeholder="请设置密码"
                 autocomplete="new-password"
                 @focus="focusState = 'password'"
                 @blur="focusState = 'none'"
@@ -251,6 +251,7 @@ async function submit() {
               <button
                 type="button"
                 class="eye-btn"
+                aria-label="按住显示密码"
                 @mousedown="showPassword = true"
                 @mouseup="showPassword = false"
                 @mouseleave="showPassword = false"
@@ -265,11 +266,11 @@ async function submit() {
           </div>
 
           <div class="field">
-            <label>Confirm Password</label>
+            <label>确认密码</label>
             <input
               v-model="password2"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="••••••••"
+              placeholder="请再次输入密码"
               autocomplete="new-password"
               @focus="focusState = 'password2'"
               @blur="focusState = 'none'"
@@ -282,12 +283,12 @@ async function submit() {
             :disabled="loading"
             :class="{ success: registerState === 'success', failure: registerState === 'failure' }"
           >
-            {{ loading ? 'Creating...' : registerState === 'success' ? 'Welcome!' : 'Sign Up' }}
+            {{ loading ? '注册中…' : registerState === 'success' ? '注册成功' : '注册' }}
           </button>
         </form>
 
         <p class="signup-link">
-          Already have an account? <RouterLink to="/login">Log In</RouterLink>
+          已有账号？<RouterLink to="/login">立即登录</RouterLink>
         </p>
       </div>
     </div>
